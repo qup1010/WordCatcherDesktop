@@ -22,6 +22,13 @@ public partial class LookupWindow : Window
         _viewModel = viewModel;
         DataContext = _viewModel;
         _viewModel.RequestClose += OnRequestClose;
+        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LookupViewModel.HasResult) && _viewModel.HasResult)
+            ResultScroll.ScrollToTop();
     }
 
     private void OnRequestClose()
@@ -64,9 +71,9 @@ public partial class LookupWindow : Window
 
         // Keep the popup usable on small displays and guarantee the intended
         // card width even when SizeToContent measures a very long dictionary entry.
-        Width = 460;
-        MinWidth = 460;
-        MaxWidth = 460;
+        Width = 420;
+        MinWidth = 420;
+        MaxWidth = 420;
         MaxHeight = Math.Max(360, workArea.Height - 24);
         UpdateLayout();
 
@@ -176,6 +183,7 @@ public partial class LookupWindow : Window
     {
         _viewModel.CancelLookup();
         _viewModel.RequestClose -= OnRequestClose;
+        _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         base.OnClosed(e);
     }
 }

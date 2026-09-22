@@ -8,20 +8,23 @@
         xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
         mc:Ignorable="d"
         Title="Word Catcher 桌面伴侣"
-        Width="1080"
-        Height="720"
+        Width="1180"
+        Height="780"
         MinWidth="900"
         MinHeight="600"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
-        Background="#F4F6FA"
+        Background="#F8FAFC"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <converters:SyncStatusLabelConverter x:Key="SyncStatusLabel" />
+        <converters:LocalDateTimeConverter x:Key="LocalTime" />
         <converters:StringToVisibilityConverter x:Key="StringToVis" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         
         <Style TargetType="Button">
             <Setter Property="Padding" Value="14,8" />
@@ -178,11 +181,11 @@
         </Style>
 
         <Style x:Key="TabItemStyle" TargetType="TabItem">
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="14,11" />
-            <Setter Property="Margin" Value="12,3" />
-            <Setter Property="Foreground" Value="#94A3B8" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="10,2" />
+            <Setter Property="Foreground" Value="#64748B" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
@@ -190,7 +193,7 @@
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="TabBorder"
                                 Background="Transparent"
-                                CornerRadius="9"
+                                CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Stretch"
@@ -198,12 +201,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#172033" />
-                                <Setter Property="Foreground" Value="#E2E8F0" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#F1F5F9" />
+                                <Setter Property="Foreground" Value="#1E293B" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#312E81" />
-                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#EEF2FF" />
+                                <Setter Property="Foreground" Value="#4F46E5" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -230,7 +233,9 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <Border Background="#0F172A">
+                            <Border Background="#F8FAFC"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="0,0,1,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -238,19 +243,19 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
-                                    <StackPanel Margin="22,26,18,22">
+                                    <StackPanel Margin="18,22,16,18">
                                         <StackPanel Orientation="Horizontal">
-                                            <Border Width="36" Height="36" Background="#4F46E5" CornerRadius="10">
+                                            <Border Width="34" Height="34" Background="#4F46E5" CornerRadius="8">
                                                 <TextBlock Text="W"
-                                                           FontSize="18"
+                                                           FontSize="17"
                                                            FontWeight="Bold"
                                                            Foreground="White"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center" />
                                             </Border>
                                             <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Text="Word Catcher" Foreground="White" FontSize="16" FontWeight="Bold" />
-                                                <TextBlock Text="桌面伴侣" Foreground="#64748B" FontSize="11" />
+                                                <TextBlock Text="Word Catcher" Foreground="#0F172A" FontSize="15" FontWeight="Bold" />
+                                                <TextBlock Text="桌面伴侣" Foreground="#94A3B8" FontSize="11" Margin="0,1,0,0" />
                                             </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
@@ -258,23 +263,33 @@
                                     <ItemsPresenter Grid.Row="1" />
 
                                     <Border Grid.Row="2"
-                                            Background="#172033"
-                                            CornerRadius="9"
-                                            Margin="14,12,14,18"
-                                            Padding="12,9">
+                                            Background="#FFFFFF"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Margin="12,12,12,16"
+                                            Padding="12,10">
                                         <StackPanel>
-                                            <TextBlock Text="快速取词" Foreground="#64748B" FontSize="10" />
-                                            <TextBlock Text="Alt + Q" Foreground="#C7D2FE" FontSize="13" FontWeight="SemiBold" Margin="0,2,0,0" />
+                                            <TextBlock Text="快速取词" Foreground="#64748B" FontSize="11" />
+                                            <Border Background="#F1F5F9"
+                                                    BorderBrush="#CBD5E1"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    HorizontalAlignment="Left"
+                                                    Margin="0,5,0,0"
+                                                    Padding="7,2">
+                                                <TextBlock Text="{Binding AppliedHotkey}" Foreground="#334155" FontSize="12" FontWeight="SemiBold" />
+                                            </Border>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Column="1" Background="#F6F7FB">
+                            <Border Grid.Column="1" Background="#F8FAFC">
                                 <ContentPresenter ContentSource="SelectedContent"
                                                   ContentTemplate="{TemplateBinding SelectedContentTemplate}"
                                                   ContentStringFormat="{TemplateBinding SelectedContentStringFormat}"
-                                                  Margin="28,22,28,26" />
+                                                  Margin="24,20,24,22" />
                             </Border>
                         </Grid>
                     </ControlTemplate>
@@ -295,7 +310,7 @@
                         <TextBlock Text="生词库" />
                     </StackPanel>
                 </TabItem.Header>
-                <Grid>
+                <Grid TextElement.FontWeight="Normal" TextElement.Foreground="#334155">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -307,371 +322,465 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="生词库" FontSize="25" FontWeight="Bold" Foreground="#0F172A" />
+                            <TextBlock Text="生词库" FontSize="24" FontWeight="Bold" Foreground="#0F172A" />
                             <TextBlock Text="整理收藏的词条，并回看它们出现时的真实语境"
                                        FontSize="12" Foreground="#64748B" Margin="0,4,0,0" />
                         </StackPanel>
-                        <Border Grid.Column="1" Background="#EEF2FF" CornerRadius="9" Padding="11,7" VerticalAlignment="Center">
-                            <TextBlock Foreground="#4F46E5" FontSize="12" FontWeight="SemiBold">
-                                <Run Text="共 " /><Run Text="{Binding Words.Count, Mode=OneWay}" /><Run Text=" 个词条" />
-                            </TextBlock>
-                        </Border>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="导出备份 (JSON)"
+                                    Command="{Binding ExportJsonCommand}"
+                                    Margin="0,0,10,0"
+                                    Padding="12,6"
+                                    Background="#FFFFFF"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    Foreground="#475569"
+                                    FontSize="12"
+                                    Cursor="Hand" />
+                            <Border Background="#EEF2FF" CornerRadius="8" Padding="12,6">
+                                <TextBlock Foreground="#4F46E5" FontSize="12" FontWeight="SemiBold">
+                                    <Run Text="已显示 " /><Run Text="{Binding Words.Count, Mode=OneWay}" /><Run Text=" 个词条" />
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
                     </Grid>
 
                     <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="330" />
-                        <ColumnDefinition Width="18" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="300" MinWidth="250" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Left: Search & Word List -->
-                    <Border Grid.Column="0"
-                            Background="#FFFFFF"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="14">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <!-- Search Bar -->
-                            <Grid Grid.Row="0" Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Grid>
-                                    <TextBox x:Name="SearchBox"
-                                             Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
-                                             Padding="10,7"
-                                             FontSize="13"
-                                             VerticalContentAlignment="Center"
-                                             BorderBrush="#CBD5E1"
-                                             BorderThickness="1"
-                                             ToolTip="输入单词或释义，按 Enter 搜索"
-                                             KeyDown="SearchBox_KeyDown" />
-                                    <TextBlock Text="搜索单词或释义"
-                                               Margin="12,0,0,0"
-                                               VerticalAlignment="Center"
-                                               Foreground="#94A3B8"
-                                               IsHitTestVisible="False">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </Grid>
-                                <Button Grid.Column="1"
-                                        Content="搜索"
-                                        Command="{Binding SearchCommand}"
-                                        Margin="6,0,0,0"
-                                        Padding="14,7"
-                                        Background="#4F46E5"
-                                        Foreground="White"
-                                        BorderThickness="0"
-                                        Cursor="Hand" />
-                            </Grid>
-
-                            <!-- Words ListBox -->
-                            <Grid Grid.Row="1">
-                                <ListBox x:Name="WordList"
-                                         ItemsSource="{Binding Words}"
-                                         SelectedItem="{Binding SelectedWord, Mode=TwoWay}"
-                                         BorderThickness="0"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Padding="6,8"
-                                                    Background="Transparent">
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="Auto" />
-                                                    </Grid.RowDefinitions>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding DisplayWord}"
-                                                                   FontWeight="Bold"
-                                                                   FontSize="15"
-                                                                   Foreground="#0F172A" />
-                                                        <TextBlock Text="{Binding Reading}"
-                                                                   FontSize="12"
-                                                                   Foreground="#6B7280"
-                                                                   Margin="6,2,0,0" />
-                                                        <TextBlock Text="{Binding PartOfSpeech}"
-                                                                   FontSize="11"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="#059669"
-                                                                   Margin="6,2,0,0" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Row="1"
-                                                               Text="{Binding Definition}"
-                                                               FontSize="12"
-                                                               Foreground="#64748B"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               Margin="0,3,0,0" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                                    <TextBlock Text="&#xE8F1;" FontFamily="Segoe Fluent Icons" FontSize="28"
-                                               Foreground="#CBD5E1" HorizontalAlignment="Center" />
-                                    <TextBlock Text="还没有收藏的单词" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="#64748B" Margin="0,12,0,0" />
-                                    <TextBlock Text="选中文字并按 Alt + Q 开始取词"
-                                               FontSize="12" Foreground="#94A3B8" Margin="0,4,0,0" />
-                                    <StackPanel.Style>
-                                        <Style TargetType="StackPanel">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasItems, ElementName=WordList}" Value="False">
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </StackPanel.Style>
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- Bottom Action: Export Backup -->
-                            <Button Grid.Row="2"
-                                    Content="导出备份 (JSON)"
-                                    Command="{Binding ExportJsonCommand}"
-                                    Margin="0,10,0,0"
-                                    Padding="10,6"
-                                    Background="#F1F5F9"
-                                    Foreground="#475569"
-                                    BorderThickness="0"
-                                    Cursor="Hand" />
-                        </Grid>
-                    </Border>
-
-                    <!-- Right: Word Detail & Occurrences / Edit View -->
-                    <Border Grid.Column="2"
-                            Background="#FFFFFF"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="24">
-                        <Grid>
-                            <!-- No selection prompt -->
-                            <TextBlock Text="请在左侧选择词条查看语境或进行编辑"
-                                       Foreground="#9CA3AF"
-                                       FontSize="14"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding SelectedWord}" Value="{x:Null}">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-
-                            <!-- Selected Word View / Edit Area -->
+                        <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="#E2E8F0" ResizeBehavior="PreviousAndNext" ToolTip="拖动调整列表与详情宽度" />
+                        <!-- Left: Search & Word List -->
+                        <Border Grid.Column="0"
+                                Background="#FFFFFF"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="12">
                             <Grid>
-                                <Grid.Style>
-                                    <Style TargetType="Grid">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding SelectedWord}" Value="{x:Null}">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Grid.Style>
-
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <!-- Header / Edit Form -->
-                                <StackPanel Grid.Row="0">
-                                    <!-- Normal Display Mode -->
-                                    <StackPanel>
+                                <!-- Search Bar -->
+                                <Grid Grid.Row="0" Margin="0,0,0,10" IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid>
+                                        <TextBox x:Name="SearchBox"
+                                                 Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="10,6"
+                                                 FontSize="12"
+                                                 VerticalContentAlignment="Center"
+                                                 BorderBrush="#CBD5E1"
+                                                 BorderThickness="1"
+                                                 ToolTip="输入即搜索；Esc 清空搜索"
+                                                 KeyDown="SearchBox_KeyDown" />
+                                        <TextBlock Text="搜索单词或释义"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="#94A3B8"
+                                                   FontSize="12"
+                                                   IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                    <Button Grid.Column="1"
+                                            Content="搜索"
+                                            Command="{Binding SearchCommand}"
+                                            Margin="6,0,0,0"
+                                            Padding="14,6"
+                                            Background="#4F46E5"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            Cursor="Hand" />
+                                </Grid>
+
+                                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                    <ProgressBar Height="3" IsIndeterminate="True" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <CheckBox Content="紧凑列表" IsChecked="{Binding IsCompact}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <Button Content="清空搜索" IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}" Command="{Binding ClearSearchCommand}" Padding="8,4" Visibility="{Binding SearchQuery, Converter={StaticResource StringToVis}}" />
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" Foreground="#64748B" />
+                                    <Button Content="加载更多词条" Command="{Binding LoadMoreCommand}" Margin="0,8,0,0" IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" Visibility="{Binding HasMore, Converter={StaticResource BoolToVis}}" />
+                                </StackPanel>
+                                <!-- Words ListBox -->
+                                <Grid Grid.Row="1">
+                                    <ListBox x:Name="WordList"
+                                             ItemsSource="{Binding Words}"
+                                             IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}"
+                                             VirtualizingPanel.IsVirtualizing="True"
+                                             VirtualizingPanel.VirtualizationMode="Recycling"
+                                             ScrollViewer.CanContentScroll="True"
+                                             SelectedItem="{Binding SelectedWord, Mode=TwoWay}"
+                                             BorderThickness="0"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Padding="8,8"
+                                                        Background="Transparent">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
+                                                        <WrapPanel>
+                                                            <TextBlock Text="{Binding DisplayWord}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="14"
+                                                                       Foreground="#0F172A" />
+                                                            <TextBlock Text="{Binding Reading}"
+                                                                       FontSize="12"
+                                                                       Foreground="#64748B"
+                                                                       Margin="6,1,0,0" />
+                                                            <Border Background="#ECFDF5"
+                                                                    CornerRadius="3"
+                                                                    Padding="4,1"
+                                                                    Margin="6,1,0,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Visibility="{Binding PartOfSpeech, Converter={StaticResource StringToVis}}">
+                                                                <TextBlock Text="{Binding PartOfSpeech}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#059669" />
+                                                            </Border>
+                                                        </WrapPanel>
+                                                        <TextBlock Grid.Row="1"
+                                                                   Text="{Binding Definition}"
+                                                                   FontSize="12"
+                                                                   Foreground="#64748B"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,3,0,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe Fluent Icons" FontSize="28"
+                                                   Foreground="#CBD5E1" HorizontalAlignment="Center" />
+                                        <TextBlock Text="{Binding EmptyMessage}" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="#64748B" Margin="0,12,0,0" />
+                                        <TextBlock Text="尝试其他关键词，或通过取词添加收藏"
+                                                   FontSize="11" TextWrapping="Wrap" Foreground="#94A3B8" Margin="0,4,0,0" />
                                         <StackPanel.Style>
                                             <Style TargetType="StackPanel">
-                                                <Setter Property="Visibility" Value="Visible" />
+                                                <Setter Property="Visibility" Value="Collapsed" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    <DataTrigger Binding="{Binding HasItems, ElementName=WordList}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </StackPanel.Style>
-
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding SelectedWord.DisplayWord}"
-                                                       FontSize="28"
-                                                       FontWeight="Bold"
-                                                       Foreground="#0F172A" />
-                                            <TextBlock Text="{Binding SelectedWord.Reading}"
-                                                       FontSize="15"
-                                                       Foreground="#6B7280"
-                                                       Margin="10,0,0,0"
-                                                       VerticalAlignment="Center" />
-                                            <Border Margin="10,0,0,0"
-                                                    Background="#ECFDF5"
-                                                    CornerRadius="4"
-                                                    Padding="6,2"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding SelectedWord.PartOfSpeech}"
-                                                           FontSize="12"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#059669" />
-                                            </Border>
-                                        </StackPanel>
-
-                                        <TextBlock Text="{Binding SelectedWord.Definition}"
-                                                   FontSize="15"
-                                                   LineHeight="24"
-                                                   Foreground="#1E293B"
-                                                   TextWrapping="Wrap"
-                                                   Margin="0,12,0,8" />
-
-                                        <Border Background="#FFFBEB"
-                                                CornerRadius="9"
-                                                Padding="12,8"
-                                                Margin="0,4,0,10"
-                                                Visibility="{Binding SelectedWord.MemoryHook, Converter={StaticResource StringToVis}}">
-                                            <TextBlock Foreground="#92400E" FontSize="13">
-                                                <Bold>💡 记忆线索: </Bold>
-                                                <Run Text="{Binding SelectedWord.MemoryHook}" />
-                                            </TextBlock>
-                                        </Border>
                                     </StackPanel>
-
-                                    <!-- Edit Mode Form -->
-                                    <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="单词 / 原形:" FontSize="12" Foreground="#6B7280" Margin="0,2" />
-                                        <TextBox Text="{Binding EditWordText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,6" />
-
-                                        <TextBlock Text="音标:" FontSize="12" Foreground="#6B7280" Margin="0,2" />
-                                        <TextBox Text="{Binding EditReading, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,6" />
-
-                                        <TextBlock Text="词性:" FontSize="12" Foreground="#6B7280" Margin="0,2" />
-                                        <TextBox Text="{Binding EditPartOfSpeech, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,6" />
-
-                                        <TextBlock Text="释义:" FontSize="12" Foreground="#6B7280" Margin="0,2" />
-                                        <TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}"
-                                                 Padding="6,4"
-                                                 Height="60"
-                                                 AcceptsReturn="True"
-                                                 TextWrapping="Wrap"
-                                                 Margin="0,0,0,6" />
-
-                                        <TextBlock Text="记忆线索:" FontSize="12" Foreground="#6B7280" Margin="0,2" />
-                                        <TextBox Text="{Binding EditMemoryHook, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
-
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <Button Content="保存修改" Command="{Binding SaveEditCommand}" Padding="12,5" Background="#4F46E5" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Cursor="Hand" />
-                                            <Button Content="取消" Command="{Binding CancelEditCommand}" Padding="12,5" Background="#E5E7EB" Foreground="#374151" BorderThickness="0" Cursor="Hand" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <!-- Middle: Occurrences List -->
-                                <GroupBox Grid.Row="1"
-                                          Header="语境捕获记录"
-                                          Margin="0,12,0,10"
-                                          Padding="8"
-                                          FontSize="12"
-                                          Foreground="#4B5563">
-                                    <Grid>
-                                        <ListBox x:Name="OccurrenceList"
-                                                 ItemsSource="{Binding Occurrences}"
-                                                 BorderThickness="0"
-                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Padding="8,9" Background="#F8FAFC" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding Sentence}"
-                                                                       FontSize="13"
-                                                                       Foreground="#1F2937"
-                                                                       TextWrapping="Wrap"
-                                                                       FontWeight="Medium" />
-                                                            <TextBlock Text="{Binding ContextTranslation}"
-                                                                       FontSize="12"
-                                                                       Foreground="#6B7280"
-                                                                       TextWrapping="Wrap"
-                                                                       Margin="0,3,0,0" />
-                                                            <TextBlock FontSize="11"
-                                                                       Foreground="#94A3B8"
-                                                                       Margin="0,5,0,0">
-                                                                <Run Text="来源  " />
-                                                                <Run Text="{Binding SourceProcess}" FontWeight="SemiBold" />
-                                                                <Run Text=" · " />
-                                                                <Run Text="{Binding SourceWindowTitle}" />
-                                                                <Run Text=" · " />
-                                                                <Run Text="{Binding CapturedAtUtc, StringFormat='yyyy-MM-dd HH:mm'}" />
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <StackPanel.Style>
-                                                <Style TargetType="StackPanel">
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding ElementName=OccurrenceList, Path=HasItems}" Value="True">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </StackPanel.Style>
-                                            <TextBlock Text="暂无语境记录" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Center" />
-                                            <TextBlock Text="保存一次查词后，会在这里保留原句与来源"
-                                                       FontSize="11"
-                                                       Foreground="#94A3B8"
-                                                       Margin="0,4,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </GroupBox>
-
-                                <!-- Bottom Action Buttons -->
-                                <StackPanel Grid.Row="2"
-                                            Orientation="Horizontal"
-                                            HorizontalAlignment="Right">
-                                    <Button Content="编辑"
-                                            Command="{Binding StartEditCommand}"
-                                            Padding="14,6"
-                                            Margin="0,0,8,0"
-                                            Background="#F3F4F6"
-                                            Foreground="#374151"
-                                            BorderThickness="0"
-                                            Cursor="Hand" />
-                                    <Button Content="删除词条"
-                                            Command="{Binding DeleteWordCommand}"
-                                            Padding="14,6"
-                                            Background="#FEE2E2"
-                                            Foreground="#B91C1C"
-                                            BorderThickness="0"
-                                            Cursor="Hand" />
-                                </StackPanel>
+                                </Grid>
                             </Grid>
-                        </Grid>
-                    </Border>
+                        </Border>
+
+                        <!-- Right: Word Detail & Occurrences / Edit View -->
+                        <Border Grid.Column="2"
+                                Background="#FFFFFF"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="22">
+                            <Grid>
+                                <!-- No selection prompt -->
+                                <TextBlock Text="请在左侧选择词条查看语境或进行编辑"
+                                           Foreground="#9CA3AF"
+                                           FontSize="14"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedWord}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <!-- Selected Word View / Edit Area -->
+                                <Grid>
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedWord}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Grid.Style>
+
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Scrollable Main Content -->
+                                    <ScrollViewer Grid.Row="0"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  Padding="0,0,10,0">
+                                        <StackPanel>
+                                            <!-- Normal Display Mode -->
+                                            <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
+                                                <!-- Header: Word, Reading, POS -->
+                                                <WrapPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding SelectedWord.DisplayWord}"
+                                                               TextWrapping="Wrap" FontSize="26"
+                                                               FontWeight="Bold"
+                                                               Foreground="#0F172A" />
+                                                    <TextBlock Text="{Binding SelectedWord.Reading}"
+                                                               FontSize="15"
+                                                               Foreground="#64748B"
+                                                               Margin="10,0,0,0"
+                                                               VerticalAlignment="Center" />
+                                                    <Border Margin="10,0,0,0"
+                                                            Background="#ECFDF5"
+                                                            CornerRadius="4"
+                                                            Padding="7,2"
+                                                            VerticalAlignment="Center"
+                                                            Visibility="{Binding SelectedWord.PartOfSpeech, Converter={StaticResource StringToVis}}">
+                                                        <TextBlock Text="{Binding SelectedWord.PartOfSpeech}"
+                                                                   FontSize="12"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#059669" />
+                                                    </Border>
+                                                </WrapPanel>
+
+                                                <!-- Definition Text -->
+                                                <Border Background="#F8FAFC" CornerRadius="8" Padding="14" Margin="0,16,0,14">
+                                                    <StackPanel>
+                                                        <TextBlock Text="释义" FontSize="12" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,8" />
+                                                        <TextBlock Text="{Binding DefinitionPreview}" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="#334155" Visibility="{Binding IsDefinitionExpanded, Converter={StaticResource InverseBoolToVis}}" />
+                                                        <Expander Header="完整释义" IsExpanded="{Binding IsDefinitionExpanded, Mode=TwoWay}" Margin="0,8,0,0" Foreground="#4F46E5">
+                                                            <TextBlock Text="{Binding SelectedWord.Definition}" FontSize="14" LineHeight="24" Foreground="#334155" TextWrapping="Wrap" Margin="0,10,0,0" />
+                                                        </Expander>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Memory Hook (Wrapping supported) -->
+                                                <Border Background="#FFFBEB"
+                                                        BorderBrush="#FEF3C7"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="12,10"
+                                                        Margin="0,0,0,14"
+                                                        Visibility="{Binding SelectedWord.MemoryHook, Converter={StaticResource StringToVis}}">
+                                                    <TextBlock Foreground="#92400E" FontSize="13" LineHeight="20" TextWrapping="Wrap">
+                                                        <Bold>💡 记忆线索: </Bold>
+                                                        <Run Text="{Binding SelectedWord.MemoryHook}" />
+                                                    </TextBlock>
+                                                </Border>
+
+                                                <!-- Occurrence Records Card -->
+                                                <Border Background="#F8FAFC"
+                                                        BorderBrush="#E2E8F0"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10"
+                                                        Padding="14"
+                                                        Margin="0,0,0,8">
+                                                    <Expander IsExpanded="True">
+                                                        <Expander.Header>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="语境捕获记录"
+                                                                       FontSize="13"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#334155" />
+                                                        <TextBlock Text="{Binding Occurrences.Count, StringFormat=（{0}）}" Foreground="#64748B" />
+                                                        </StackPanel>
+                                                        </Expander.Header>
+                                                        <StackPanel Margin="0,12,0,0">
+                                                        <ListBox x:Name="OccurrenceList"
+                                                                 ItemsSource="{Binding Occurrences}"
+                                                                 BorderThickness="0"
+                                                                 Background="Transparent"
+                                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Padding="12,10"
+                                                                            Background="#FFFFFF"
+                                                                            BorderBrush="#E2E8F0"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="8"
+                                                                            Margin="0,0,0,8">
+                                                                        <Expander IsExpanded="False">
+                                                                            <Expander.Header>
+                                                                            <TextBlock Text="{Binding Sentence}"
+                                                                                       FontSize="13"
+                                                                                       Foreground="#1E293B"
+                                                                                       TextTrimming="CharacterEllipsis" MaxWidth="260"
+                                                                                       FontWeight="Medium"
+                                                                                       LineHeight="20" />
+                                                                            </Expander.Header>
+                                                                            <StackPanel Margin="0,10,0,0">
+                                                                                <TextBlock Text="{Binding Sentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="#1E293B" />
+                                                                            <TextBlock Text="{Binding ContextTranslation}"
+                                                                                       FontSize="12"
+                                                                                       Foreground="#64748B"
+                                                                                       TextWrapping="Wrap"
+                                                                                       Margin="0,4,0,0"
+                                                                                       LineHeight="18" />
+                                                                            <TextBlock TextWrapping="Wrap" FontSize="11"
+                                                                                       Foreground="#94A3B8"
+                                                                                       Margin="0,6,0,0">
+                                                                                <Run Text="来源  " />
+                                                                                <Run Text="{Binding SourceProcess}" FontWeight="SemiBold" Foreground="#64748B" />
+                                                                                <Run Text=" · " />
+                                                                                <Run Text="{Binding SourceWindowTitle}" />
+                                                                                <Run Text=" · " />
+                                                                                <Run Text="{Binding CapturedAtUtc, Converter={StaticResource LocalTime}}" />
+                                                                            </TextBlock>
+                                                                        </StackPanel>
+                                                                        </Expander>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
+
+                                                        <StackPanel HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center"
+                                                                    Margin="0,16,0,12">
+                                                            <StackPanel.Style>
+                                                                <Style TargetType="StackPanel">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding ElementName=OccurrenceList, Path=HasItems}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </StackPanel.Style>
+                                                            <TextBlock Text="暂无语境记录"
+                                                                       FontWeight="Medium"
+                                                                       FontSize="13"
+                                                                       Foreground="#94A3B8"
+                                                                       HorizontalAlignment="Center" />
+                                                            <TextBlock Text="屏幕取词时会自动捕获并记录原句与来源"
+                                                                       FontSize="11"
+                                                                       Foreground="#CBD5E1"
+                                                                       HorizontalAlignment="Center"
+                                                                       Margin="0,3,0,0" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    </Expander>
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Edit Mode Form -->
+                                            <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="编辑词条" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,12" />
+
+                                                <TextBlock Text="单词 / 原形:" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding EditWordText, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" Margin="0,0,0,10" />
+
+                                                <TextBlock Text="音标:" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding EditReading, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" Margin="0,0,0,10" />
+
+                                                <TextBlock Text="词性:" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding EditPartOfSpeech, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" Margin="0,0,0,10" />
+
+                                                <TextBlock Text="释义:" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}"
+                                                         Padding="8,6"
+                                                         Height="100"
+                                                         AcceptsReturn="True"
+                                                         TextWrapping="Wrap"
+                                                         Margin="0,0,0,10" />
+
+                                                <TextBlock Text="记忆线索:" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding EditMemoryHook, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" Margin="0,0,0,14" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
+
+                                    <!-- Bottom Action Buttons -->
+                                    <Border Grid.Row="1"
+                                            BorderBrush="#F1F5F9"
+                                            BorderThickness="0,1,0,0"
+                                            Padding="0,12,0,0"
+                                            Margin="0,8,0,0">
+                                        <Grid>
+                                            <!-- Normal Mode Actions -->
+                                            <StackPanel Orientation="Horizontal"
+                                                        HorizontalAlignment="Right"
+                                                        Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
+                                                <Button Content="编辑"
+                                                        Command="{Binding StartEditCommand}"
+                                                        Padding="14,6"
+                                                        Margin="0,0,8,0"
+                                                        Background="#F1F5F9"
+                                                        Foreground="#334155"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand" />
+                                                <Button Content="删除词条"
+                                                        Command="{Binding DeleteWordCommand}"
+                                                        Padding="14,6"
+                                                        Background="#FEE2E2"
+                                                        Foreground="#B91C1C"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand" />
+                                            </StackPanel>
+
+                                            <!-- Edit Mode Actions -->
+                                            <StackPanel Orientation="Horizontal"
+                                                        HorizontalAlignment="Right"
+                                                        Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                                                <Button Content="保存修改"
+                                                        Command="{Binding SaveEditCommand}"
+                                                        Padding="14,6"
+                                                        Background="#4F46E5"
+                                                        Foreground="White"
+                                                        BorderThickness="0"
+                                                        Margin="0,0,8,0"
+                                                        Cursor="Hand" />
+                                                <Button Content="取消"
+                                                        Command="{Binding CancelEditCommand}"
+                                                        Padding="14,6"
+                                                        Background="#F1F5F9"
+                                                        Foreground="#475569"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Grid>
             </TabItem>
@@ -684,7 +793,7 @@
                         <TextBlock Text="Anki 同步" />
                     </StackPanel>
                 </TabItem.Header>
-                <Grid>
+                <Grid TextElement.FontWeight="Normal" TextElement.Foreground="#334155">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -704,6 +813,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <!-- Top Toolbar -->
@@ -713,12 +823,13 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Text="Anki 离线队列（离线时自动保留，启动 Anki 后自动写入）"
+                            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,10,0"
                                        FontSize="13"
                                        Foreground="#6B7280"
                                        VerticalAlignment="Center" />
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Padding="10,5" />
                                 <Button Content="重试选中任务"
                                         Command="{Binding RetrySelectedCommand}"
                                         Padding="12,5"
@@ -727,7 +838,7 @@
                                         Foreground="#374151"
                                         BorderThickness="0"
                                         Cursor="Hand" />
-                                <Button Content="全部重新同步"
+                                <Button Content="重试失败任务"
                                         Command="{Binding RetryAllCommand}"
                                         Padding="14,5"
                                         Background="#4F46E5"
@@ -737,6 +848,13 @@
                             </StackPanel>
                         </Grid>
 
+                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                            <ProgressBar Height="3" IsIndeterminate="True" Margin="0,0,0,8" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{Binding StatusMessage}" Foreground="#64748B" FontSize="12" TextWrapping="Wrap" />
+                            <Border Background="#FFF7ED" CornerRadius="8" Padding="10" Margin="0,8,0,0" Visibility="{Binding SelectedJob.LastError, Converter={StaticResource StringToVis}, FallbackValue=Collapsed}">
+                                <TextBlock Text="{Binding SelectedJob.LastError}" TextWrapping="Wrap" Foreground="#9A3412" FontSize="12" MaxHeight="90" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedJob.LastError}" />
+                            </Border>
+                        </StackPanel>
                         <!-- DataGrid of Sync Jobs -->
                         <Grid Grid.Row="1">
                         <DataGrid x:Name="SyncJobsGrid"
@@ -744,7 +862,7 @@
                                   SelectedItem="{Binding SelectedJob, Mode=TwoWay}"
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
-                                  SelectionMode="Single">
+                                  SelectionMode="Single" SelectionUnit="FullRow" EnableRowVirtualization="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="单词" Binding="{Binding Word.DisplayWord}" Width="120" />
                                 <DataGridTemplateColumn Header="状态" Width="100">
@@ -767,15 +885,15 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                                <TextBlock Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="重试次数" Binding="{Binding Attempts}" Width="70" />
-                                <DataGridTextColumn Header="最后错误 / 说明" Binding="{Binding LastError}" Width="*" />
-                                <DataGridTextColumn Header="下次尝试时间" Binding="{Binding NextAttemptAtUtc, StringFormat='HH:mm:ss'}" Width="110" />
-                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAtUtc, StringFormat='yyyy-MM-dd HH:mm'}" Width="140" />
+                                <DataGridTextColumn Header="最后错误 / 说明" Binding="{Binding LastError}" Width="*" MinWidth="160" />
+                                <DataGridTextColumn Header="下次尝试时间" Binding="{Binding NextAttemptAtUtc, Converter={StaticResource LocalTime}}" Width="110" />
+                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAtUtc, Converter={StaticResource LocalTime}}" Width="110" />
                             </DataGrid.Columns>
                         </DataGrid>
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
@@ -810,24 +928,38 @@
                         <TextBlock Text="设置" />
                     </StackPanel>
                 </TabItem.Header>
-                <Grid>
+                <Grid TextElement.FontWeight="Normal" TextElement.Foreground="#334155">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <StackPanel Margin="0,0,0,18">
                         <TextBlock Text="设置" FontSize="25" FontWeight="Bold" Foreground="#0F172A" />
                         <TextBlock Text="管理取词、离线词典、翻译服务和 Anki 集成"
                                    FontSize="12" Foreground="#64748B" Margin="0,4,0,0" />
                     </StackPanel>
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <StackPanel MaxWidth="820" HorizontalAlignment="Left" Margin="0,0,12,0">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}">
+                    <StackPanel MaxWidth="820" HorizontalAlignment="Stretch" Margin="0,0,12,0">
                         <!-- 1. 全局快捷键 -->
-                        <GroupBox Header="全局快捷键" Padding="14" Margin="0,0,0,16" BorderBrush="#E5E7EB">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="取词快捷键:" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBox Text="{Binding Hotkey, UpdateSourceTrigger=PropertyChanged}" Width="140" Padding="8,4" />
-                                <TextBlock Text="（默认 Alt+Q，修改后点击底部「保存所有设置」生效）" Foreground="#6B7280" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        <GroupBox Header="取词快捷键" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Foreground="#64748B" FontSize="12" Margin="0,0,0,12">
+                                    <Run Text="当前生效：" /><Run Text="{Binding AppliedHotkey, Mode=OneWay}" FontWeight="SemiBold" />
+                                </TextBlock>
+                                <WrapPanel>
+                                    <Border Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="8" Padding="16,9" MinWidth="140" Margin="0,0,8,8">
+                                        <TextBlock Text="{Binding Hotkey}" Foreground="#4338CA" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    </Border>
+                                    <Button x:Name="RecordHotkeyButton" Command="{Binding RecordHotkeyCommand}" Margin="0,0,8,8" MinHeight="40" Background="#4F46E5" Foreground="White" ToolTip="点击后直接按组合键，无需输入名称">
+                                        <TextBlock>
+                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="录入快捷键" /><Style.Triggers><DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True"><Setter Property="Text" Value="等待按键…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                        </TextBlock>
+                                    </Button>
+                                    <Button Content="取消录入" Command="{Binding CancelHotkeyRecordingCommand}" Margin="0,0,8,8" MinHeight="40" Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}" />
+                                    <Button Content="恢复默认" Command="{Binding ResetHotkeyCommand}" Margin="0,0,0,8" MinHeight="40" ToolTip="填入 Alt+Q，保存后生效" />
+                                </WrapPanel>
+                                <TextBlock Text="{Binding HotkeyHint}" TextWrapping="Wrap" Foreground="#64748B" FontSize="12" LineHeight="19" />
                             </StackPanel>
                         </GroupBox>
 
@@ -838,7 +970,7 @@
                                     <TextBlock Text="安装状态: " FontWeight="Medium" />
                                     <TextBlock Text="{Binding DictStatusText}" FontWeight="Bold" Foreground="#4F46E5" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding DictDetailsText}" Foreground="#4B5563" Margin="0,0,0,10" />
+                                <TextBlock Text="{Binding DictDetailsText}" TextWrapping="Wrap" Foreground="#4B5563" Margin="0,0,0,10" />
 
                                 <TextBlock Text="官方下载源 URL:" Foreground="#6B7280" Margin="0,0,0,3" />
                                 <TextBox Text="{Binding DictDownloadUrl, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" Margin="0,0,0,10" />
@@ -849,7 +981,7 @@
                                     <TextBlock Text="{Binding DictProgressText}" FontSize="12" Foreground="#6B7280" />
                                 </StackPanel>
 
-                                <StackPanel Orientation="Horizontal">
+                                <WrapPanel>
                                     <Button Content="在线下载并安装"
                                             Command="{Binding InstallDictFromUrlCommand}"
                                             IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
@@ -868,14 +1000,14 @@
                                             BorderThickness="0"
                                             Margin="0,0,8,0"
                                             Cursor="Hand" />
-                                    <Button Content="删除离线词典"
+                                    <Button Content="删除离线词典" IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
                                             Command="{Binding RemoveDictCommand}"
                                             Padding="12,6"
                                             Background="#FEE2E2"
                                             Foreground="#B91C1C"
                                             BorderThickness="0"
                                             Cursor="Hand" />
-                                </StackPanel>
+                                </WrapPanel>
 
                                 <!-- Attribution notice (CC BY-SA 4.0) -->
                                 <Border Background="#F9FAFB" CornerRadius="6" Padding="10" Margin="0,14,0,0">
@@ -974,7 +1106,7 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="API Key:" VerticalAlignment="Center" />
-                                    <TextBox Grid.Column="1" Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" />
+                                    <PasswordBox x:Name="ApiKeyBox" Grid.Column="1" PasswordChanged="ApiKeyBox_PasswordChanged" Padding="8,6" MinHeight="36" VerticalContentAlignment="Center" ToolTip="密钥仅用于当前 AI 配置，本地加密保存" AutomationProperties.Name="API Key" />
                                 </Grid>
 
                                 <Grid Margin="0,0,0,8">
@@ -1049,19 +1181,15 @@
                             <CheckBox Content="查词弹窗点击「保存」后自动关闭浮窗" IsChecked="{Binding ClosePopupAfterSave}" />
                         </GroupBox>
 
-                        <!-- Save All Settings Button -->
-                        <Button Content="保存所有设置"
-                                Command="{Binding SaveSettingsCommand}"
-                                Padding="20,10"
-                                Background="#4F46E5"
-                                Foreground="White"
-                                FontWeight="Bold"
-                                FontSize="15"
-                                HorizontalAlignment="Right"
-                                BorderThickness="0"
-                                Cursor="Hand" />
                     </StackPanel>
                 </ScrollViewer>
+                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="14,12" Margin="0,10,0,0" CornerRadius="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" MaxHeight="66" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0" />
+                        <Button Grid.Column="1" Content="保存所有设置" Command="{Binding SaveSettingsCommand}" Background="#4F46E5" Foreground="White" Padding="18,9" />
+                    </Grid>
+                </Border>
                 </Grid>
             </TabItem>
         </TabControl>

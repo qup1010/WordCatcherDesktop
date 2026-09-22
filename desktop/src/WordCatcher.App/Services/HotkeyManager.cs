@@ -13,6 +13,9 @@ public sealed class HotkeyManager : IDisposable
     private HwndSource? _hwndSource;
     private bool _isRegistered;
     private bool _isEnabled = true;
+    private int _registeredId = HotkeyId;
+    private uint _registeredModifiers;
+    private uint _registeredKey;
 
     public event Action? HotkeyTriggered;
 
@@ -26,6 +29,8 @@ public sealed class HotkeyManager : IDisposable
 
     public bool Register(string hotkeyText = "Alt+Q")
     {
+        if (!TryParseHotkey(hotkeyText, out var modifiers, out var vk)) return false;
+        if (_isRegistered && modifiers == _registeredModifiers && vk == _registeredKey) return true;
         if (_hwndSource == null)
         {
             var parameters = new HwndSourceParameters("WordCatcher_HotkeyReceiver")
@@ -36,20 +41,23 @@ public sealed class HotkeyManager : IDisposable
             _hwndSource.AddHook(HwndHook);
         }
 
-        Unregister();
-
-        ParseHotkey(hotkeyText, out var modifiers, out var vk);
-        modifiers |= NativeMethods.MOD_NOREPEAT;
-
         var handle = _hwndSource.Handle;
-        _isRegistered = NativeMethods.RegisterHotKey(handle, HotkeyId, modifiers, vk);
+        var nextId = _registeredId == HotkeyId ? HotkeyId + 1 : HotkeyId;
+        var registered = NativeMethods.RegisterHotKey(handle, nextId, modifiers | NativeMethods.MOD_NOREPEAT, vk);
 
-        if (!_isRegistered)
+        if (!registered)
         {
             var err = Marshal.GetLastWin32Error();
             _logger?.LogWarning("Failed to register hotkey '{Hotkey}'. Win32 Error: {Error}", hotkeyText, err);
             return false;
         }
+
+        // Acquire the new combination first. A conflict must never disable the old one.
+        Unregister();
+        _registeredId = nextId;
+        _registeredModifiers = modifiers;
+        _registeredKey = vk;
+        _isRegistered = true;
 
         _logger?.LogInformation("Global hotkey '{Hotkey}' registered successfully", hotkeyText);
         return true;
@@ -59,7 +67,7 @@ public sealed class HotkeyManager : IDisposable
     {
         if (_isRegistered && _hwndSource != null)
         {
-            NativeMethods.UnregisterHotKey(_hwndSource.Handle, HotkeyId);
+            NativeMethods.UnregisterHotKey(_hwndSource.Handle, _registeredId);
             _isRegistered = false;
         }
     }
@@ -71,7 +79,7 @@ public sealed class HotkeyManager : IDisposable
 
     private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == _registeredId)
         {
             if (_isEnabled)
             {
@@ -82,33 +90,28 @@ public sealed class HotkeyManager : IDisposable
         return IntPtr.Zero;
     }
 
-    private static void ParseHotkey(string text, out uint modifiers, out uint vk)
+    public static bool TryParseHotkey(string text, out uint modifiers, out uint vk)
     {
         modifiers = 0;
-        vk = NativeMethods.VK_C; // Default fallback
-
-        var parts = text.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
+        vk = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var parts = text.Split('+', StringSplitOptions.TrimEntries);
+        foreach (var part in parts)
         {
-            var upper = p.ToUpperInvariant();
+            var upper = part.ToUpperInvariant();
             if (upper == "ALT") modifiers |= NativeMethods.MOD_ALT;
             else if (upper is "CTRL" or "CONTROL") modifiers |= NativeMethods.MOD_CONTROL;
             else if (upper == "SHIFT") modifiers |= NativeMethods.MOD_SHIFT;
-            else if (upper == "WIN") modifiers |= NativeMethods.MOD_WIN;
-            else if (upper.Length == 1 && upper[0] >= 'A' && upper[0] <= 'Z')
+            else if (upper is "WIN" or "WINDOWS") modifiers |= NativeMethods.MOD_WIN;
+            else
             {
-                vk = upper[0];
-            }
-            else if (upper.Length == 1 && upper[0] >= '0' && upper[0] <= '9')
-            {
-                vk = upper[0];
+                if (vk != 0) return false;
+                if (upper.Length == 1 && (upper[0] is >= 'A' and <= 'Z' or >= '0' and <= '9')) vk = upper[0];
+                else if (upper.StartsWith('F') && int.TryParse(upper.AsSpan(1), out var key) && key is >= 1 and <= 24) vk = (uint)(0x70 + key - 1);
+                else return false;
             }
         }
-
-        if (vk == 0)
-        {
-            vk = 0x51; // 'Q'
-        }
+        return vk != 0 && modifiers != 0;
     }
 
     public void Dispose()

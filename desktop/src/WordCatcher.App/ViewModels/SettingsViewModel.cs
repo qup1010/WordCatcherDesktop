@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Text.Json;
+using System.Windows.Input;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -97,6 +99,75 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _closePopupAfterSave = true;
 
+    [ObservableProperty] private bool _isSaving;
+    [ObservableProperty] private string _statusMessage = "修改后点击保存，设置即可生效。";
+
+    public string AppliedHotkey => _settingsService.Current.Hotkey;
+    [ObservableProperty] private bool _isRecordingHotkey;
+    [ObservableProperty] private string _hotkeyHint = "点击录入，然后按下你想使用的组合键。";
+    private bool _hotkeyWasEnabled;
+
+    [RelayCommand]
+    private void RecordHotkey()
+    {
+        if (IsSaving || IsRecordingHotkey) return;
+        _hotkeyWasEnabled = _hotkeyManager.IsEnabled;
+        _hotkeyManager.SetEnabled(false);
+        IsRecordingHotkey = true;
+        HotkeyHint = "正在录入… 按组合键；Esc 取消，Tab 离开。";
+    }
+
+    [RelayCommand]
+    public void CancelHotkeyRecording()
+    {
+        if (!IsRecordingHotkey) return;
+        IsRecordingHotkey = false;
+        _hotkeyManager.SetEnabled(_hotkeyWasEnabled);
+        HotkeyHint = "已取消录入，快捷键未更改。";
+    }
+
+    [RelayCommand]
+    private void ResetHotkey()
+    {
+        CancelHotkeyRecording();
+        Hotkey = "Alt+Q";
+        HotkeyHint = "已填入默认 Alt+Q，点击保存后生效。";
+    }
+
+    public void CaptureHotkey(Key key, ModifierKeys modifiers)
+    {
+        if (!IsRecordingHotkey) return;
+        if (key == Key.Escape || key == Key.Tab) { CancelHotkeyRecording(); return; }
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin) return;
+        if (!TryFormatHotkey(key, modifiers, out var text))
+        {
+            HotkeyHint = "请使用 Ctrl / Alt / Shift / Win + 字母、数字或 F1–F24。";
+            return;
+        }
+        CancelHotkeyRecording();
+        Hotkey = text;
+        HotkeyHint = $"已录入 {text}，点击保存后生效；如被占用会保留原快捷键。";
+    }
+
+    public static bool TryFormatHotkey(Key key, ModifierKeys modifiers, out string text)
+    {
+        text = string.Empty;
+        string main;
+        if (key >= Key.A && key <= Key.Z) main = key.ToString();
+        else if (key >= Key.D0 && key <= Key.D9) main = ((int)key - (int)Key.D0).ToString();
+        else if (key >= Key.F1 && key <= Key.F24) main = key.ToString();
+        else return false;
+        var parts = new List<string>();
+        if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
+        if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
+        if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
+        if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add("Win");
+        if (parts.Count == 0) return false;
+        parts.Add(main);
+        text = string.Join("+", parts);
+        return true;
+    }
+
     private bool _profileEditorReady;
     private string _editingProfileId = string.Empty;
     private readonly Dictionary<string, string> _profileApiKeys = new(StringComparer.Ordinal);
@@ -157,6 +228,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
 
         RefreshDictStatus();
+        OnPropertyChanged(nameof(AppliedHotkey));
     }
 
     partial void OnActiveAiProfileIdChanged(string value)
@@ -243,54 +315,86 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveSettingsAsync()
     {
-        var s = _settingsService.Current;
-        s.Hotkey = Hotkey.Trim();
-        s.ExplainLanguage = ExplainLanguage.Trim();
-
-        SaveEditorToProfile(ActiveAiProfileId);
-        s.TranslationProfiles = AiProfiles.Select(CloneProfile).ToList();
-        var active = s.TranslationProfiles.FirstOrDefault(p => p.Id == ActiveAiProfileId)
-            ?? s.TranslationProfiles.First();
-        s.ActiveTranslationProfileId = active.Id;
-        // Keep the legacy property in sync for older settings readers and existing files.
-        s.Translation = CloneSettings(active);
-
-        s.Dictionary.DownloadUrl = DictDownloadUrl.Trim();
-
-        s.Anki.Enabled = AnkiEnabled;
-        s.Anki.Url = AnkiUrl.Trim();
-        s.Anki.DeckName = AnkiDeckName.Trim();
-        s.Anki.NoteTypeName = AnkiNoteTypeName.Trim();
-        s.Anki.ClozeContext = AnkiClozeContext;
-        s.Anki.TtsLang = AnkiTtsLang.Trim();
-
-        s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
-
-        await _settingsService.SaveSettingsAsync(s).ConfigureAwait(true);
-        _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();
-        if (_secretStore is IProfileSecretStore profileSecrets)
+        if (IsSaving) return;
+        if (IsRecordingHotkey) { StatusMessage = "请先完成或取消快捷键录入。"; return; }
+        var error = ValidateEditor();
+        if (error != null) { StatusMessage = error; return; }
+        IsSaving = true;
+        StatusMessage = "正在保存…";
+        var oldHotkey = _settingsService.Current.Hotkey;
+        var hotkeyChanged = !string.Equals(oldHotkey, Hotkey.Trim(), StringComparison.OrdinalIgnoreCase);
+        try
         {
-            foreach (var profile in s.TranslationProfiles)
+            if (hotkeyChanged && !_hotkeyManager.Register(Hotkey.Trim()))
             {
-                _profileApiKeys.TryGetValue(profile.Id, out var key);
-                await profileSecrets.SetApiKeyAsync(profile.Id, key ?? string.Empty).ConfigureAwait(true);
+                _hotkeyManager.Register(oldHotkey);
+                StatusMessage = "快捷键已被占用，未保存设置；请更换组合键。";
+                HotkeyHint = $"无法使用 {Hotkey}，当前仍使用 {oldHotkey}。请重新录入。";
+                return;
             }
-        }
-        else
-        {
-            await _secretStore.SetApiKeyAsync(ApiKey.Trim()).ConfigureAwait(true);
-        }
+            var s = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
+            s.Hotkey = Hotkey.Trim();
+            s.ExplainLanguage = ExplainLanguage.Trim();
 
-        var registered = _hotkeyManager.Register(s.Hotkey);
-        if (!registered)
-        {
-            MessageBox.Show($"快捷键「{s.Hotkey}」可能已被其他应用占用，请尝试更换。", "快捷键注册警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SaveEditorToProfile(ActiveAiProfileId);
+            s.TranslationProfiles = AiProfiles.Select(CloneProfile).ToList();
+            var active = s.TranslationProfiles.FirstOrDefault(p => p.Id == ActiveAiProfileId)
+                ?? s.TranslationProfiles.First();
+            s.ActiveTranslationProfileId = active.Id;
+            // Keep the legacy property in sync for older settings readers and existing files.
+            s.Translation = CloneSettings(active);
+
+            s.Dictionary.DownloadUrl = DictDownloadUrl.Trim();
+
+            s.Anki.Enabled = AnkiEnabled;
+            s.Anki.Url = AnkiUrl.Trim();
+            s.Anki.DeckName = AnkiDeckName.Trim();
+            s.Anki.NoteTypeName = AnkiNoteTypeName.Trim();
+            s.Anki.ClozeContext = AnkiClozeContext;
+            s.Anki.TtsLang = AnkiTtsLang.Trim();
+
+            s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
+
+            _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();
+            if (_secretStore is IProfileSecretStore profileSecrets)
+            {
+                foreach (var profile in s.TranslationProfiles)
+                {
+                    _profileApiKeys.TryGetValue(profile.Id, out var key);
+                    await profileSecrets.SetApiKeyAsync(profile.Id, key ?? string.Empty).ConfigureAwait(true);
+                }
+            }
+            else
+            {
+                await _secretStore.SetApiKeyAsync(ApiKey.Trim()).ConfigureAwait(true);
+            }
+
+            await _settingsService.SaveSettingsAsync(s).ConfigureAwait(true);
+            OnPropertyChanged(nameof(AppliedHotkey));
+            StatusMessage = "设置已保存并生效。";
+            HotkeyHint = $"当前快捷键：{s.Hotkey}。";
         }
-        else
+        catch (Exception)
         {
-            MessageBox.Show("设置已保存并生效！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (hotkeyChanged) _hotkeyManager.Register(oldHotkey);
+            StatusMessage = "设置未完整保存，请检查文件权限后重试；输入内容已保留。";
         }
+        finally { IsSaving = false; }
     }
+
+    private string? ValidateEditor()
+    {
+        if (!HotkeyManager.TryParseHotkey(Hotkey, out _, out _)) return "快捷键格式无效，例如 Alt+Q、Ctrl+Shift+D 或 Alt+F8。";
+        if (string.IsNullOrWhiteSpace(ExplainLanguage)) return "请填写释义语言。";
+        if (!IsWebUrl(ApiBaseUrl)) return "AI Base URL 必须是有效的 HTTP 或 HTTPS 地址。";
+        if (string.IsNullOrWhiteSpace(ApiModel)) return "请填写 AI 模型名称。";
+        if (ApiTimeoutSeconds <= 0) return "请求超时必须大于 0 秒。";
+        if (AnkiEnabled && (!IsWebUrl(AnkiUrl) || string.IsNullOrWhiteSpace(AnkiDeckName) || string.IsNullOrWhiteSpace(AnkiNoteTypeName)))
+            return "请填写有效的 Anki 地址、牌组名称和笔记类型。";
+        return null;
+    }
+
+    private static bool IsWebUrl(string text) => Uri.TryCreate(text.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
 
     private static List<TranslationProfile> EnsureProfiles(AppSettings settings)
     {
@@ -378,7 +482,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task InstallDictFromUrlAsync()
     {
-        if (string.IsNullOrWhiteSpace(DictDownloadUrl) || !Uri.TryCreate(DictDownloadUrl, UriKind.Absolute, out var uri))
+        if (IsDictInstalling) return;
+        if (string.IsNullOrWhiteSpace(DictDownloadUrl) || !Uri.TryCreate(DictDownloadUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
             MessageBox.Show("请输入合法的词典下载 URL。", "URL 错误", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -416,6 +521,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task InstallDictFromFileAsync()
     {
+        if (IsDictInstalling) return;
         var ofd = new OpenFileDialog
         {
             Filter = "Open Dictionary 归档文件 (*.sqlite.gz;*.sqlite)|*.sqlite.gz;*.sqlite|所有文件 (*.*)|*.*",
@@ -453,6 +559,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveDictAsync()
     {
+        if (IsDictInstalling) return;
         var confirm = MessageBox.Show(
             "确定要删除当前安装的离线词典吗？（此操作不会影响您已收藏的本地生词库）",
             "删除词典确认",
@@ -461,29 +568,42 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         if (confirm == MessageBoxResult.Yes)
         {
-            await _dictInstaller.RemoveAsync().ConfigureAwait(true);
-            RefreshDictStatus();
-            MessageBox.Show("离线词典已移除。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            IsDictInstalling = true;
+            try
+            {
+                await _dictInstaller.RemoveAsync().ConfigureAwait(true);
+                RefreshDictStatus();
+                StatusMessage = "离线词典已移除，收藏的词条不受影响。";
+            }
+            catch (Exception) { StatusMessage = "词典移除失败，请稍后重试。"; }
+            finally { IsDictInstalling = false; }
         }
     }
 
     [RelayCommand]
     private async Task TestAnkiConnectionAsync()
     {
+        if (!string.Equals(AnkiUrl.Trim(), _settingsService.Current.Anki.Url, StringComparison.Ordinal))
+        {
+            StatusMessage = "Anki 地址已修改，请先保存再测试连接。";
+            return;
+        }
+        StatusMessage = "正在测试 Anki 连接…";
         try
         {
             var version = await _ankiClient.CheckVersionAsync().ConfigureAwait(true);
-            MessageBox.Show($"AnkiConnect 连接成功！API 版本号: {version}", "连接正常", MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage = $"AnkiConnect 连接成功，API 版本 {version}。";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"连接 Anki 失败: {ex.Message}\n请确保 Anki 正在运行且已安装 AnkiConnect 插件。", "连接失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+            StatusMessage = $"连接 Anki 失败：{ex.Message} 请确认 Anki 与 AnkiConnect 已启动。";
         }
     }
 
     [RelayCommand]
     private async Task TestAiConnectionAsync()
     {
+        StatusMessage = "正在测试当前 AI 配置…";
         try
         {
             var sampleCapture = new CaptureResult("devastated", "WordCatcher.exe", "Connection Test", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
@@ -496,11 +616,11 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ApiKey,
                 CancellationToken.None).ConfigureAwait(true);
 
-            MessageBox.Show($"AI 翻译接口连通成功！\n测试词: {res.Word}\n释义: {res.Definition}", "测试通过", MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage = $"AI 连接成功，测试词：{res.Word}。";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"AI 接口连通测试失败:\n{ex.Message}", "测试失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+            StatusMessage = $"AI 连接测试失败：{ex.Message}";
         }
     }
 }

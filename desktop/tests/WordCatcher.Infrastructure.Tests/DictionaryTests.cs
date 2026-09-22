@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -40,7 +41,7 @@ public class DictionaryTests : IDisposable
     }
 
     [Fact]
-    public void FormatEntry_PrefersUsPronunciationAndFoldsMeanings()
+    public void FormatEntry_PrefersUsPronunciationAndKeepsRareSensesForExpansion()
     {
         var entry = new DistributionEntryV5
         {
@@ -79,6 +80,7 @@ public class DictionaryTests : IDisposable
         Assert.DoesNotContain("极其生僻的含义", result.Definition);
         Assert.Equal("An apple a day", result.MemoryHook);
         Assert.Equal(LookupSource.OpenDictionary, result.Source);
+        Assert.Equal(new[] { "core", "common", "rare" }, result.PosGroups![0].Meanings.Select(m => m.Priority));
     }
 
     [Fact]
@@ -174,7 +176,41 @@ public class DictionaryTests : IDisposable
 
         Assert.Equal("quick", result.Word);
         Assert.Equal("/kwɪk/", result.Reading);
-        Assert.Contains("速度快的", result.Definition);
+        Assert.Equal("adj. 快", result.Definition);
+        Assert.Equal("速度快的", result.PosGroups![0].Meanings[0].LearnerExplanation);
+    }
+
+    [Fact]
+    public void RealDigitalEntry_KeepsEverySenseAndShowsCoreSensesBeforeFinger()
+    {
+        var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "digital.v5.json"));
+        var entry = JsonSerializer.Deserialize<DistributionEntryV5>(json)!;
+        var result = OfflineDictionaryService.FormatEntry(entry);
+        Assert.Equal(2, result.PosGroups!.Count);
+        var adjective = result.PosGroups[0];
+        var noun = result.PosGroups[1];
+        Assert.Equal(new[] { "s2", "s3", "s1" }, adjective.Meanings.Select(m => m.SenseId));
+        Assert.Equal("数字设备或数字技术", noun.Meanings[0].ShortGloss);
+        Assert.Equal(9, result.PosGroups.Sum(g => g.Meanings.Count));
+        Assert.Equal(2, noun.Meanings.Count(m => m.Priority == "rare"));
+        Assert.Contains("与计算机和信息时代有关的", adjective.QuickSummary);
+        Assert.Contains("数字设备或数字技术", noun.QuickSummary);
+        Assert.Contains("n. 数字设备或数字技术", result.Definition);
+        Assert.DoesNotContain("钢琴等键盘乐器的琴键", result.Definition);
+        Assert.Contains(noun.Meanings, m => m.ShortGloss == "钢琴等键盘乐器的琴键");
+        Assert.All(result.PosGroups.SelectMany(g => g.Meanings), m => Assert.False(string.IsNullOrWhiteSpace(m.LearnerExplanation)));
+    }
+
+    [Fact]
+    public void RareOnlyEntryAndMissingGlossStillHaveReadableSummary()
+    {
+        var result = OfflineDictionaryService.FormatEntry(new DistributionEntryV5
+        {
+            Headword = "rareword",
+            PosGroups = [new() { Pos = "noun", Meanings = [new() { Priority = "rare", LearnerExplanation = "保留少见义的完整解释" }] }]
+        });
+        Assert.Equal("保留少见义的完整解释", result.PosGroups![0].QuickSummary);
+        Assert.Equal("n. 保留少见义的完整解释", result.Definition);
     }
 
     [Fact]

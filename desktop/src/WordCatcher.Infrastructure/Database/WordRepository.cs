@@ -240,7 +240,7 @@ VALUES ($id, $wordId, $occId, $target, $status, $attempts, $lastError, $nextAtte
             cmd.CommandText = @"
 SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
 FROM words
-ORDER BY updated_at_utc DESC
+ORDER BY updated_at_utc DESC, id ASC
 LIMIT $limit OFFSET $offset;";
         }
         else
@@ -249,7 +249,7 @@ LIMIT $limit OFFSET $offset;";
 SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
 FROM words
 WHERE normalized_word LIKE $q OR display_word LIKE $q OR definition LIKE $q
-ORDER BY updated_at_utc DESC
+ORDER BY updated_at_utc DESC, id ASC
 LIMIT $limit OFFSET $offset;";
             cmd.Parameters.AddWithValue("$q", $"%{query.Trim()}%");
         }

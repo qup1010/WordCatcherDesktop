@@ -21,12 +21,44 @@ public partial class LibraryWindow : Window
         _libraryVm = libraryVm;
         _syncVm = syncVm;
         _settingsVm = settingsVm;
+        DataContext = _settingsVm;
 
         LibraryTab.DataContext = _libraryVm;
         SyncTab.DataContext = _syncVm;
         SettingsTab.DataContext = _settingsVm;
+        _settingsVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SettingsViewModel.ApiKey) && ApiKeyBox.Password != _settingsVm.ApiKey)
+                ApiKeyBox.Password = _settingsVm.ApiKey;
+        };
+        MainTabs.SelectionChanged += async (_, e) =>
+        {
+            if (e.Source == MainTabs && MainTabs.SelectedItem != SettingsTab)
+                _settingsVm.CancelHotkeyRecording();
+            if (e.Source == MainTabs && IsLoaded && MainTabs.SelectedItem == SyncTab)
+                await _syncVm.RefreshAsync();
+        };
 
         Loaded += OnLoaded;
+        Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
+        IsVisibleChanged += (_, _) => { if (!IsVisible) _settingsVm.CancelHotkeyRecording(); };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (_settingsVm.IsRecordingHotkey)
+            {
+                var key = e.Key == Key.System ? e.SystemKey : e.Key;
+                _settingsVm.CaptureHotkey(key, Keyboard.Modifiers);
+                e.Handled = key != Key.Tab;
+                return;
+            }
+            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control && !_libraryVm.IsEditing)
+            {
+                MainTabs.SelectedItem = LibraryTab;
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+                e.Handled = true;
+            }
+        };
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -40,12 +72,14 @@ public partial class LibraryWindow : Window
     {
         MainTabs.SelectedItem = LibraryTab;
         ShowAndActivate();
+        if (IsLoaded && !_libraryVm.IsEditing) _ = _libraryVm.InitializeAsync();
     }
 
     public void ShowSync()
     {
         MainTabs.SelectedItem = SyncTab;
         ShowAndActivate();
+        if (IsLoaded) _ = _syncVm.RefreshAsync();
     }
 
     public void ShowSettings()
@@ -78,6 +112,11 @@ public partial class LibraryWindow : Window
 
     private void SearchBox_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape)
+        {
+            _libraryVm.ClearSearchCommand.Execute(null);
+            e.Handled = true;
+        }
         if (e.Key == Key.Enter)
         {
             if (_libraryVm.SearchCommand.CanExecute(null))
@@ -85,5 +124,11 @@ public partial class LibraryWindow : Window
                 _libraryVm.SearchCommand.Execute(null);
             }
         }
+    }
+
+    private void ApiKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (_settingsVm != null && _settingsVm.ApiKey != ApiKeyBox.Password)
+            _settingsVm.ApiKey = ApiKeyBox.Password;
     }
 }

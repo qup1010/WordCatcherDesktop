@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordCatcher.Core.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordCatcher.Infrastructure.Tests", "tests\WordCatcher.Infrastructure.Tests\WordCatcher.Infrastructure.Tests.csproj", "{D45609B4-C722-4BA8-94C5-CA91951A3EF9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordCatcher.App.Tests", "tests\WordCatcher.App.Tests\WordCatcher.App.Tests.csproj", "{476D7501-A873-4922-ADC6-F3C7416BF2BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{D45609B4-C722-4BA8-94C5-CA91951A3EF9}.Release|x64.Build.0 = Release|Any CPU
 		{D45609B4-C722-4BA8-94C5-CA91951A3EF9}.Release|x86.ActiveCfg = Release|Any CPU
 		{D45609B4-C722-4BA8-94C5-CA91951A3EF9}.Release|x86.Build.0 = Release|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Debug|x64.Build.0 = Debug|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Debug|x86.Build.0 = Debug|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Release|x64.ActiveCfg = Release|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Release|x64.Build.0 = Release|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Release|x86.ActiveCfg = Release|Any CPU
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{729E2808-1931-4D80-BD4B-10DA3318A9B7} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{89BDC062-6917-419A-BD43-B82DB3FC0923} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{D45609B4-C722-4BA8-94C5-CA91951A3EF9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{476D7501-A873-4922-ADC6-F3C7416BF2BA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

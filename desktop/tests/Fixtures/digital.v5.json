@@ -1,0 +1,415 @@
+{
+  "definition_language": {
+    "code": "zh-Hans",
+    "name": "Chinese (Simplified)"
+  },
+  "entry_id": "6a75f37d-3e48-56a5-9139-22c9eed56414",
+  "entry_type": "standard",
+  "etymologies": [
+    {
+      "etymology_id": "et1",
+      "pos_members": [
+        "adj",
+        "noun"
+      ],
+      "text": "Borrowed from Latin digitālis, from digitus (“finger, toe”) + -alis (“-al”), equivalent to digit + -al. Doublet of digitalis."
+    }
+  ],
+  "etymology_note": "源自拉丁语 digitālis，来自 digitus“手指、脚趾”；英语中的 digit 也有同源关系。",
+  "headword": "digital",
+  "headword_language": {
+    "code": "en",
+    "name": "English"
+  },
+  "headword_summary": "digital 主要表示“数字的、以数字技术为基础的”，也可作名词指数字技术、数字设备或某些特定事物的简称。",
+  "memory_hook": "把手指想成一个个清楚分开的“数字”：digital 最早和手指、脚趾有关，后来引申为把信息分成离散数字来表示，尤其是计算机使用的二进制数字；因此它又常指与电脑和信息时代有关的事物。",
+  "normalized_headword": "digital",
+  "pos_groups": [
+    {
+      "etymology_id": "et1",
+      "forms": [],
+      "meanings": [
+        {
+          "examples": [
+            {
+              "text": "The doctor performed a digital examination.",
+              "translation": "医生进行了指检。"
+            }
+          ],
+          "labels": [
+            "not-comparable"
+          ],
+          "learner_explanation": "表示与手指或脚趾有关，尤其指用手指进行的动作。这是 digital 与“手指”这一词源联系最直接的用法。",
+          "priority": "common",
+          "sense_id": "s1",
+          "short_gloss": "手指的；用手指进行的",
+          "topics": [],
+          "usage_note": "常见结构是 digital + 与身体检查或触摸有关的名词，如 digital examination。这个义项在医学等专业语境中较常见，日常英语里通常不会把普通的 finger 直接换成 digital；不要把它理解为“数字化的”。"
+        },
+        {
+          "examples": [
+            {
+              "text": "The sensor converts the signal into digital data.",
+              "translation": "传感器把信号转换成数字数据。"
+            },
+            {
+              "text": "This digital computer can process huge amounts of information.",
+              "translation": "这台数字计算机可以处理大量信息。"
+            }
+          ],
+          "labels": [
+            "not-comparable"
+          ],
+          "learner_explanation": "表示信息不是以连续变化的形式保存，而是被分成一个个离散的数值，通常以二进制数字表示。这就像把连续的信息切分成许多明确的数字格子。",
+          "priority": "core",
+          "sense_id": "s2",
+          "short_gloss": "用离散数字表示的",
+          "topics": [],
+          "usage_note": "常用结构是 digital + 设备、信号或数据类名词，如 digital computer、digital signal 和 digital data。它和 analogue 相对，强调信息的表示方式，而不只是设备是否插电；谈照片、声音或信号时，先确认你是在说“数字格式”还是泛指“电子设备”。"
+        },
+        {
+          "examples": [
+            {
+              "text": "Many people now use digital services to pay their bills.",
+              "translation": "现在许多人使用数字服务来支付账单。"
+            },
+            {
+              "text": "The company is investing heavily in digital technology.",
+              "translation": "这家公司正在大力投资数字技术。"
+            }
+          ],
+          "labels": [
+            "not-comparable"
+          ],
+          "learner_explanation": "在现代英语中，digital 常进一步泛指与计算机、互联网和信息时代有关的事物。它由“用数字表示信息”扩展成了“依靠数字技术运作”的整体概念。",
+          "priority": "core",
+          "sense_id": "s3",
+          "short_gloss": "与计算机和信息时代有关的",
+          "topics": [],
+          "usage_note": "常用结构是 digital + 名词，如 digital services、digital economy 和 digital media。它可用于正式和日常语境，但不一定表示某物完全在线或完全虚拟；例如 digital camera 仍然是实体设备。"
+        }
+      ],
+      "pos": "adj",
+      "pronunciations": [
+        {
+          "ipa": "/ˈdɪd͡ʒɪtl̩/",
+          "tags": [],
+          "text": null
+        }
+      ],
+      "proper_name": false,
+      "relations": [
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "analog-to-digital converter"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "asymmetric digital subscriber line"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "bidigital"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "biodigital"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "born digital"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digerati"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digilante"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digipeater"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digiscope"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital addiction"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital age"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital amnesia"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital audio"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital audio workstation"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital autism"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital backlot"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital blackface"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital brownshirt"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital camera"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital cash"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital certificate"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital clock"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital commons"
+        },
+        {
+          "lang_code": null,
+          "type": "derived_term",
+          "word": "digital computer"
+        },
+        {
+          "lang_code": null,
+          "type": "related_term",
+          "word": "digitalis"
+        },
+        {
+          "lang_code": null,
+          "type": "related_term",
+          "word": "digitality"
+        },
+        {
+          "lang_code": null,
+          "type": "related_term",
+          "word": "digitate"
+        },
+        {
+          "lang_code": null,
+          "type": "related_term",
+          "word": "digitigrade"
+        },
+        {
+          "lang_code": null,
+          "type": "antonym",
+          "word": "nondigital"
+        },
+        {
+          "lang_code": null,
+          "type": "antonym",
+          "word": "undigital"
+        },
+        {
+          "lang_code": null,
+          "type": "antonym",
+          "word": "analog"
+        },
+        {
+          "lang_code": null,
+          "type": "antonym",
+          "word": "analogue"
+        },
+        {
+          "lang_code": null,
+          "type": "antonym",
+          "word": "continuous"
+        }
+      ],
+      "summary": "形容与手指、离散数字或计算机信息技术有关的事物。",
+      "usage_note": "常用结构是 digital + 名词，如 digital camera、digital information 和 digital technology。它通常直接作前置定语，不说“very digital”；表示一般的电子设备时，不要在所有场合都用 digital 代替 electronic。"
+    },
+    {
+      "etymology_id": "et1",
+      "forms": [
+        {
+          "roman": null,
+          "tags": [
+            "plural"
+          ],
+          "text": "digitals"
+        }
+      ],
+      "meanings": [
+        {
+          "examples": [
+            {
+              "text": "The trader bought a digital based on the expected price movement.",
+              "translation": "交易员根据预期的价格走势买入了一份数字期权。"
+            }
+          ],
+          "labels": [
+            "countable",
+            "uncountable"
+          ],
+          "learner_explanation": "在金融语境中，digital 指一种结果通常只有两种可能的期权：达到预定条件时获得固定收益，否则没有收益。",
+          "priority": "common",
+          "sense_id": "s1",
+          "short_gloss": "数字期权",
+          "topics": [
+            "business",
+            "finance"
+          ],
+          "usage_note": "常见结构是 trade、buy 或 sell a digital，以及 digital option。这个义项属于金融语境，通常是可数名词；不要把这里的 digital 误解成普通的数字设备或网络服务。"
+        },
+        {
+          "examples": [
+            {
+              "text": "The studio moved to digital last year.",
+              "translation": "这家工作室去年转向了数字技术。"
+            }
+          ],
+          "labels": [
+            "uncountable"
+          ],
+          "learner_explanation": "这里把表示“数字的”的形容词当作名词使用，泛指数字设备或数字技术。它承接了“用离散数字处理信息”的核心概念。",
+          "priority": "core",
+          "sense_id": "s2",
+          "short_gloss": "数字设备或数字技术",
+          "topics": [],
+          "usage_note": "常见结构是 move、switch 或 turn to digital，或用 digital 指代一类数字设备和技术。这个用法常见于摄影、媒体和技术语境，通常作不可数名词；如果具体指某一台设备，最好说 digital camera、digital device 等完整名称。"
+        },
+        {
+          "examples": [
+            {
+              "text": "She prefers a simple digital because it is easy to read.",
+              "translation": "她更喜欢简洁的数字手表，因为时间很容易看清。"
+            }
+          ],
+          "labels": [
+            "abbreviation",
+            "alt-of",
+            "countable",
+            "ellipsis",
+            "uncountable"
+          ],
+          "learner_explanation": "这是 digital watch 的省略说法，指用数字显示时间的手表，而不是用指针显示时间的传统手表。",
+          "priority": "common",
+          "sense_id": "s3",
+          "short_gloss": "数字手表",
+          "topics": [],
+          "usage_note": "通常用 digitals 表示这类手表，尤其是在和 traditional watches 对比时；单数可说 a digital。它是省略形式，正式或需要避免歧义时应使用 digital watch，不要把它理解为所有数字设备。"
+        },
+        {
+          "examples": [
+            {
+              "text": "She has been making digital since she was a teenager.",
+              "translation": "她从十几岁起就一直在创作数字艺术。"
+            }
+          ],
+          "labels": [
+            "abbreviation",
+            "alt-of",
+            "ellipsis",
+            "informal",
+            "uncountable"
+          ],
+          "learner_explanation": "这是 digital art 的非正式省略说法，指用电脑或其他数字工具创作的艺术作品或艺术形式。",
+          "priority": "common",
+          "sense_id": "s4",
+          "short_gloss": "数字艺术",
+          "topics": [],
+          "usage_note": "常见于艺术家、画廊和创作社群，通常作不可数名词；谈具体作品时可说 a piece of digital art。正式介绍作品时写出 digital art 往往比单独使用 digital 更清楚。"
+        },
+        {
+          "examples": [],
+          "labels": [
+            "countable",
+            "uncountable"
+          ],
+          "learner_explanation": "在音乐语境中，digital 可指钢琴或类似键盘乐器上的一个琴键；这个义项也可看作把琴键比作一个个清楚分开的“数字”。",
+          "priority": "rare",
+          "sense_id": "s5",
+          "short_gloss": "钢琴等键盘乐器的琴键",
+          "topics": [
+            "entertainment",
+            "lifestyle",
+            "music"
+          ],
+          "usage_note": "通常出现在音乐史或专业描述中，现代日常英语更常用 key 或 piano key。它可以指单个琴键，也可以泛指一组琴键；不要和 digital piano 中的 digital 混为一谈。"
+        },
+        {
+          "examples": [],
+          "labels": [
+            "colloquial",
+            "countable",
+            "humorous",
+            "uncountable"
+          ],
+          "learner_explanation": "在幽默或口语化用法中，digital 可指手指，直接回到“手指”这一词源义；这是玩笑式的替代说法，不是普通中性词。",
+          "priority": "rare",
+          "sense_id": "s6",
+          "short_gloss": "手指",
+          "topics": [],
+          "usage_note": "常见于夸张、诙谐或模仿旧式文风的表达，通常用复数 digitals。日常正式交流中应使用 finger，而不要用 digital 指手指。"
+        }
+      ],
+      "pos": "noun",
+      "pronunciations": [
+        {
+          "ipa": "/ˈdɪd͡ʒɪtl̩/",
+          "tags": [],
+          "text": null
+        }
+      ],
+      "proper_name": false,
+      "relations": [],
+      "summary": "名词 digital 可指数字技术或设备，也可在特定语境中简称数字期权、数字手表、数字艺术，或幽默地指手指。",
+      "usage_note": "作名词时，具体所指通常依靠上下文判断；表示技术或设备时常作不可数名词，表示一块手表或一种金融产品时可以是可数名词。很多名词义项来自省略完整短语，因此正式写作中应根据需要说清楚 digital watch、digital art 等。"
+    }
+  ],
+  "schema_version": "distribution_entry_v5",
+  "study_notes": [
+    "不要把 digital 一律理解成“电子的”：它强调数字化或计算机技术，和 electronic、online、virtual 的侧重点并不完全相同。",
+    "先掌握形容词用法，再学习名词的简称用法；名词 digital 在不同语境中可能指数字技术、数字设备、数字艺术或数字手表。"
+  ]
+}

@@ -70,7 +70,18 @@ public sealed partial class LookupViewModel : ObservableObject
     private bool _canExpandDetails;
 
     [ObservableProperty]
-    private string _detailsToggleText = "展开全部义项";
+    private string _detailsToggleText = "展开全部词性与义项";
+
+    [ObservableProperty]
+    private bool _isDetailsExpanded;
+
+    [ObservableProperty]
+    private bool _isMemoryHookExpanded;
+
+    public bool HasStructuredDefinitions => DisplayPosGroups?.Count > 0;
+
+    partial void OnDisplayPosGroupsChanged(IReadOnlyList<DictPosGroup>? value)
+        => OnPropertyChanged(nameof(HasStructuredDefinitions));
 
     [ObservableProperty]
     private bool _isSaved;
@@ -88,6 +99,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private CaptureResult? _currentCapture;
     private TranslationResult? _currentTranslation;
     private CancellationTokenSource? _lookupCancellation;
+    private long _lookupVersion;
 
     public LookupViewModel(
         ILookupService lookupService,
@@ -105,6 +117,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
     public async Task StartLookupAsync(CaptureResult capture, bool forceAi = false)
     {
+        ++_lookupVersion;
         var previousLookup = _lookupCancellation;
         var currentLookup = new CancellationTokenSource();
         _lookupCancellation = currentLookup;
@@ -118,6 +131,12 @@ public sealed partial class LookupViewModel : ObservableObject
         PosGroups = null;
         DisplayPosGroups = null;
         CanExpandDetails = false;
+        IsDetailsExpanded = false;
+        IsMemoryHookExpanded = false;
+        Definition = string.Empty;
+        ContextTranslation = string.Empty;
+        MemoryHook = null;
+        _currentTranslation = null;
         IsLoading = true;
         HasResult = false;
         HasError = false;
@@ -172,6 +191,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
     public void CancelLookup()
     {
+        ++_lookupVersion;
         var lookup = _lookupCancellation;
         _lookupCancellation = null;
         lookup?.Cancel();
@@ -185,25 +205,30 @@ public sealed partial class LookupViewModel : ObservableObject
 
         CanSave = false;
         SavedStatusText = "正在保存到本地词库...";
+        var version = _lookupVersion;
 
         try
         {
             var cmd = new SaveCardCommand(_currentCapture, _currentTranslation);
             var (savedWord, occ, syncJob) = await _wordRepository.SaveAsync(cmd).ConfigureAwait(true);
+            _syncQueue.Enqueue(syncJob.Id);
+            if (version != _lookupVersion) return;
 
             IsSaved = true;
-            SavedStatusText = "✓ 已保存本地 (等待同步 Anki)";
-            _syncQueue.Enqueue(syncJob.Id);
+            SavedStatusText = _settingsService.Current.Anki.Enabled
+                ? "✓ 已存入单词本 · 等待同步 Anki"
+                : "✓ 已存入单词本";
 
             if (_settingsService.Current.Ui.ClosePopupAfterSave)
             {
                 await Task.Delay(800).ConfigureAwait(true);
-                if (!KeepOpenAfterSave)
+                if (version == _lookupVersion && !KeepOpenAfterSave)
                     RequestClose?.Invoke();
             }
         }
         catch (Exception ex)
         {
+            if (version != _lookupVersion) return;
             CanSave = true;
             SavedStatusText = $"保存失败: {ex.Message}";
         }
@@ -230,46 +255,18 @@ public sealed partial class LookupViewModel : ObservableObject
     [RelayCommand]
     private void ToggleDetails()
     {
-        var expanded = DetailsToggleText.StartsWith("展开", StringComparison.Ordinal);
-        UpdateStructuredDetails(expanded);
+        UpdateStructuredDetails(!IsDetailsExpanded);
     }
 
     private void UpdateStructuredDetails(bool expanded)
     {
-        var groups = PosGroups?.Where(group => group.Meanings.Count > 0).ToList();
-        if (groups == null || groups.Count == 0)
-        {
-            DisplayPosGroups = groups;
-            CanExpandDetails = false;
-            return;
-        }
-
-        var totalMeanings = groups.Sum(group => group.Meanings.Count);
-        CanExpandDetails = totalMeanings > 3;
-        if (expanded || !CanExpandDetails)
-        {
-            DisplayPosGroups = groups;
-            DetailsToggleText = "收起次要义项";
-            return;
-        }
-
-        var remaining = 3;
-        var preview = new List<DictPosGroup>();
-        foreach (var group in groups)
-        {
-            if (remaining == 0)
-                break;
-
-            var meanings = group.Meanings.Take(remaining).ToList();
-            if (meanings.Count > 0)
-            {
-                preview.Add(new DictPosGroup(group.Pos, group.Summary, meanings));
-                remaining -= meanings.Count;
-            }
-        }
-
-        DisplayPosGroups = preview;
-        DetailsToggleText = $"展开全部 {totalMeanings} 个义项";
+        var groups = PosGroups?.Where(group => group.Meanings.Count > 0 || !string.IsNullOrWhiteSpace(group.Summary))
+            .Select(group => group with { Meanings = group.Meanings.OrderBy(m => m.PriorityRank).ToList() }).ToList();
+        DisplayPosGroups = groups;
+        var count = groups?.Sum(group => group.Meanings.Count) ?? 0;
+        CanExpandDetails = count > 0;
+        IsDetailsExpanded = expanded && CanExpandDetails;
+        DetailsToggleText = IsDetailsExpanded ? "收起详细解释" : $"展开全部词性与义项（{count}）";
     }
 
     [RelayCommand]
@@ -283,9 +280,7 @@ public sealed partial class LookupViewModel : ObservableObject
     {
         try
         {
-            var text = !string.IsNullOrWhiteSpace(_currentCapture?.Sentence)
-                ? _currentCapture.Sentence
-                : SelectedText;
+            var text = !string.IsNullOrWhiteSpace(Word) ? Word : SelectedText;
             _speechService.Speak(text);
             SavedStatusText = "正在朗读...";
         }

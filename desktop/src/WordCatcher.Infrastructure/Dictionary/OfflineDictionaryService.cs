@@ -222,7 +222,7 @@ LIMIT 1;";
         // 1. Reading: US > UK > any IPA
         var reading = PickReading(entry);
 
-        // 2. Pos Groups & Meanings folding
+        // 2. Keep the complete contract; build concise saved definitions per POS.
         var mappedGroups = new List<DictPosGroup>();
         var definitions = new List<string>();
         string primaryPos = string.Empty;
@@ -230,45 +230,14 @@ LIMIT 1;";
         foreach (var pg in entry.PosGroups)
         {
             var formattedPos = FormatPosLabel(pg.Pos);
-            var filteredMeanings = new List<DictionaryMeaningV5>();
-
-            // Filter core & common first
-            foreach (var m in pg.Meanings)
-            {
-                var prio = m.Priority?.ToLowerInvariant() ?? "common";
-                if (prio is "core" or "common")
-                {
-                    filteredMeanings.Add(m);
-                }
-            }
-
-            // If empty, fallback to include ALL rare meanings
-            if (filteredMeanings.Count == 0 && pg.Meanings.Count > 0)
-            {
-                filteredMeanings.AddRange(pg.Meanings);
-            }
-
-            if (filteredMeanings.Count > 0 && string.IsNullOrEmpty(primaryPos))
+            if (pg.Meanings.Count > 0 && string.IsNullOrEmpty(primaryPos))
             {
                 primaryPos = formattedPos;
             }
 
             var dictMeanings = new List<DictMeaning>();
-            foreach (var m in filteredMeanings)
+            foreach (var m in pg.Meanings)
             {
-                var explanation = !string.IsNullOrWhiteSpace(m.LearnerExplanation)
-                    ? m.LearnerExplanation
-                    : (!string.IsNullOrWhiteSpace(m.ShortGloss) ? m.ShortGloss : string.Empty);
-
-                if (!string.IsNullOrWhiteSpace(explanation) && definitions.Count < 5)
-                {
-                    var displayDef = !string.IsNullOrEmpty(formattedPos) ? $"{formattedPos} {explanation}" : explanation;
-                    if (!definitions.Contains(displayDef))
-                    {
-                        definitions.Add(displayDef);
-                    }
-                }
-
                 var examples = new List<DictExample>();
                 if (m.Examples != null)
                 {
@@ -287,7 +256,18 @@ LIMIT 1;";
                     m.UsageNote));
             }
 
-            mappedGroups.Add(new DictPosGroup(formattedPos, pg.Summary, dictMeanings));
+            // Preserve ALL senses. Priority controls presentation, never data retention.
+            var ordered = dictMeanings.OrderBy(m => m.PriorityRank).ToList();
+            var group = new DictPosGroup(formattedPos, pg.Summary, ordered);
+            mappedGroups.Add(group);
+            var usual = ordered.Where(m => m.PriorityRank < 2).ToList();
+            var savedMeanings = usual.Count > 0 ? usual : ordered;
+            var glosses = savedMeanings.Select(m => m.Heading)
+                .Where(text => !string.IsNullOrWhiteSpace(text)).Distinct();
+            var summary = string.Join("；", glosses);
+            if (string.IsNullOrWhiteSpace(summary)) summary = pg.Summary;
+            if (!string.IsNullOrWhiteSpace(summary))
+                definitions.Add(string.IsNullOrEmpty(formattedPos) ? summary : $"{formattedPos} {summary}");
         }
 
         var combinedDefinition = string.Join("\n", definitions);

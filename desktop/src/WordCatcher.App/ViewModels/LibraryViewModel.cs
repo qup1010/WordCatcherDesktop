@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,6 +16,45 @@ namespace WordCatcher.App.ViewModels;
 public sealed partial class LibraryViewModel : ObservableObject
 {
     private readonly IWordRepository _wordRepository;
+    private const int PageSize = 100;
+    private int _loadVersion;
+    private int _occurrenceVersion;
+    private CancellationTokenSource? _searchDelay;
+
+    [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private bool _hasMore;
+    [ObservableProperty] private bool _isCompact = true;
+    [ObservableProperty] private bool _isDefinitionExpanded;
+    [ObservableProperty] private string _statusMessage = string.Empty;
+    [ObservableProperty] private string _emptyMessage = "还没有收藏的单词";
+    public string DefinitionPreview => string.Join(" ", (SelectedWord?.Definition ?? string.Empty)
+        .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    partial void OnSearchQueryChanged(string value)
+    {
+        _searchDelay?.Cancel();
+        _searchDelay?.Dispose();
+        _searchDelay = new CancellationTokenSource();
+        ++_loadVersion;
+        IsLoading = true;
+        _ = SearchAfterDelayAsync(_searchDelay.Token);
+    }
+
+    private async Task SearchAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token);
+            await LoadWordsAsync();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    [RelayCommand]
+    private void ClearSearch() => SearchQuery = string.Empty;
+
+    [RelayCommand]
+    private Task LoadMoreAsync() => LoadWordsAsync(append: true);
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -58,27 +99,56 @@ public sealed partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     public async Task SearchAsync()
     {
+        _searchDelay?.Cancel();
         await LoadWordsAsync().ConfigureAwait(true);
     }
 
-    private async Task LoadWordsAsync()
+    private async Task LoadWordsAsync(bool append = false)
     {
-        var list = await _wordRepository.GetWordsAsync(SearchQuery, limit: 500).ConfigureAwait(true);
-        Words.Clear();
-        foreach (var w in list)
+        if (IsEditing)
         {
-            Words.Add(w);
+            IsLoading = false;
+            return;
         }
-
-        if (Words.Count > 0 && SelectedWord == null)
+        var version = ++_loadVersion;
+        IsLoading = true;
+        StatusMessage = "正在加载词条…";
+        try
         {
-            SelectedWord = Words[0];
+            var list = await _wordRepository.GetWordsAsync(SearchQuery, limit: PageSize + 1,
+                offset: append ? Words.Count : 0).ConfigureAwait(true);
+            if (version != _loadVersion) return;
+            var selectedId = SelectedWord?.Id;
+            if (append)
+            {
+                foreach (var word in list.Take(PageSize)) Words.Add(word);
+            }
+            else
+            {
+                Words = new ObservableCollection<Word>(list.Take(PageSize));
+                SelectedWord = Words.FirstOrDefault(w => w.Id == selectedId) ?? Words.FirstOrDefault();
+            }
+            HasMore = list.Count > PageSize;
+            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) ? "还没有收藏的单词" : "没有找到匹配的词条";
+            StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · 最近更新优先";
+        }
+        catch (Exception)
+        {
+            if (version == _loadVersion) StatusMessage = "词库加载失败，请点击搜索重试。";
+        }
+        finally
+        {
+            if (version == _loadVersion) IsLoading = false;
         }
     }
 
     partial void OnSelectedWordChanged(Word? value)
     {
         IsEditing = false;
+        IsDefinitionExpanded = false;
+        OnPropertyChanged(nameof(DefinitionPreview));
+        ++_occurrenceVersion;
+        Occurrences.Clear();
         if (value != null)
         {
             _ = LoadOccurrencesForWordAsync(value.Id);
@@ -91,11 +161,16 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     private async Task LoadOccurrencesForWordAsync(string wordId)
     {
-        var list = await _wordRepository.GetOccurrencesByWordIdAsync(wordId).ConfigureAwait(true);
-        Occurrences.Clear();
-        foreach (var o in list)
+        var version = _occurrenceVersion;
+        try
         {
-            Occurrences.Add(o);
+            var list = await _wordRepository.GetOccurrencesByWordIdAsync(wordId).ConfigureAwait(true);
+            if (version != _occurrenceVersion || SelectedWord?.Id != wordId) return;
+            Occurrences = new ObservableCollection<Occurrence>(list);
+        }
+        catch (Exception)
+        {
+            if (version == _occurrenceVersion) StatusMessage = "语境加载失败，请重新选择词条。";
         }
     }
 
@@ -103,6 +178,9 @@ public sealed partial class LibraryViewModel : ObservableObject
     private void StartEdit()
     {
         if (SelectedWord == null) return;
+        _searchDelay?.Cancel();
+        ++_loadVersion;
+        IsLoading = false;
         EditWordText = SelectedWord.DisplayWord;
         EditReading = SelectedWord.Reading;
         EditPartOfSpeech = SelectedWord.PartOfSpeech;
@@ -116,15 +194,24 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         if (SelectedWord == null) return;
 
-        SelectedWord.DisplayWord = EditWordText.Trim();
-        SelectedWord.Reading = EditReading.Trim();
-        SelectedWord.PartOfSpeech = EditPartOfSpeech.Trim();
-        SelectedWord.Definition = EditDefinition.Trim();
-        SelectedWord.MemoryHook = EditMemoryHook.Trim();
-
-        await _wordRepository.UpdateWordAsync(SelectedWord).ConfigureAwait(true);
-        IsEditing = false;
-        await LoadWordsAsync().ConfigureAwait(true);
+        if (string.IsNullOrWhiteSpace(EditWordText) || string.IsNullOrWhiteSpace(EditDefinition))
+        {
+            StatusMessage = "单词和释义不能为空，请补充后保存。";
+            return;
+        }
+        var word = new Word
+        {
+            Id = SelectedWord.Id, DisplayWord = EditWordText.Trim(), Reading = EditReading.Trim(),
+            PartOfSpeech = EditPartOfSpeech.Trim(), Definition = EditDefinition.Trim(),
+            MemoryHook = EditMemoryHook.Trim()
+        };
+        try
+        {
+            await _wordRepository.UpdateWordAsync(word).ConfigureAwait(true);
+            IsEditing = false;
+            await LoadWordsAsync().ConfigureAwait(true);
+        }
+        catch (Exception) { StatusMessage = "保存失败，修改内容已保留，请重试。"; }
     }
 
     [RelayCommand]
@@ -146,9 +233,13 @@ public sealed partial class LibraryViewModel : ObservableObject
 
         if (confirm == MessageBoxResult.Yes)
         {
-            await _wordRepository.DeleteWordAsync(SelectedWord.Id).ConfigureAwait(true);
-            SelectedWord = null;
-            await LoadWordsAsync().ConfigureAwait(true);
+            try
+            {
+                await _wordRepository.DeleteWordAsync(SelectedWord.Id).ConfigureAwait(true);
+                SelectedWord = null;
+                await LoadWordsAsync().ConfigureAwait(true);
+            }
+            catch (Exception) { StatusMessage = "删除失败，请重试。"; }
         }
     }
 
@@ -164,9 +255,13 @@ public sealed partial class LibraryViewModel : ObservableObject
 
         if (sfd.ShowDialog() == true)
         {
-            var json = await _wordRepository.ExportWordsJsonAsync().ConfigureAwait(true);
-            await File.WriteAllTextAsync(sfd.FileName, json).ConfigureAwait(true);
-            MessageBox.Show("词库备份导出成功！", "导出完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            try
+            {
+                var json = await _wordRepository.ExportWordsJsonAsync().ConfigureAwait(true);
+                await File.WriteAllTextAsync(sfd.FileName, json).ConfigureAwait(true);
+                StatusMessage = "词库备份导出成功。";
+            }
+            catch (Exception) { StatusMessage = "导出失败，请检查目标文件是否可写后重试。"; }
         }
     }
 }
