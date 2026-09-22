@@ -1,0 +1,25 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# IDE and editor files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local test and coverage output
+TestResults/
+coverage/
+
+# Local application data and secrets
+*.db
+*.db-shm
+*.db-wal
+appsettings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db

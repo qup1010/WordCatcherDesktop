@@ -1,0 +1,14 @@
+global using MessageBox = System.Windows.MessageBox;
+global using MessageBoxButton = System.Windows.MessageBoxButton;
+global using MessageBoxResult = System.Windows.MessageBoxResult;
+global using MessageBoxImage = System.Windows.MessageBoxImage;
+global using Application = System.Windows.Application;
+global using Clipboard = System.Windows.Clipboard;
+global using DataObject = System.Windows.DataObject;
+global using DataFormats = System.Windows.DataFormats;
+global using TextDataFormat = System.Windows.TextDataFormat;
+global using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+global using Size = System.Windows.Size;
+global using Point = System.Windows.Point;
+global using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+global using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
