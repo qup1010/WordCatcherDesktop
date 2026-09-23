@@ -17,6 +17,7 @@ using WordCatcher.Infrastructure.Logging;
 using WordCatcher.Infrastructure.Security;
 using WordCatcher.Infrastructure.Settings;
 using WordCatcher.Infrastructure.Translation;
+using Wpf.Ui.Appearance;
 
 namespace WordCatcher.App;
 
@@ -37,6 +38,11 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ApplicationAccentColorManager.Apply(
+            System.Windows.Media.Color.FromRgb(15, 118, 110),
+            ApplicationTheme.Light,
+            systemGlassColor: false,
+            systemAccentColor: false);
 
         // 1. Single instance check
         _singleInstanceMutex = new Mutex(true, MutexName, out bool createdNew);

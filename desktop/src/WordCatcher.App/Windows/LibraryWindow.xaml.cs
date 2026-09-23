@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using WordCatcher.App.Services;
+using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
 
 namespace WordCatcher.App.Windows;
@@ -24,6 +25,7 @@ public partial class LibraryWindow : Window
         WordLookupViewModel? lookupVm = null)
     {
         InitializeComponent();
+        WpfUiResourceScope.PreferApplicationResources(this);
         _libraryVm = libraryVm;
         _syncVm = syncVm;
         _settingsVm = settingsVm;
@@ -43,6 +45,7 @@ public partial class LibraryWindow : Window
         MainTabs.SelectionChanged += async (_, e) =>
         {
             if (e.Source != MainTabs) return;
+            UpdateNavigationSelection();
             UpdateSyncRefreshTimer();
             if (e.Source == MainTabs && MainTabs.SelectedItem != SettingsTab)
                 _settingsVm.CancelHotkeyRecording();
@@ -59,6 +62,7 @@ public partial class LibraryWindow : Window
                 TitleBar.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(221, 242, 247, 245));
             }
         };
+        UpdateNavigationSelection();
         StateChanged += (_, _) => MaximizeGlyph.Text = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
         Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
         IsVisibleChanged += (_, _) =>
@@ -113,6 +117,28 @@ public partial class LibraryWindow : Window
             _syncRefreshTimer.Start();
         else
             _syncRefreshTimer.Stop();
+    }
+
+    private void NavigationItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string destination }) return;
+
+        MainTabs.SelectedItem = destination switch
+        {
+            "Library" => LibraryTab,
+            "Lookup" => LookupTab,
+            "Sync" => SyncTab,
+            "Settings" => SettingsTab,
+            _ => MainTabs.SelectedItem
+        };
+    }
+
+    private void UpdateNavigationSelection()
+    {
+        LibraryNavigationItem.IsActive = MainTabs.SelectedItem == LibraryTab;
+        LookupNavigationItem.IsActive = MainTabs.SelectedItem == LookupTab;
+        SyncNavigationItem.IsActive = MainTabs.SelectedItem == SyncTab;
+        SettingsNavigationItem.IsActive = MainTabs.SelectedItem == SettingsTab;
     }
 
     private void OpenAnkiSettings_Click(object sender, RoutedEventArgs e)

@@ -46,12 +46,22 @@ public class LibraryLayoutTests
                 root.Arrange(new Rect(0, 0, 1180, 700));
                 root.UpdateLayout();
 
-                Assert.Equal(Visibility.Visible, ((Border)libraryTab.Template.FindName("SelectionIndicator", libraryTab)).Visibility);
-                Assert.Equal(Visibility.Collapsed, ((Border)lookupTab.Template.FindName("SelectionIndicator", lookupTab)).Visibility);
+                var libraryNavigationItem = (Wpf.Ui.Controls.NavigationViewItem)window.FindName("LibraryNavigationItem");
+                var lookupNavigationItem = (Wpf.Ui.Controls.NavigationViewItem)window.FindName("LookupNavigationItem");
+                Assert.True(libraryNavigationItem.IsActive);
+                Assert.False(lookupNavigationItem.IsActive);
+                Assert.Equal(Visibility.Visible, libraryNavigationItem.Visibility);
+                Assert.NotNull(libraryNavigationItem.Template);
+                Assert.True(libraryNavigationItem.ActualWidth > 0);
+                Assert.True(libraryNavigationItem.ActualHeight > 0);
                 tabs.SelectedItem = lookupTab;
                 root.UpdateLayout();
-                Assert.Equal(Visibility.Collapsed, ((Border)libraryTab.Template.FindName("SelectionIndicator", libraryTab)).Visibility);
-                Assert.Equal(Visibility.Visible, ((Border)lookupTab.Template.FindName("SelectionIndicator", lookupTab)).Visibility);
+                Assert.False(libraryNavigationItem.IsActive);
+                Assert.True(lookupNavigationItem.IsActive);
+                var settingsNavigationItem = (Wpf.Ui.Controls.NavigationViewItem)window.FindName("SettingsNavigationItem");
+                settingsNavigationItem.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Assert.Same(window.FindName("SettingsTab"), tabs.SelectedItem);
+                Assert.True(settingsNavigationItem.IsActive);
                 tabs.SelectedItem = libraryTab;
                 root.UpdateLayout();
 
@@ -117,6 +127,22 @@ public class LibraryLayoutTests
                     using var file = File.Create(Path.Combine(Path.GetTempPath(), $"wordcatcher-{page}-{width}.png"));
                     encoder.Save(file);
                     Assert.True(root.ActualWidth > 0);
+
+                    if (page == "SettingsTab")
+                    {
+                        var settingsScroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
+                        settingsScroll.ScrollToEnd();
+                        root.UpdateLayout();
+                        Assert.True(settingsScroll.ScrollableHeight > 0);
+                        var bottomBitmap = new RenderTargetBitmap(width, 700, 96, 96, PixelFormats.Pbgra32);
+                        bottomBitmap.Render(root);
+                        var bottomEncoder = new PngBitmapEncoder();
+                        bottomEncoder.Frames.Add(BitmapFrame.Create(bottomBitmap));
+                        using var bottomFile = File.Create(Path.Combine(Path.GetTempPath(), $"wordcatcher-SettingsBottom-{width}.png"));
+                        bottomEncoder.Save(bottomFile);
+                        settingsScroll.ScrollToTop();
+                        root.UpdateLayout();
+                    }
                 }
 
                 ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("SyncTab");

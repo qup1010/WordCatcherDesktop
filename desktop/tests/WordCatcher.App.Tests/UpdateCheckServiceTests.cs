@@ -29,9 +29,9 @@ public sealed class UpdateCheckServiceTests
 
         var result = await service.CheckAsync();
 
-        Assert.Equal("0.1.0", result.CurrentVersion);
-        Assert.Equal("0.2.0", result.LatestVersion);
-        Assert.Equal("https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.2.0", result.ReleaseUrl);
+        Assert.Equal("0.2.0", result.CurrentVersion);
+        Assert.Equal("0.3.0", result.LatestVersion);
+        Assert.Equal("https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.3.0", result.ReleaseUrl);
         Assert.True(result.IsUpdateAvailable);
         Assert.Equal("WordCatcherDesktop", handler.Request!.Headers.UserAgent.First().Product!.Name);
     }
@@ -46,7 +46,7 @@ public sealed class UpdateCheckServiceTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(
-                    "{\"tag_name\":\"v0.2.0\",\"html_url\":\"https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.2.0\"}")
+                    "{\"tag_name\":\"v0.3.0\",\"html_url\":\"https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.3.0\"}")
             });
         }
     }

@@ -28,7 +28,7 @@ public sealed class UpdateCheckService
     }
 
     public static string CurrentVersion =>
-        typeof(UpdateCheckService).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
+        typeof(UpdateCheckService).Assembly.GetName().Version?.ToString(3) ?? "0.2.0";
 
     public async Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
     {

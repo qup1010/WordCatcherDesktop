@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Threading.Tasks;
 using WordCatcher.App.Interop;
+using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
 using WordCatcher.Core.Models;
 
@@ -19,6 +20,7 @@ public partial class LookupWindow : Window
     public LookupWindow(LookupViewModel viewModel)
     {
         InitializeComponent();
+        WpfUiResourceScope.PreferApplicationResources(this);
         _viewModel = viewModel;
         DataContext = _viewModel;
         _viewModel.RequestClose += OnRequestClose;

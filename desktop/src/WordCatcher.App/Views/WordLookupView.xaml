@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:vm="clr-namespace:WordCatcher.App.ViewModels"
              xmlns:converters="clr-namespace:WordCatcher.App.Converters"
              xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
@@ -17,6 +18,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
+            <ui:ThemesDictionary Theme="Light" />
+            <ui:ControlsDictionary />
             <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
         </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -24,57 +27,24 @@
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
 
-        <Style x:Key="LookupActionButton" TargetType="Button" BasedOn="{StaticResource AppButtonStyle}">
+        <Style x:Key="LookupActionButton" TargetType="{x:Type ui:Button}"
+               BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Appearance" Value="Secondary" />
+            <Setter Property="CornerRadius" Value="6" />
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="FontSize" Value="12" />
         </Style>
 
-        <Style x:Key="LookupIconButton" TargetType="Button" BasedOn="{StaticResource AppIconButtonStyle}">
+        <Style x:Key="LookupIconButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource LookupActionButton}">
+            <Setter Property="Appearance" Value="Transparent" />
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontSize" Value="12" />
         </Style>
 
-        <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="8" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
-                        <Grid Background="Transparent" Margin="2,0,0,0">
-                            <Track x:Name="PART_Track"
-                                   IsDirectionReversed="True"
-                                   Minimum="{TemplateBinding Minimum}"
-                                   Maximum="{TemplateBinding Maximum}"
-                                   Value="{TemplateBinding Value}"
-                                   ViewportSize="{TemplateBinding ViewportSize}">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
-                                                  Background="Transparent"
-                                                  BorderThickness="0"
-                                                  Focusable="False"
-                                                  Opacity="0" />
-                                </Track.DecreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb Background="#CBD5E1">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="3" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
-                                                  Background="Transparent"
-                                                  BorderThickness="0"
-                                                  Focusable="False"
-                                                  Opacity="0" />
-                                </Track.IncreaseRepeatButton>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -112,9 +82,11 @@
                                Foreground="#0F766E"
                                VerticalAlignment="Center"
                                Margin="1,0,9,0" />
-                    <TextBox x:Name="QueryBox"
+                    <ui:TextBox x:Name="QueryBox"
                              Grid.Column="1"
                              Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="输入单词或短语"
+                             ClearButtonEnabled="False"
                              BorderThickness="0"
                              Background="Transparent"
                              FontSize="15"
@@ -123,7 +95,7 @@
                              MinHeight="34"
                              ToolTip="输入单词或短语"
                              KeyDown="QueryBox_KeyDown" />
-                    <Button Grid.Column="2"
+                    <ui:Button Grid.Column="2"
                             Command="{Binding ClearQueryCommand}"
                             Style="{StaticResource LookupIconButton}"
                             Background="Transparent"
@@ -131,20 +103,19 @@
                             ToolTip="清空"
                             Visibility="{Binding Query, Converter={StaticResource StringToVis}}">
                         <TextBlock Text="&#xE894;" FontFamily="Segoe Fluent Icons" FontSize="13" />
-                    </Button>
-                    <Button Grid.Column="3"
+                    </ui:Button>
+                    <ui:Button Grid.Column="3"
                             Command="{Binding SearchCommand}"
                             IsEnabled="{Binding Lookup.IsLoading, Converter={StaticResource InverseBool}}"
                             Style="{StaticResource LookupActionButton}"
-                            Background="#0F766E"
-                            Foreground="#FFFFFF"
+                            Appearance="Primary"
                             Margin="8,0,0,0"
                             ToolTip="查询（Enter）">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
                             <TextBlock Text="查询" Margin="6,0,0,0" />
                         </StackPanel>
-                    </Button>
+                    </ui:Button>
                 </Grid>
             </Border>
             <TextBlock Text="{Binding QueryError}"
@@ -182,7 +153,7 @@
                         <TextBlock Text="暂时无法完成查询" FontWeight="SemiBold" Foreground="#991B1B" />
                         <TextBlock Text="{Binding Lookup.ErrorMessage}" Foreground="#B91C1C" FontSize="12"
                                    TextWrapping="Wrap" Margin="0,6,0,0" />
-                        <Button Content="重新查询" Command="{Binding SearchCommand}" Style="{StaticResource LookupActionButton}"
+                        <ui:Button Content="重新查询" Command="{Binding SearchCommand}" Style="{StaticResource LookupActionButton}"
                                 HorizontalAlignment="Left" Background="#FFFFFF" Foreground="#991B1B" Margin="0,12,0,0" />
                     </StackPanel>
                 </Border>
@@ -214,41 +185,41 @@
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                                    <Button Command="{Binding SpeakCommand}" Style="{StaticResource LookupIconButton}"
+                                    <ui:Button Command="{Binding SpeakCommand}" Style="{StaticResource LookupIconButton}"
                                             ToolTip="朗读当前单词" Margin="0,0,6,0">
                                         <TextBlock Text="&#xE767;" FontFamily="Segoe Fluent Icons" FontSize="15" />
-                                    </Button>
-                                    <Button Command="{Binding CopyResultCommand}" Style="{StaticResource LookupIconButton}"
+                                    </ui:Button>
+                                    <ui:Button Command="{Binding CopyResultCommand}" Style="{StaticResource LookupIconButton}"
                                             ToolTip="复制单词和释义" Margin="0,0,6,0">
                                         <TextBlock Text="&#xE8C8;" FontFamily="Segoe Fluent Icons" FontSize="14" />
-                                    </Button>
-                                    <Button Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}"
-                                            Style="{StaticResource LookupActionButton}" Background="#0F766E" Foreground="#FFFFFF"
+                                    </ui:Button>
+                                    <ui:Button Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}"
+                                            Style="{StaticResource LookupActionButton}" Appearance="Primary"
                                             ToolTip="保存到生词库">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
                                             <TextBlock Text="存入词库" Margin="6,0,0,0" />
                                         </StackPanel>
-                                    </Button>
-                                    <Button Command="{Binding ForceAiCommand}"
+                                    </ui:Button>
+                                    <ui:Button Command="{Binding ForceAiCommand}"
                                             Background="#F1F5F9"
                                             Foreground="#0F766E"
                                             Margin="6,0,0,0"
                                             ToolTip="结合语境重新解释当前单词">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource LookupActionButton}">
+                                        <ui:Button.Style>
+                                            <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource LookupActionButton}">
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </Button.Style>
+                                        </ui:Button.Style>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
                                             <TextBlock Text="AI 详解" Margin="6,0,0,0" />
                                         </StackPanel>
-                                    </Button>
+                                    </ui:Button>
                                 </StackPanel>
                             </Grid>
 
@@ -310,7 +281,7 @@
                             </Grid>
 
                             <StackPanel Grid.Row="2" Margin="0,18,0,0">
-                                <Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}"
+                                <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}"
                                         Style="{StaticResource LookupActionButton}" HorizontalContentAlignment="Left"
                                         Background="#F3F5F0" Foreground="#567267" Padding="11,8"
                                         Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
