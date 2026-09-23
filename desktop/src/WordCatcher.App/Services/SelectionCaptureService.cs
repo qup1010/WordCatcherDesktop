@@ -279,18 +279,44 @@ public sealed class SelectionCaptureService : ISelectionCaptureService
                 if (selection == null || selection.Length == 0)
                     continue;
 
-                var paragraphRange = selection[0].Clone();
+                var selectedRange = selection[0].Clone();
+                var paragraphRange = selectedRange.Clone();
                 paragraphRange.ExpandToEnclosingUnit(TextUnit.Paragraph);
-                var paragraph = NormalizeWhitespace(paragraphRange.GetText(5000));
-                if (string.IsNullOrWhiteSpace(paragraph))
+                var paragraph = paragraphRange.GetText(5000);
+                if (string.IsNullOrWhiteSpace(paragraph) || paragraph.Length >= 5000)
                     continue;
 
-                var selected = NormalizeWhitespace(selectedText);
-                var selectedOffset = paragraph.IndexOf(selected, StringComparison.OrdinalIgnoreCase);
-                if (selectedOffset >= 0)
+                // Read the prefix through the actual UIA selection range. Searching
+                // for selected text in the paragraph can bind to an earlier duplicate.
+                var prefixRange = paragraphRange.Clone();
+                prefixRange.MoveEndpointByRange(
+                    TextPatternRangeEndpoint.End,
+                    selectedRange,
+                    TextPatternRangeEndpoint.Start);
+                var prefix = prefixRange.GetText(5000);
+                var selected = selectedRange.GetText(5000);
+                var selectedOffset = prefix.Length;
+                var selectedContent = selected.Trim();
+                var contentOffset = selectedOffset + (selected.Length - selected.TrimStart().Length);
+                if (string.IsNullOrWhiteSpace(selectedContent)
+                    || selectedOffset < 0
+                    || contentOffset + selectedContent.Length > paragraph.Length)
                 {
-                    return ExtractSentence(paragraph, selectedOffset, selected.Length);
+                    continue;
                 }
+
+                // UIA and clipboard providers can normalize whitespace differently.
+                // Require the selected range to identify the same text before using it.
+                var rangeText = paragraph.Substring(contentOffset, selectedContent.Length);
+                if (!string.Equals(
+                        NormalizeWhitespace(rangeText),
+                        NormalizeWhitespace(selectedText),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                return ExtractSentence(paragraph, contentOffset, selectedContent.Length);
             }
         }
         catch (ElementNotAvailableException)
@@ -326,8 +352,16 @@ public sealed class SelectionCaptureService : ISelectionCaptureService
         if (to < paragraph.Length)
             to++;
 
-        var sentence = paragraph[from..to].Trim();
-        var offset = Math.Max(0, selectionOffset - from);
+        var sentence = NormalizeWhitespace(paragraph[from..to]).Trim();
+        var prefix = NormalizeWhitespace(paragraph[from..selectionOffset]);
+        var offset = prefix.Length;
+        if (offset > 0
+            && selectionOffset > from
+            && char.IsWhiteSpace(paragraph[selectionOffset - 1])
+            && offset < sentence.Length)
+        {
+            offset++;
+        }
         return new ContextSnapshot(sentence, offset);
     }
 

@@ -151,6 +151,7 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
                 Sentence = string.IsNullOrWhiteSpace(capture.Sentence)
                     ? capture.SelectedText
                     : capture.Sentence,
+                SelectionOffset = capture.SentenceOffset,
                 ContextTranslation = trans.ContextTranslation,
                 SourceProcess = capture.SourceProcess,
                 SourceWindowTitle = capture.SourceWindowTitle,
@@ -165,12 +166,13 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
             {
                 insertOccCmd.Transaction = transaction;
                 insertOccCmd.CommandText = @"
-INSERT INTO occurrences (id, word_id, selected_text, sentence, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc)
-VALUES ($id, $wordId, $sel, $sentence, $trans, $proc, $win, $uri, $source, $entryId, $schemaVer, $captured);";
+INSERT INTO occurrences (id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc)
+VALUES ($id, $wordId, $sel, $sentence, $selectionOffset, $trans, $proc, $win, $uri, $source, $entryId, $schemaVer, $captured);";
                 insertOccCmd.Parameters.AddWithValue("$id", occurrence.Id);
                 insertOccCmd.Parameters.AddWithValue("$wordId", occurrence.WordId);
                 insertOccCmd.Parameters.AddWithValue("$sel", occurrence.SelectedText);
                 insertOccCmd.Parameters.AddWithValue("$sentence", occurrence.Sentence);
+                insertOccCmd.Parameters.AddWithValue("$selectionOffset", occurrence.SelectionOffset);
                 insertOccCmd.Parameters.AddWithValue("$trans", occurrence.ContextTranslation);
                 insertOccCmd.Parameters.AddWithValue("$proc", occurrence.SourceProcess);
                 insertOccCmd.Parameters.AddWithValue("$win", occurrence.SourceWindowTitle);
@@ -292,7 +294,7 @@ LIMIT 1;";
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
-SELECT id, word_id, selected_text, sentence, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc
+SELECT id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc
 FROM occurrences
 WHERE word_id = $wordId
 ORDER BY captured_at_utc DESC;";
@@ -308,14 +310,15 @@ ORDER BY captured_at_utc DESC;";
                 WordId = reader.GetString(1),
                 SelectedText = reader.GetString(2),
                 Sentence = reader.GetString(3),
-                ContextTranslation = reader.GetString(4),
-                SourceProcess = reader.GetString(5),
-                SourceWindowTitle = reader.GetString(6),
-                SourceUri = reader.GetString(7),
-                LookupSource = reader.GetString(8),
-                SourceEntryId = reader.GetString(9),
-                SourceSchemaVersion = reader.GetString(10),
-                CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(11))
+                SelectionOffset = reader.GetInt32(4),
+                ContextTranslation = reader.GetString(5),
+                SourceProcess = reader.GetString(6),
+                SourceWindowTitle = reader.GetString(7),
+                SourceUri = reader.GetString(8),
+                LookupSource = reader.GetString(9),
+                SourceEntryId = reader.GetString(10),
+                SourceSchemaVersion = reader.GetString(11),
+                CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(12))
             });
         }
 
@@ -327,7 +330,7 @@ ORDER BY captured_at_utc DESC;";
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
-SELECT id, word_id, selected_text, sentence, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc
+SELECT id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc
 FROM occurrences
 WHERE id = $id
 LIMIT 1;";
@@ -343,14 +346,15 @@ LIMIT 1;";
             WordId = reader.GetString(1),
             SelectedText = reader.GetString(2),
             Sentence = reader.GetString(3),
-            ContextTranslation = reader.GetString(4),
-            SourceProcess = reader.GetString(5),
-            SourceWindowTitle = reader.GetString(6),
-            SourceUri = reader.GetString(7),
-            LookupSource = reader.GetString(8),
-            SourceEntryId = reader.GetString(9),
-            SourceSchemaVersion = reader.GetString(10),
-            CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(11))
+            SelectionOffset = reader.GetInt32(4),
+            ContextTranslation = reader.GetString(5),
+            SourceProcess = reader.GetString(6),
+            SourceWindowTitle = reader.GetString(7),
+            SourceUri = reader.GetString(8),
+            LookupSource = reader.GetString(9),
+            SourceEntryId = reader.GetString(10),
+            SourceSchemaVersion = reader.GetString(11),
+            CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(12))
         };
     }
 
@@ -421,7 +425,7 @@ WHERE id = $id;";
         cmd.CommandText = @"
 SELECT j.id, j.word_id, j.occurrence_id, j.target, j.status, j.attempts, j.last_error, j.next_attempt_at_utc, j.created_at_utc, j.updated_at_utc,
        w.id, w.normalized_word, w.display_word, w.language, w.reading, w.part_of_speech, w.definition, w.memory_hook, w.created_at_utc, w.updated_at_utc,
-       o.id, o.word_id, o.selected_text, o.sentence, o.context_translation, o.source_process, o.source_window_title, o.source_uri, o.lookup_source, o.source_entry_id, o.source_schema_version, o.captured_at_utc
+       o.id, o.word_id, o.selected_text, o.sentence, o.selection_offset, o.context_translation, o.source_process, o.source_window_title, o.source_uri, o.lookup_source, o.source_entry_id, o.source_schema_version, o.captured_at_utc
 FROM sync_jobs j
 INNER JOIN words w ON j.word_id = w.id
 INNER JOIN occurrences o ON j.occurrence_id = o.id
@@ -462,14 +466,15 @@ ORDER BY j.created_at_utc DESC;";
                     WordId = reader.GetString(21),
                     SelectedText = reader.GetString(22),
                     Sentence = reader.GetString(23),
-                    ContextTranslation = reader.GetString(24),
-                    SourceProcess = reader.GetString(25),
-                    SourceWindowTitle = reader.GetString(26),
-                    SourceUri = reader.GetString(27),
-                    LookupSource = reader.GetString(28),
-                    SourceEntryId = reader.GetString(29),
-                    SourceSchemaVersion = reader.GetString(30),
-                    CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(31))
+                    SelectionOffset = reader.GetInt32(24),
+                    ContextTranslation = reader.GetString(25),
+                    SourceProcess = reader.GetString(26),
+                    SourceWindowTitle = reader.GetString(27),
+                    SourceUri = reader.GetString(28),
+                    LookupSource = reader.GetString(29),
+                    SourceEntryId = reader.GetString(30),
+                    SourceSchemaVersion = reader.GetString(31),
+                    CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(32))
                 }
             };
             list.Add(job);
@@ -532,6 +537,21 @@ WHERE id = $id;";
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
+    public async Task RecoverInterruptedSyncJobsAsync(CancellationToken ct = default)
+    {
+        await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"
+UPDATE sync_jobs
+SET status = 'Pending',
+    last_error = '应用上次在同步过程中退出，已重新排队',
+    next_attempt_at_utc = NULL,
+    updated_at_utc = $now
+WHERE status = 'Syncing';";
+        cmd.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("o"));
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
     public async Task ResetSyncJobAsync(string jobId, CancellationToken ct = default)
     {
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
@@ -539,6 +559,8 @@ WHERE id = $id;";
         cmd.CommandText = @"
 UPDATE sync_jobs
 SET status = 'Pending',
+    attempts = 0,
+    last_error = '',
     next_attempt_at_utc = NULL,
     updated_at_utc = $now
 WHERE id = $id;";
@@ -554,6 +576,8 @@ WHERE id = $id;";
         cmd.CommandText = @"
 UPDATE sync_jobs
 SET status = 'Pending',
+    attempts = 0,
+    last_error = '',
     next_attempt_at_utc = NULL,
     updated_at_utc = $now
 WHERE status IN ('Failed', 'Retryable');";

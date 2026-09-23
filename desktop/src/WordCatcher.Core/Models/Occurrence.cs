@@ -8,6 +8,7 @@ public sealed class Occurrence
     public string WordId { get; set; } = string.Empty;
     public string SelectedText { get; set; } = string.Empty;
     public string Sentence { get; set; } = string.Empty;
+    public int SelectionOffset { get; set; } = -1;
     public string ContextTranslation { get; set; } = string.Empty;
     public string SourceProcess { get; set; } = string.Empty;
     public string SourceWindowTitle { get; set; } = string.Empty;

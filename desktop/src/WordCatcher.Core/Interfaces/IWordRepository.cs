@@ -18,6 +18,7 @@ public interface IWordRepository
     Task<IReadOnlyList<SyncJob>> GetSyncJobsAsync(CancellationToken ct = default);
     Task<SyncJob?> GetSyncJobByIdAsync(string id, CancellationToken ct = default);
     Task UpdateSyncJobAsync(SyncJob job, CancellationToken ct = default);
+    Task RecoverInterruptedSyncJobsAsync(CancellationToken ct = default);
     Task ResetSyncJobAsync(string jobId, CancellationToken ct = default);
     Task ResetAllFailedSyncJobsAsync(CancellationToken ct = default);
 }

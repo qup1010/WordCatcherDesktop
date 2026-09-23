@@ -31,6 +31,7 @@
             <Setter Property="Background" Value="#F1F5F9" />
             <Setter Property="Foreground" Value="#334155" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -42,7 +43,9 @@
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -52,7 +55,11 @@
                                 <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.42" />
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.52" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#0F766E" />
+                                <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="1" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -61,23 +68,78 @@
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Margin" Value="0,1,0,1" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="#0F172A" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Background" Value="#FBFCFE" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="CaretBrush" Value="#0F766E" />
+            <Setter Property="BorderBrush" Value="#D7DEE9" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#86B7A0" /></Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#0D9488" /><Setter TargetName="InputBorder" Property="Background" Value="#FFFFFF" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="InputBorder" Property="Opacity" Value="0.55" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="PasswordBox">
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Background" Value="#FBFCFE" />
+            <Setter Property="BorderBrush" Value="#D7DEE9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="CaretBrush" Value="#0F766E" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#86B7A0" /></Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#0D9488" /><Setter TargetName="InputBorder" Property="Background" Value="#FFFFFF" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="InputBorder" Property="Opacity" Value="0.55" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="ComboBox">
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="Padding" Value="9,5" />
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="#0F172A" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="11,6" />
+            <Setter Property="Margin" Value="0,1,0,1" />
+            <Setter Property="Background" Value="#FBFCFE" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="BorderBrush" Value="#D7DEE9" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,2,0,12" />
+            <Setter Property="Padding" Value="4,2" />
+        </Style>
+
+        <Style TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="#0F766E" />
+            <Setter Property="Background" Value="#E6EEE9" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
 
         <Style TargetType="DataGrid">
@@ -106,6 +168,12 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Foreground" Value="#334155" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="#0F766E" />
+                    <Setter Property="BorderThickness" Value="1" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style TargetType="DataGridRow">
@@ -116,7 +184,7 @@
                     <Setter Property="Background" Value="#F8FAFC" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#EEF2FF" />
+                    <Setter Property="Background" Value="#EAF3EE" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -132,7 +200,9 @@
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="ItemBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="9"
+                                CornerRadius="8"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter />
                         </Border>
@@ -141,7 +211,12 @@
                                 <Setter TargetName="ItemBorder" Property="Background" Value="#F1F5F9" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#EEF2FF" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#EAF3EE" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#0F766E" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="3,0,0,0" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#0F766E" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -151,7 +226,7 @@
 
         <Style TargetType="GroupBox">
             <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderBrush" Value="#E6EAE5" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16" />
             <Setter Property="Template">
@@ -193,6 +268,8 @@
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="TabBorder"
                                 Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
                                 CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header"
@@ -205,8 +282,10 @@
                                 <Setter Property="Foreground" Value="#1E293B" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#EEF2FF" />
-                                <Setter Property="Foreground" Value="#4F46E5" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#EAF3EE" />
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0F766E" />
+                                <Setter TargetName="TabBorder" Property="BorderThickness" Value="3,0,0,0" />
+                                <Setter Property="Foreground" Value="#0F766E" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -229,11 +308,11 @@
                     <ControlTemplate TargetType="TabControl">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="218" />
+                                <ColumnDefinition Width="208" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <Border Background="#F8FAFC"
+                            <Border Background="#FFFFFF"
                                     BorderBrush="#E2E8F0"
                                     BorderThickness="0,0,1,0">
                                 <Grid>
@@ -245,7 +324,7 @@
 
                                     <StackPanel Margin="18,22,16,18">
                                         <StackPanel Orientation="Horizontal">
-                                            <Border Width="34" Height="34" Background="#4F46E5" CornerRadius="8">
+                                            <Border Width="34" Height="34" Background="#0F766E" CornerRadius="8">
                                                 <TextBlock Text="W"
                                                            FontSize="17"
                                                            FontWeight="Bold"
@@ -285,7 +364,7 @@
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Column="1" Background="#F8FAFC">
+                            <Border Grid.Column="1" Background="#F6F8F6">
                                 <ContentPresenter ContentSource="SelectedContent"
                                                   ContentTemplate="{TemplateBinding SelectedContentTemplate}"
                                                   ContentStringFormat="{TemplateBinding SelectedContentStringFormat}"
@@ -311,71 +390,6 @@
                     </StackPanel>
                 </TabItem.Header>
                 <Grid TextElement.FontWeight="Normal" TextElement.Foreground="#334155">
-                    <Grid.Resources>
-                        <!-- Settings-only form language: calm surfaces, clear focus state, and consistent rhythm. -->
-                        <Style TargetType="TextBox">
-                            <Setter Property="MinHeight" Value="38" />
-                            <Setter Property="Padding" Value="12,7" />
-                            <Setter Property="Margin" Value="0,1,0,1" />
-                            <Setter Property="Background" Value="#FBFCFE" />
-                            <Setter Property="BorderBrush" Value="#D7DEE9" />
-                            <Setter Property="BorderThickness" Value="1" />
-                            <Setter Property="Foreground" Value="#1E293B" />
-                            <Setter Property="CaretBrush" Value="#4F46E5" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="TextBox">
-                                        <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" SnapsToDevicePixels="True">
-                                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#A5B4FC" /></Trigger>
-                                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#6366F1" /><Setter TargetName="InputBorder" Property="Background" Value="#FFFFFF" /></Trigger>
-                                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="InputBorder" Property="Opacity" Value="0.55" /></Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                        <Style TargetType="PasswordBox">
-                            <Setter Property="MinHeight" Value="38" />
-                            <Setter Property="Padding" Value="12,7" />
-                            <Setter Property="Background" Value="#FBFCFE" />
-                            <Setter Property="BorderBrush" Value="#D7DEE9" />
-                            <Setter Property="BorderThickness" Value="1" />
-                            <Setter Property="Foreground" Value="#1E293B" />
-                            <Setter Property="CaretBrush" Value="#4F46E5" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="PasswordBox">
-                                        <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7">
-                                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#A5B4FC" /></Trigger>
-                                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#6366F1" /><Setter TargetName="InputBorder" Property="Background" Value="#FFFFFF" /></Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                        <Style TargetType="ComboBox">
-                            <Setter Property="MinHeight" Value="38" />
-                            <Setter Property="Padding" Value="11,6" />
-                            <Setter Property="Margin" Value="0,1,0,1" />
-                            <Setter Property="Background" Value="#FBFCFE" />
-                            <Setter Property="BorderBrush" Value="#D7DEE9" />
-                            <Setter Property="BorderThickness" Value="1" />
-                            <Setter Property="Foreground" Value="#1E293B" />
-                            <Setter Property="FontSize" Value="13" />
-                        </Style>
-                        <Style TargetType="CheckBox">
-                            <Setter Property="Foreground" Value="#334155" />
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Margin" Value="0,2,0,12" />
-                            <Setter Property="Padding" Value="4,2" />
-                        </Style>
-                    </Grid.Resources>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -387,7 +401,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="生词库" FontSize="24" FontWeight="Bold" Foreground="#0F172A" />
+                            <TextBlock Text="生词库" FontSize="25" FontWeight="Bold" Foreground="#0F172A" />
                             <TextBlock Text="整理收藏的词条，并回看它们出现时的真实语境"
                                        FontSize="12" Foreground="#64748B" Margin="0,4,0,0" />
                         </StackPanel>
@@ -402,8 +416,8 @@
                                     Foreground="#475569"
                                     FontSize="12"
                                     Cursor="Hand" />
-                            <Border Background="#EEF2FF" CornerRadius="8" Padding="12,6">
-                                <TextBlock Foreground="#4F46E5" FontSize="12" FontWeight="SemiBold">
+                            <Border Background="#EAF3EE" CornerRadius="8" Padding="12,6">
+                                <TextBlock Foreground="#0F766E" FontSize="12" FontWeight="SemiBold">
                                     <Run Text="已显示 " /><Run Text="{Binding Words.Count, Mode=OneWay}" /><Run Text=" 个词条" />
                                 </TextBlock>
                             </Border>
@@ -446,9 +460,9 @@
                                                  VerticalContentAlignment="Center"
                                                  BorderBrush="#CBD5E1"
                                                  BorderThickness="1"
-                                                 ToolTip="输入即搜索；Esc 清空搜索"
-                                                 KeyDown="SearchBox_KeyDown" />
-                                        <TextBlock Text="搜索单词或释义"
+                                                  ToolTip="输入即搜索；Ctrl+F 聚焦，Esc 清空搜索"
+                                                  KeyDown="SearchBox_KeyDown" />
+                                        <TextBlock Text="搜索单词、释义或语境"
                                                    Margin="12,0,0,0"
                                                    VerticalAlignment="Center"
                                                    Foreground="#94A3B8"
@@ -471,7 +485,7 @@
                                             Command="{Binding SearchCommand}"
                                             Margin="6,0,0,0"
                                             Padding="14,6"
-                                            Background="#4F46E5"
+                                            Background="#0F766E"
                                             Foreground="White"
                                             BorderThickness="0"
                                             Cursor="Hand" />
@@ -554,7 +568,7 @@
                                                    Foreground="#CBD5E1" HorizontalAlignment="Center" />
                                         <TextBlock Text="{Binding EmptyMessage}" FontSize="14" FontWeight="SemiBold"
                                                    Foreground="#64748B" Margin="0,12,0,0" />
-                                        <TextBlock Text="尝试其他关键词，或通过取词添加收藏"
+                                        <TextBlock Text="收藏的词条会显示在这里；使用取词快捷键快速添加"
                                                    FontSize="11" TextWrapping="Wrap" Foreground="#94A3B8" Margin="0,4,0,0" />
                                         <StackPanel.Style>
                                             <Style TargetType="StackPanel">
@@ -580,7 +594,7 @@
                                 Padding="22">
                             <Grid>
                                 <!-- No selection prompt -->
-                                <TextBlock Text="请在左侧选择词条查看语境或进行编辑"
+                                            <TextBlock Text="从左侧选择一个词条，查看释义、语境记录或编辑内容"
                                            Foreground="#9CA3AF"
                                            FontSize="14"
                                            HorizontalAlignment="Center"
@@ -652,7 +666,7 @@
                                                     <StackPanel>
                                                         <TextBlock Text="释义" FontSize="12" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,8" />
                                                         <TextBlock Text="{Binding DefinitionPreview}" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="#334155" Visibility="{Binding IsDefinitionExpanded, Converter={StaticResource InverseBoolToVis}}" />
-                                                        <Expander Header="完整释义" IsExpanded="{Binding IsDefinitionExpanded, Mode=TwoWay}" Margin="0,8,0,0" Foreground="#4F46E5">
+                                                        <Expander Header="完整释义" IsExpanded="{Binding IsDefinitionExpanded, Mode=TwoWay}" Margin="0,8,0,0" Foreground="#0F766E">
                                                             <TextBlock Text="{Binding SelectedWord.Definition}" FontSize="14" LineHeight="24" Foreground="#334155" TextWrapping="Wrap" Margin="0,10,0,0" />
                                                         </Expander>
                                                     </StackPanel>
@@ -708,7 +722,7 @@
                                                                             <TextBlock Text="{Binding Sentence}"
                                                                                        FontSize="13"
                                                                                        Foreground="#1E293B"
-                                                                                       TextTrimming="CharacterEllipsis" MaxWidth="260"
+                                                                                        TextTrimming="CharacterEllipsis"
                                                                                        FontWeight="Medium"
                                                                                        LineHeight="20" />
                                                                             </Expander.Header>
@@ -828,7 +842,7 @@
                                                 <Button Content="保存修改"
                                                         Command="{Binding SaveEditCommand}"
                                                         Padding="14,6"
-                                                        Background="#4F46E5"
+                                                        Background="#0F766E"
                                                         Foreground="White"
                                                         BorderThickness="0"
                                                         Margin="0,0,8,0"
@@ -888,10 +902,12 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,10,0"
-                                       FontSize="13"
-                                       Foreground="#6B7280"
-                                       VerticalAlignment="Center" />
+                            <Border Background="#F6F8F6" CornerRadius="8" Padding="11,7" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
+                                           FontSize="13"
+                                           Foreground="#475569"
+                                           VerticalAlignment="Center" />
+                            </Border>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                 <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Padding="10,5" />
@@ -906,7 +922,7 @@
                                 <Button Content="重试失败任务"
                                         Command="{Binding RetryAllCommand}"
                                         Padding="14,5"
-                                        Background="#4F46E5"
+                                        Background="#0F766E"
                                         Foreground="White"
                                         BorderThickness="0"
                                         Cursor="Hand" />
@@ -929,8 +945,8 @@
                                   IsReadOnly="True"
                                   SelectionMode="Single" SelectionUnit="FullRow" EnableRowVirtualization="True">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="单词" Binding="{Binding Word.DisplayWord}" Width="120" />
-                                <DataGridTemplateColumn Header="状态" Width="100">
+                                <DataGridTextColumn Header="单词" Binding="{Binding Word.DisplayWord}" Width="104" />
+                                <DataGridTemplateColumn Header="状态" Width="88">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border CornerRadius="6" Padding="7,3" HorizontalAlignment="Left">
@@ -955,10 +971,10 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="重试次数" Binding="{Binding Attempts}" Width="70" />
-                                <DataGridTextColumn Header="最后错误 / 说明" Binding="{Binding LastError}" Width="*" MinWidth="160" />
-                                <DataGridTextColumn Header="下次尝试时间" Binding="{Binding NextAttemptAtUtc, Converter={StaticResource LocalTime}}" Width="110" />
-                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAtUtc, Converter={StaticResource LocalTime}}" Width="110" />
+                                <DataGridTextColumn Header="重试次数" Binding="{Binding Attempts}" Width="60" />
+                                <DataGridTextColumn Header="最后错误 / 说明" Binding="{Binding LastError}" Width="*" MinWidth="140" />
+                                <DataGridTextColumn Header="下次尝试时间" Binding="{Binding NextAttemptAtUtc, Converter={StaticResource LocalTime}}" Width="100" />
+                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAtUtc, Converter={StaticResource LocalTime}}" Width="100" />
                             </DataGrid.Columns>
                         </DataGrid>
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
@@ -1005,7 +1021,7 @@
                                    FontSize="12" Foreground="#64748B" Margin="0,4,0,0" />
                     </StackPanel>
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}">
-                    <StackPanel MaxWidth="820" HorizontalAlignment="Stretch" Margin="0,0,12,0">
+                        <StackPanel MaxWidth="880" HorizontalAlignment="Center" Margin="0,0,12,0">
                         <!-- 1. 全局快捷键 -->
                         <GroupBox Header="取词快捷键" Margin="0,0,0,16">
                             <StackPanel>
@@ -1013,10 +1029,10 @@
                                     <Run Text="当前生效：" /><Run Text="{Binding AppliedHotkey, Mode=OneWay}" FontWeight="SemiBold" />
                                 </TextBlock>
                                 <WrapPanel>
-                                    <Border Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="8" Padding="16,9" MinWidth="140" Margin="0,0,8,8">
-                                        <TextBlock Text="{Binding Hotkey}" Foreground="#4338CA" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <Border Background="#EAF3EE" BorderBrush="#CFE3D5" BorderThickness="1" CornerRadius="8" Padding="16,9" MinWidth="140" Margin="0,0,8,8">
+                                        <TextBlock Text="{Binding Hotkey}" Foreground="#115E59" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                     </Border>
-                                    <Button x:Name="RecordHotkeyButton" Command="{Binding RecordHotkeyCommand}" Margin="0,0,8,8" MinHeight="40" Background="#4F46E5" Foreground="White" ToolTip="点击后直接按组合键，无需输入名称">
+                                    <Button x:Name="RecordHotkeyButton" Command="{Binding RecordHotkeyCommand}" Margin="0,0,8,8" MinHeight="40" Background="#0F766E" Foreground="White" ToolTip="点击后直接按组合键，无需输入名称">
                                         <TextBlock>
                                             <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="录入快捷键" /><Style.Triggers><DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True"><Setter Property="Text" Value="等待按键…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                         </TextBlock>
@@ -1033,7 +1049,7 @@
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                     <TextBlock Text="安装状态: " FontWeight="Medium" />
-                                    <TextBlock Text="{Binding DictStatusText}" FontWeight="Bold" Foreground="#4F46E5" />
+                                    <TextBlock Text="{Binding DictStatusText}" FontWeight="Bold" Foreground="#0F766E" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding DictDetailsText}" TextWrapping="Wrap" Foreground="#4B5563" Margin="0,0,0,10" />
 
@@ -1042,7 +1058,7 @@
 
                                 <!-- Progress indicator during install -->
                                 <StackPanel Visibility="{Binding IsDictInstalling, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
-                                    <ProgressBar Value="{Binding DictProgressValue}" Height="6" Maximum="100" Foreground="#4F46E5" Margin="0,0,0,4" />
+                                    <ProgressBar Value="{Binding DictProgressValue}" Height="6" Maximum="100" Foreground="#0F766E" Margin="0,0,0,4" />
                                     <TextBlock Text="{Binding DictProgressText}" FontSize="12" Foreground="#6B7280" />
                                 </StackPanel>
 
@@ -1051,7 +1067,7 @@
                                             Command="{Binding InstallDictFromUrlCommand}"
                                             IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
                                             Padding="12,6"
-                                            Background="#4F46E5"
+                                            Background="#0F766E"
                                             Foreground="White"
                                             BorderThickness="0"
                                             Margin="0,0,8,0"
@@ -1094,7 +1110,7 @@
                                            Margin="0,0,0,12" />
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="AI 配置:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1123,7 +1139,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="配置名称:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1134,7 +1150,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Base URL:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1143,7 +1159,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="模型名称:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1152,7 +1168,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="未命中时的快速翻译:" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="#64748B" Margin="0,0,10,0" />
@@ -1167,7 +1183,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="API Key:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1176,7 +1192,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="释义语言:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1190,7 +1206,7 @@
                                         Background="#F3F4F6"
                                         Foreground="#374151"
                                         BorderThickness="0"
-                                        Margin="150,4,0,0"
+                                        Margin="132,4,0,0"
                                         Cursor="Hand" />
                             </StackPanel>
                         </GroupBox>
@@ -1202,7 +1218,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="AnkiConnect URL:" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1211,7 +1227,7 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="牌组名称 (Deck):" VerticalAlignment="Center" Foreground="#64748B" />
@@ -1220,14 +1236,14 @@
 
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="132" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="笔记类型 (Model):" VerticalAlignment="Center" Foreground="#64748B" />
                                     <TextBox Grid.Column="1" Text="{Binding AnkiNoteTypeName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" />
                                 </Grid>
 
-                                <CheckBox Content="在例句中自动生成填空挖空 ([ ? ])" IsChecked="{Binding AnkiClozeContext}" Margin="150,4,0,8" />
+                                <CheckBox Content="在例句中自动生成填空挖空 ([ ? ])" IsChecked="{Binding AnkiClozeContext}" Margin="132,4,0,8" />
 
                                 <Button Content="测试 Anki 连接"
                                         Command="{Binding TestAnkiConnectionCommand}"
@@ -1236,7 +1252,7 @@
                                         Background="#F3F4F6"
                                         Foreground="#374151"
                                         BorderThickness="0"
-                                        Margin="150,4,0,0"
+                                        Margin="132,4,0,0"
                                         Cursor="Hand" />
                             </StackPanel>
                         </GroupBox>
@@ -1252,7 +1268,18 @@
                 <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" MaxHeight="66" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0" />
-                        <Button Grid.Column="1" Content="保存所有设置" Command="{Binding SaveSettingsCommand}" Background="#4F46E5" Foreground="White" Padding="18,9" />
+                        <Button Grid.Column="1" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Background="#0F766E" Foreground="White" Padding="18,9">
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="保存所有设置" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSaving}" Value="True"><Setter Property="Text" Value="正在保存…" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
                     </Grid>
                 </Border>
                 </Grid>

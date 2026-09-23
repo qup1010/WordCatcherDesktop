@@ -262,53 +262,21 @@ hr#answer {
         }
         else
         {
-            // Ensure fields
-            try
+            // Existing note types may contain user-managed templates. Validate
+            // compatibility without mutating their fields, templates or CSS.
+            var fields = await InvokeAsync<List<string>>("modelFieldNames", new { modelName = noteTypeName }, ct).ConfigureAwait(false) ?? new();
+            var missingFields = new List<string>();
+            foreach (var field in AnkiFields)
             {
-                var fields = await InvokeAsync<List<string>>("modelFieldNames", new { modelName = noteTypeName }, ct).ConfigureAwait(false) ?? new();
-                foreach (var field in AnkiFields)
-                {
-                    if (!fields.Contains(field))
-                    {
-                        await InvokeAsync<object>("modelFieldAdd", new { modelName = noteTypeName, fieldName = field }, ct).ConfigureAwait(false);
-                        fields.Add(field);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to check or update Anki model fields");
+                if (!fields.Contains(field))
+                    missingFields.Add(field);
             }
 
-            // Update templates & styling
-            await UpdateModelTemplatesAsync(noteTypeName, ttsLang, ct).ConfigureAwait(false);
-        }
-    }
-
-    private async Task UpdateModelTemplatesAsync(string modelName, string ttsLang, CancellationToken ct)
-    {
-        var templates = BuildCardTemplates(ttsLang);
-        var templateMap = new Dictionary<string, object>();
-        foreach (var t in templates)
-        {
-            templateMap[t.Name] = new { Front = t.Front, Back = t.Back };
-        }
-
-        try
-        {
-            await InvokeAsync<object>("updateModelTemplates", new
+            if (missingFields.Count > 0)
             {
-                model = new { name = modelName, templates = templateMap }
-            }, ct).ConfigureAwait(false);
-
-            await InvokeAsync<object>("updateModelStyling", new
-            {
-                model = new { name = modelName, css = ModelCss.Trim() }
-            }, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to update Anki model templates or styling");
+                throw new AnkiException(
+                    $"Anki 笔记类型「{noteTypeName}」缺少字段：{string.Join("、", missingFields)}。为保护现有模板，应用未自动修改它；请新建 Word Catcher 专用笔记类型，或选择包含所需字段的笔记类型。");
+            }
         }
     }
 
@@ -387,7 +355,6 @@ hr#answer {
 
     public static Dictionary<string, string> BuildNoteFields(Word word, Occurrence occurrence, bool clozeContext)
     {
-        var cloze = ClozeSentenceBuilder.BuildClozeSentence(occurrence.Sentence, occurrence.SelectedText);
         var sourceHtml = !string.IsNullOrWhiteSpace(occurrence.SourceUri)
             ? $"<a href=\"{ClozeSentenceBuilder.EscapeHtml(occurrence.SourceUri)}\">{ClozeSentenceBuilder.EscapeHtml(!string.IsNullOrWhiteSpace(occurrence.SourceWindowTitle) ? occurrence.SourceWindowTitle : occurrence.SourceUri)}</a>"
             : ClozeSentenceBuilder.EscapeHtml(occurrence.SourceWindowTitle);
@@ -399,7 +366,9 @@ hr#answer {
             ["PartOfSpeech"] = ClozeSentenceBuilder.EscapeHtml(word.PartOfSpeech),
             ["Definition"] = ClozeSentenceBuilder.EscapeHtml(word.Definition),
             ["MemoryHook"] = ClozeSentenceBuilder.EscapeHtml(word.MemoryHook),
-            ["Sentence"] = clozeContext ? cloze : ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
+            ["Sentence"] = clozeContext
+                ? ClozeSentenceBuilder.BuildClozeSentence(occurrence.Sentence, occurrence.SelectedText, occurrence.SelectionOffset)
+                : ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
             ["SentencePlain"] = ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
             ["SentenceTranslation"] = ClozeSentenceBuilder.EscapeHtml(occurrence.ContextTranslation),
             ["Source"] = sourceHtml

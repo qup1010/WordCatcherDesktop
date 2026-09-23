@@ -77,6 +77,13 @@ CREATE TABLE IF NOT EXISTS sync_jobs (
 
 CREATE INDEX IF NOT EXISTS ix_sync_jobs_status ON sync_jobs(status, next_attempt_at_utc);
 "
+        ),
+        (
+            2,
+            "Store selection offsets for exact context",
+            @"
+ALTER TABLE occurrences ADD COLUMN selection_offset INTEGER NOT NULL DEFAULT -1;
+"
         )
     };
 

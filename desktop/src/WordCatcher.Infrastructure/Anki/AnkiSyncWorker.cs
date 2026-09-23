@@ -23,6 +23,7 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
     private Task? _processingTask;
     private Task? _timerTask;
     private int _disposed;
+    private bool _startupRecoveryComplete;
 
     public AnkiSyncWorker(
         IWordRepository wordRepository,
@@ -121,12 +122,31 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
 
     private async Task ProcessPendingAndRetryableJobsAsync(CancellationToken ct)
     {
-        if (!_settingsService.Current.Anki.Enabled)
-            return;
-
         await _syncLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            if (!_startupRecoveryComplete)
+            {
+                try
+                {
+                    await _wordRepository.RecoverInterruptedSyncJobsAsync(ct).ConfigureAwait(false);
+                    _startupRecoveryComplete = true;
+                    _logger?.LogInformation("Recovered sync jobs interrupted by the previous application run");
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to recover interrupted Anki sync jobs; recovery will retry on the next scan");
+                    return;
+                }
+            }
+
+            if (!_settingsService.Current.Anki.Enabled)
+                return;
+
             var jobs = await _wordRepository.GetSyncJobsAsync(ct).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
 
@@ -134,10 +154,7 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
             {
                 if (ct.IsCancellationRequested) break;
 
-                bool shouldProcess = job.Status == SyncStatus.Pending
-                    || (job.Status == SyncStatus.Retryable && (job.NextAttemptAtUtc == null || job.NextAttemptAtUtc <= now));
-
-                if (shouldProcess)
+                if (IsDueForAutomaticProcessing(job, now))
                 {
                     await ExecuteSyncAsync(job, ct).ConfigureAwait(false);
                 }
@@ -158,7 +175,7 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
         try
         {
             var job = await _wordRepository.GetSyncJobByIdAsync(jobId, ct).ConfigureAwait(false);
-            if (job != null && (job.Status == SyncStatus.Pending || job.Status == SyncStatus.Retryable))
+            if (job != null && IsDueForAutomaticProcessing(job, DateTimeOffset.UtcNow))
             {
                 await ExecuteSyncAsync(job, ct).ConfigureAwait(false);
             }
@@ -167,6 +184,14 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
         {
             _syncLock.Release();
         }
+    }
+
+    private static bool IsDueForAutomaticProcessing(SyncJob job, DateTimeOffset now)
+    {
+        return job.Status == SyncStatus.Pending
+            || (job.Status == SyncStatus.Retryable
+                && job.NextAttemptAtUtc is { } nextAttemptAt
+                && nextAttemptAt <= now);
     }
 
     private async Task ExecuteSyncAsync(SyncJob job, CancellationToken ct)
@@ -224,6 +249,7 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
         // If template/model deterministic error -> Failed
         if (msg.Contains("model", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("field", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("字段", StringComparison.Ordinal)
             || msg.Contains("deck", StringComparison.OrdinalIgnoreCase) && !msg.Contains("connect", StringComparison.OrdinalIgnoreCase))
         {
             job.Status = SyncStatus.Failed;
