@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using WordCatcher.App.Services;
 using WordCatcher.App.ViewModels;
 
@@ -14,6 +15,7 @@ public partial class LibraryWindow : Window
     private readonly SyncViewModel _syncVm;
     private readonly SettingsViewModel _settingsVm;
     private readonly WordLookupViewModel? _lookupVm;
+    private readonly DispatcherTimer _syncRefreshTimer = new() { Interval = TimeSpan.FromSeconds(10) };
 
     public LibraryWindow(
         LibraryViewModel libraryVm,
@@ -26,6 +28,7 @@ public partial class LibraryWindow : Window
         _syncVm = syncVm;
         _settingsVm = settingsVm;
         _lookupVm = lookupVm;
+        _syncRefreshTimer.Tick += async (_, _) => await _syncVm.RefreshAsync();
         DataContext = _settingsVm;
 
         LibraryTab.DataContext = _libraryVm;
@@ -39,6 +42,8 @@ public partial class LibraryWindow : Window
         };
         MainTabs.SelectionChanged += async (_, e) =>
         {
+            if (e.Source != MainTabs) return;
+            UpdateSyncRefreshTimer();
             if (e.Source == MainTabs && MainTabs.SelectedItem != SettingsTab)
                 _settingsVm.CancelHotkeyRecording();
             if (e.Source == MainTabs && IsLoaded && MainTabs.SelectedItem == SyncTab)
@@ -56,7 +61,11 @@ public partial class LibraryWindow : Window
         };
         StateChanged += (_, _) => MaximizeGlyph.Text = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
         Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
-        IsVisibleChanged += (_, _) => { if (!IsVisible) _settingsVm.CancelHotkeyRecording(); };
+        IsVisibleChanged += (_, _) =>
+        {
+            if (!IsVisible) _settingsVm.CancelHotkeyRecording();
+            UpdateSyncRefreshTimer();
+        };
         PreviewKeyDown += (_, e) =>
         {
             if (_settingsVm.IsRecordingHotkey)
@@ -78,6 +87,7 @@ public partial class LibraryWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        UpdateSyncRefreshTimer();
         await _libraryVm.InitializeAsync();
         await _syncVm.InitializeAsync();
         await _settingsVm.InitializeAsync();
@@ -95,6 +105,20 @@ public partial class LibraryWindow : Window
         MainTabs.SelectedItem = SyncTab;
         ShowAndActivate();
         if (IsLoaded) _ = _syncVm.RefreshAsync();
+    }
+
+    private void UpdateSyncRefreshTimer()
+    {
+        if (IsLoaded && IsVisible && MainTabs.SelectedItem == SyncTab)
+            _syncRefreshTimer.Start();
+        else
+            _syncRefreshTimer.Stop();
+    }
+
+    private void OpenAnkiSettings_Click(object sender, RoutedEventArgs e)
+    {
+        MainTabs.SelectedItem = SettingsTab;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => AnkiSettingsGroup.BringIntoView()));
     }
 
     public void ShowSettings()

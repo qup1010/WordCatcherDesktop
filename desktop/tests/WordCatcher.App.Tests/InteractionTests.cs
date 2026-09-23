@@ -16,6 +16,7 @@ public class InteractionTests
         public List<SyncJob> Jobs = [];
         public bool Fail;
         public int Writes;
+        public int Triggers;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             "get_Current" => Settings,
@@ -25,7 +26,7 @@ public class InteractionTests
             "SaveSettingsAsync" => Save((AppSettings)args![0]!),
             "GetSyncJobsAsync" => Fail ? Task.FromException<IReadOnlyList<SyncJob>>(new IOException()) : Task.FromResult<IReadOnlyList<SyncJob>>(Jobs.ToList()),
             "ResetSyncJobAsync" or "ResetAllFailedSyncJobsAsync" => Reset(),
-            "TriggerSync" => null,
+            "TriggerSync" => Trigger(),
             _ => throw new NotSupportedException(method.Name)
         };
         private Task Save(AppSettings value)
@@ -36,6 +37,7 @@ public class InteractionTests
             return Task.CompletedTask;
         }
         private Task Reset() { Writes++; return Task.CompletedTask; }
+        private object? Trigger() { Triggers++; return null; }
     }
 
     [Theory]
@@ -97,24 +99,71 @@ public class InteractionTests
     }
 
     [Fact]
-    public async Task SyncedJobsCannotBeRetriedAndRefreshFailurePreservesList()
+    public async Task FailedJobsCanBeRetriedAndRefreshFailurePreservesList()
     {
         var repo = DispatchProxy.Create<IWordRepository, Proxy>();
         var proxy = (Proxy)repo;
         proxy.Jobs.Add(new SyncJob { Id = "synced", Status = SyncStatus.Synced });
         proxy.Jobs.Add(new SyncJob { Id = "failed", Status = SyncStatus.Failed });
         var queue = DispatchProxy.Create<IAnkiSyncQueue, Proxy>();
-        var vm = new SyncViewModel(repo, queue);
+        var settings = DispatchProxy.Create<ISettingsService, Proxy>();
+        var vm = new SyncViewModel(repo, queue, settings);
         await vm.InitializeAsync();
-        vm.SelectedJob = vm.SyncJobs[0];
-        Assert.False(vm.RetrySelectedCommand.CanExecute(null));
-        vm.SelectedJob = vm.SyncJobs[1];
-        Assert.True(vm.RetrySelectedCommand.CanExecute(null));
+        Assert.Equal(SyncPageState.Attention, vm.PageState);
+        Assert.Single(vm.IssueJobs);
         Assert.True(vm.RetryAllCommand.CanExecute(null));
+        await vm.RetryAllCommand.ExecuteAsync(null);
+        Assert.Equal(1, proxy.Writes);
+        Assert.Equal(1, ((Proxy)queue).Triggers);
         proxy.Fail = true;
         await vm.RefreshAsync();
         Assert.Equal(2, vm.SyncJobs.Count);
         Assert.False(vm.IsBusy);
-        Assert.Contains("刷新失败", vm.StatusMessage);
+        Assert.Contains("更新失败", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task SyncPageStatePrioritizesSetupIssuesAndPendingWork()
+    {
+        var repo = DispatchProxy.Create<IWordRepository, Proxy>();
+        var jobs = (Proxy)repo;
+        var queue = DispatchProxy.Create<IAnkiSyncQueue, Proxy>();
+        var settings = DispatchProxy.Create<ISettingsService, Proxy>();
+        var vm = new SyncViewModel(repo, queue, settings);
+
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Empty, vm.PageState);
+        Assert.False(vm.HasHistory);
+
+        jobs.Jobs.Add(new SyncJob { Status = SyncStatus.Pending });
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Waiting, vm.PageState);
+        Assert.Equal(1, vm.WaitingCount);
+
+        jobs.Jobs[0].Status = SyncStatus.Synced;
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Complete, vm.PageState);
+        Assert.Equal(1, vm.SyncedCount);
+
+        jobs.Jobs.Add(new SyncJob { Status = SyncStatus.Failed, LastError = "Anki unavailable" });
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Attention, vm.PageState);
+        Assert.True(vm.HasActionableIssues);
+        Assert.Single(vm.IssueJobs);
+
+        for (var index = 0; index < 24; index++)
+            jobs.Jobs.Add(new SyncJob { Status = SyncStatus.Failed });
+        await vm.RefreshAsync();
+        Assert.Equal(25, vm.IssueCount);
+        Assert.Equal(20, vm.IssueJobs.Count);
+        Assert.Equal(5, vm.MoreIssuesCount);
+        Assert.True(vm.HasMoreIssues);
+
+        ((Proxy)settings).Settings.Anki.Enabled = false;
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Disabled, vm.PageState);
+        Assert.True(vm.NeedsSetup);
+        Assert.False(vm.HasActionableIssues);
+        Assert.False(vm.RetryAllCommand.CanExecute(null));
     }
 }

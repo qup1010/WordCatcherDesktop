@@ -20,6 +20,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private readonly IAnkiSyncQueue _syncQueue;
     private readonly ISettingsService _settingsService;
     private readonly SpeechService _speechService;
+    private readonly WordCollectionEvents _wordCollectionEvents;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -106,13 +107,15 @@ public sealed partial class LookupViewModel : ObservableObject
         IWordRepository wordRepository,
         IAnkiSyncQueue syncQueue,
         ISettingsService settingsService,
-        SpeechService speechService)
+        SpeechService speechService,
+        WordCollectionEvents wordCollectionEvents)
     {
         _lookupService = lookupService;
         _wordRepository = wordRepository;
         _syncQueue = syncQueue;
         _settingsService = settingsService;
         _speechService = speechService;
+        _wordCollectionEvents = wordCollectionEvents;
     }
 
     public async Task StartLookupAsync(CaptureResult capture, bool forceAi = false)
@@ -211,6 +214,7 @@ public sealed partial class LookupViewModel : ObservableObject
         {
             var cmd = new SaveCardCommand(_currentCapture, _currentTranslation);
             var (savedWord, occ, syncJob) = await _wordRepository.SaveAsync(cmd).ConfigureAwait(true);
+            _wordCollectionEvents.NotifyWordSaved();
             _syncQueue.Enqueue(syncJob.Id);
             if (version != _lookupVersion) return;
 

@@ -8,6 +8,7 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using WordCatcher.App.Services;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 
@@ -20,6 +21,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     private int _loadVersion;
     private int _occurrenceVersion;
     private CancellationTokenSource? _searchDelay;
+    private bool _refreshPending;
 
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _hasMore;
@@ -86,9 +88,30 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private string _editMemoryHook = string.Empty;
 
-    public LibraryViewModel(IWordRepository wordRepository)
+    public LibraryViewModel(IWordRepository wordRepository, WordCollectionEvents wordCollectionEvents)
     {
         _wordRepository = wordRepository;
+        wordCollectionEvents.WordSaved += OnWordSaved;
+    }
+
+    private void OnWordSaved()
+    {
+        if (IsEditing)
+        {
+            _refreshPending = true;
+            return;
+        }
+
+        _ = LoadWordsAsync();
+    }
+
+    partial void OnIsEditingChanged(bool value)
+    {
+        if (!value && _refreshPending)
+        {
+            _refreshPending = false;
+            _ = LoadWordsAsync();
+        }
     }
 
     public async Task InitializeAsync()

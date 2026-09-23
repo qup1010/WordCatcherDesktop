@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.IO;
 using WordCatcher.App.ViewModels;
+using WordCatcher.App.Services;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 
@@ -22,10 +23,10 @@ public class LibraryViewModelTests
         };
     }
 
-    private static (LibraryViewModel Vm, RepositoryProxy Repo) Create()
+    private static (LibraryViewModel Vm, RepositoryProxy Repo) Create(WordCollectionEvents? events = null)
     {
         var repo = DispatchProxy.Create<IWordRepository, RepositoryProxy>();
-        return (new LibraryViewModel(repo), (RepositoryProxy)repo);
+        return (new LibraryViewModel(repo, events ?? new WordCollectionEvents()), (RepositoryProxy)repo);
     }
 
     [Fact]
@@ -42,6 +43,26 @@ public class LibraryViewModelTests
         await vm.SearchAsync();
         Assert.Null(vm.SelectedWord);
         Assert.Empty(vm.Occurrences);
+    }
+
+    [Fact]
+    public async Task ExternalSaveWaitsUntilEditingEndsBeforeRefreshing()
+    {
+        var events = new WordCollectionEvents();
+        var (vm, repo) = Create(events);
+        var stored = new List<Word> { new() { Id = "one", DisplayWord = "one" } };
+        repo.ReadWords = (_, limit, offset) => Task.FromResult<IReadOnlyList<Word>>(stored.Skip(offset).Take(limit).ToArray());
+        await vm.InitializeAsync();
+        vm.StartEditCommand.Execute(null);
+        vm.EditWordText = "unsaved draft";
+        stored.Insert(0, new Word { Id = "two", DisplayWord = "two" });
+
+        events.NotifyWordSaved();
+
+        Assert.Single(vm.Words);
+        Assert.Equal("unsaved draft", vm.EditWordText);
+        vm.CancelEditCommand.Execute(null);
+        Assert.Equal(2, vm.Words.Count);
     }
 
     [Fact]

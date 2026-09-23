@@ -124,6 +124,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<SqliteConnectionFactory>();
         services.AddSingleton<SqliteMigrationRunner>();
         services.AddSingleton<IWordRepository, WordRepository>();
+        services.AddSingleton<WordCollectionEvents>();
 
         // Settings & DPAPI Secrets
         services.AddSingleton<ISettingsService, JsonSettingsService>();

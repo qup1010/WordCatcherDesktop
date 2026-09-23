@@ -17,12 +17,15 @@ public class LookupViewModelTests
     {
         public Func<CaptureResult, Task<TranslationResult>> Lookup = _ => Task.FromResult(Digital());
         public Func<SaveCardCommand, Task<(Word, Occurrence, SyncJob)>> Save = _ => Task.FromResult((new Word(), new Occurrence(), new SyncJob()));
+        public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public AppSettings Settings = new() { Ui = new() { ClosePopupAfterSave = false } };
         public List<string> Queued = [];
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             "LookupAsync" => Lookup((CaptureResult)args![0]!),
             "SaveAsync" => Save((SaveCardCommand)args![0]!),
+            "GetWordsAsync" => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
+            "GetOccurrencesByWordIdAsync" => Task.FromResult<IReadOnlyList<Occurrence>>([]),
             "get_Current" => Settings,
             "Enqueue" => Enqueue((string)args![0]!),
             _ => throw new NotSupportedException(method.Name)
@@ -35,13 +38,13 @@ public class LookupViewModelTests
 
     public static CaptureResult Capture(string word = "digital") => new(word, "test", "test", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
 
-    public static (LookupViewModel Vm, ServiceProxy Lookup, ServiceProxy Repository, ServiceProxy Queue) Create()
+    public static (LookupViewModel Vm, ServiceProxy Lookup, ServiceProxy Repository, ServiceProxy Queue) Create(WordCollectionEvents? wordCollectionEvents = null)
     {
         var lookup = DispatchProxy.Create<ILookupService, ServiceProxy>();
         var repo = DispatchProxy.Create<IWordRepository, ServiceProxy>();
         var queue = DispatchProxy.Create<IAnkiSyncQueue, ServiceProxy>();
         var settings = DispatchProxy.Create<ISettingsService, ServiceProxy>();
-        return (new LookupViewModel(lookup, repo, queue, settings, new SpeechService()),
+        return (new LookupViewModel(lookup, repo, queue, settings, new SpeechService(), wordCollectionEvents ?? new WordCollectionEvents()),
             (ServiceProxy)lookup, (ServiceProxy)repo, (ServiceProxy)queue);
     }
 
@@ -102,9 +105,52 @@ public class LookupViewModelTests
     }
 
     [Fact]
+    public async Task SavingFromLookupImmediatelyRefreshesLibrary()
+    {
+        var events = new WordCollectionEvents();
+        var (lookupVm, _, repository, _) = Create(events);
+        var stored = new List<Word>();
+        repository.ReadWords = (_, limit, offset) => Task.FromResult<IReadOnlyList<Word>>(stored.Skip(offset).Take(limit).ToArray());
+        repository.Save = command =>
+        {
+            var word = new Word { Id = "saved-word", DisplayWord = command.Translation.Word };
+            stored.Add(word);
+            return Task.FromResult((word, new Occurrence(), new SyncJob { Id = "job" }));
+        };
+        var libraryVm = new LibraryViewModel((IWordRepository)repository, events);
+        await libraryVm.InitializeAsync();
+        Assert.Empty(libraryVm.Words);
+
+        await lookupVm.StartLookupAsync(Capture());
+        await lookupVm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal("digital", Assert.Single(libraryVm.Words).DisplayWord);
+        Assert.Equal("saved-word", libraryVm.SelectedWord?.Id);
+    }
+
+    [Fact]
+    public async Task FailedSaveDoesNotNotifyLibrary()
+    {
+        var events = new WordCollectionEvents();
+        var notifications = 0;
+        events.WordSaved += () => notifications++;
+        var (vm, _, repository, _) = Create(events);
+        repository.Save = _ => throw new IOException("disk unavailable");
+
+        await vm.StartLookupAsync(Capture());
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, notifications);
+        Assert.Contains("保存失败", vm.SavedStatusText);
+    }
+
+    [Fact]
     public async Task PreviousSaveCannotMarkNewLookupAsSaved()
     {
-        var (vm, lookup, repo, queue) = Create();
+        var events = new WordCollectionEvents();
+        var notifications = 0;
+        events.WordSaved += () => notifications++;
+        var (vm, lookup, repo, queue) = Create(events);
         var pending = new TaskCompletionSource<(Word, Occurrence, SyncJob)>();
         repo.Save = _ => pending.Task;
         await vm.StartLookupAsync(Capture());
@@ -118,5 +164,6 @@ public class LookupViewModelTests
         Assert.True(vm.CanSave);
         Assert.Empty(vm.SavedStatusText);
         Assert.Contains("old-job", queue.Queued);
+        Assert.Equal(1, notifications);
     }
 }

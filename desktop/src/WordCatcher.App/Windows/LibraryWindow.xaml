@@ -119,7 +119,7 @@
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="ItemBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="8"
+                                CornerRadius="5"
                                 BorderBrush="Transparent"
                                 BorderThickness="0"
                                 Padding="{TemplateBinding Padding}">
@@ -127,15 +127,16 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#F1F5F9" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#F2F4F4" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#EAF3EE" />
-                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#0F766E" />
-                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="3,0,0,0" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#E9EEEE" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#C9D8D6" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#0F766E" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -148,8 +149,8 @@
         <Style x:Key="TabItemStyle" TargetType="TabItem">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="12,10" />
-            <Setter Property="Margin" Value="10,2" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Margin" Value="8,2" />
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -157,26 +158,38 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="TabBorder"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                BorderThickness="0"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
+                        <Grid Height="40">
+                            <Border x:Name="TabBorder"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="1"
+                                    CornerRadius="5" />
+                            <Border x:Name="SelectionIndicator"
+                                    Width="3"
+                                    Height="18"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    CornerRadius="2"
+                                    Background="{StaticResource AccentBrush}"
+                                    Visibility="Collapsed" />
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Stretch"
-                                              VerticalAlignment="Center" />
-                        </Border>
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource SubtleSurfaceBrush}" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#F0F2F2" />
                                 <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource AccentSubtleBrush}" />
-                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                <Setter TargetName="TabBorder" Property="BorderThickness" Value="3,0,0,0" />
-                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#E9EEEE" />
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#E9EEEE" />
+                                <Setter TargetName="SelectionIndicator" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -233,7 +246,7 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <Border Background="{StaticResource SurfaceBrush}"
+                            <Border Background="#F8FAF9"
                                     BorderBrush="{StaticResource BorderBrush}"
                                     BorderThickness="0,0,1,0">
                                 <Grid>
@@ -299,8 +312,6 @@
                     <TextBlock Text="Word Catcher" FontSize="13" FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="桌面取词与词库" FontSize="11"
-                           Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="24,0,0,0" />
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button x:Name="MinimizeButton" Width="42" Height="34" MinHeight="34" Padding="0" Background="Transparent"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True"
@@ -909,127 +920,162 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Margin="0,0,0,18">
-                        <TextBlock Text="Anki 同步" FontSize="25" FontWeight="Bold" Foreground="#0F172A" />
-                        <TextBlock Text="本地保存立即完成；Anki 不在线时任务会留在这里等待重试"
-                                   FontSize="12" Foreground="#64748B" Margin="0,4,0,0" />
-                    </StackPanel>
-                <Border Grid.Row="1"
-                        Background="#FFFFFF"
-                        BorderBrush="#E2E8F0"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="18">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <!-- Top Toolbar -->
-                        <Grid Grid.Row="0" Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <Border Background="#F6F8F6" CornerRadius="8" Padding="11,7" Margin="0,0,12,0" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
-                                           FontSize="13"
-                                           Foreground="#475569"
-                                           VerticalAlignment="Center" />
-                            </Border>
-
-                            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Padding="10,5" />
-                                <Button Content="重试选中任务"
-                                        Command="{Binding RetrySelectedCommand}"
-                                        Padding="12,5"
-                                        Margin="0,0,8,0"
-                                        Background="#F3F4F6"
-                                        Foreground="#374151"
-                                        BorderThickness="0"
-                                        Cursor="Hand" />
-                                <Button Content="重试失败任务"
-                                        Command="{Binding RetryAllCommand}"
-                                        Padding="14,5"
-                                        Background="#0F766E"
-                                        Foreground="White"
-                                        BorderThickness="0"
-                                        Cursor="Hand" />
-                            </StackPanel>
-                        </Grid>
-
-                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                            <ProgressBar Height="3" IsIndeterminate="True" Margin="0,0,0,8" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
-                            <TextBlock Text="{Binding StatusMessage}" Foreground="#64748B" FontSize="12" TextWrapping="Wrap" />
-                            <Border Background="#FFF7ED" CornerRadius="8" Padding="10" Margin="0,8,0,0" Visibility="{Binding SelectedJob.LastError, Converter={StaticResource StringToVis}, FallbackValue=Collapsed}">
-                                <TextBlock Text="{Binding SelectedJob.LastError}" TextWrapping="Wrap" Foreground="#9A3412" FontSize="12" MaxHeight="90" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedJob.LastError}" />
-                            </Border>
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Anki 同步" FontSize="25" FontWeight="Bold" Foreground="#0F172A" />
+                            <TextBlock Text="收藏先保存在本地，Anki 在后台同步"
+                                       FontSize="12" Foreground="#64748B" Margin="0,4,0,0" />
                         </StackPanel>
-                        <!-- DataGrid of Sync Jobs -->
-                        <Grid Grid.Row="1">
-                        <DataGrid x:Name="SyncJobsGrid"
-                                  ItemsSource="{Binding SyncJobs}"
-                                  SelectedItem="{Binding SelectedJob, Mode=TwoWay}"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Single" SelectionUnit="FullRow" EnableRowVirtualization="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="单词" Binding="{Binding Word.DisplayWord}" Width="104" />
-                                <DataGridTemplateColumn Header="状态" Width="88">
-                                    <DataGridTemplateColumn.CellTemplate>
+                        <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Center"
+                                Background="White" BorderBrush="#DCE5E4" BorderThickness="1"
+                                ToolTip="刷新同步状态" AutomationProperties.Name="刷新同步状态">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="13" Margin="0,0,7,0" />
+                                <TextBlock Text="刷新" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel HorizontalAlignment="Stretch">
+                            <Border Background="White" BorderBrush="#DCE5E4" BorderThickness="1" CornerRadius="7" Padding="20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="40" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="36" Height="36" CornerRadius="6"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#E8F3EF" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding PageState}" Value="{x:Static vm:SyncPageState.Disabled}">
+                                                        <Setter Property="Background" Value="#EDF0F0" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding PageState}" Value="{x:Static vm:SyncPageState.Attention}">
+                                                        <Setter Property="Background" Value="#FFF2E7" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding PageState}" Value="{x:Static vm:SyncPageState.Empty}">
+                                                        <Setter Property="Background" Value="#EDF0F0" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding StateGlyph}" FontFamily="Segoe Fluent Icons"
+                                                   FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#0F766E" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding PageState}" Value="{x:Static vm:SyncPageState.Attention}">
+                                                            <Setter Property="Foreground" Value="#A65D2B" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding PageState}" Value="{x:Static vm:SyncPageState.Disabled}">
+                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding PageState}" Value="{x:Static vm:SyncPageState.Empty}">
+                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0,20,0">
+                                        <TextBlock Text="{Binding StateTitle}" FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="#172329" />
+                                        <TextBlock Text="{Binding StateDescription}" FontSize="12" Foreground="#566976"
+                                                   TextWrapping="Wrap" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <Button x:Name="OpenAnkiSettingsButton" Grid.Column="2" Content="打开设置" Click="OpenAnkiSettings_Click"
+                                            VerticalAlignment="Center" Background="#0F766E" Foreground="White"
+                                            Visibility="{Binding NeedsSetup, Converter={StaticResource BoolToVis}}" />
+                                    <Button Grid.Column="2" Content="重试同步" Command="{Binding RetryAllCommand}"
+                                            VerticalAlignment="Center" Background="#0F766E" Foreground="White"
+                                            Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}" />
+                                </Grid>
+                            </Border>
+
+                            <Grid Margin="2,20,2,0" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="已同步" FontSize="12" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SyncedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#172329" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="等待中" FontSize="12" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding WaitingCount}" FontSize="22" FontWeight="SemiBold" Foreground="#172329" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="需处理" FontSize="12" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding IssueCount}" FontSize="22" FontWeight="SemiBold" Foreground="#172329" />
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Margin="0,24,0,0" Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="需要处理的同步项" FontSize="14" FontWeight="SemiBold" Foreground="#172329" Margin="0,0,0,6" />
+                                <ItemsControl ItemsSource="{Binding IssueJobs}">
+                                    <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="6" Padding="7,3" HorizontalAlignment="Left">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#F1F5F9" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static enums:SyncStatus.Synced}">
-                                                                <Setter Property="Background" Value="#ECFDF5" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static enums:SyncStatus.Retryable}">
-                                                                <Setter Property="Background" Value="#FFF7ED" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static enums:SyncStatus.Failed}">
-                                                                <Setter Property="Background" Value="#FEF2F2" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                            <Border BorderBrush="#DCE5E4" BorderThickness="0,0,0,1" Padding="0,12">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Margin="0,0,16,0">
+                                                        <TextBlock Text="{Binding Word.DisplayWord, TargetNullValue=未知单词}" FontSize="13" FontWeight="SemiBold" Foreground="#172329" />
+                                                        <TextBlock Text="{Binding LastError}" FontSize="12" Foreground="#6A7780" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}"
+                                                               FontSize="12" Foreground="#9A4E2F" VerticalAlignment="Top" />
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="重试次数" Binding="{Binding Attempts}" Width="60" />
-                                <DataGridTextColumn Header="最后错误 / 说明" Binding="{Binding LastError}" Width="*" MinWidth="140" />
-                                <DataGridTextColumn Header="下次尝试时间" Binding="{Binding NextAttemptAtUtc, Converter={StaticResource LocalTime}}" Width="100" />
-                                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAtUtc, Converter={StaticResource LocalTime}}" Width="100" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                                <TextBlock Text="&#xE895;" FontFamily="Segoe Fluent Icons" FontSize="32"
-                                           Foreground="#CBD5E1" HorizontalAlignment="Center" />
-                                <TextBlock Text="同步队列是空的" FontSize="15" FontWeight="SemiBold"
-                                           Foreground="#64748B" Margin="0,12,0,0" />
-                                <TextBlock Text="保存新单词后，同步任务会显示在这里"
-                                           FontSize="12" Foreground="#94A3B8" Margin="0,4,0,0" />
-                                <StackPanel.Style>
-                                    <Style TargetType="StackPanel">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasItems, ElementName=SyncJobsGrid}" Value="False">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </StackPanel.Style>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding MoreIssuesCount, StringFormat=另有 {0} 项未显示；重试同步仍会处理全部}"
+                                           FontSize="12" Foreground="#7C8D98" Margin="0,10,0,0"
+                                           Visibility="{Binding HasMoreIssues, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>
-                        </Grid>
-                    </Grid>
-                </Border>
+
+                            <Expander x:Name="SyncHistoryExpander" Header="查看最近的同步记录" Margin="0,24,0,0"
+                                      Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}">
+                                <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding RecentJobs}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,9">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="105" />
+                                                        <ColumnDefinition Width="125" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Word.DisplayWord, TargetNullValue=未知单词}" FontSize="12" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}" FontSize="12" Foreground="#566976" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding UpdatedAtUtc, Converter={StaticResource LocalTime}}" FontSize="12" Foreground="#7C8D98" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Expander>
+
+                            <ProgressBar Height="3" IsIndeterminate="True" Margin="0,20,0,0"
+                                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="#7C8D98" Margin="0,12,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
 
@@ -1244,7 +1290,7 @@
                         </GroupBox>
 
                         <!-- 4. Anki 同步 -->
-                        <GroupBox Header="Anki 配置" Padding="14" Margin="0,0,0,16" BorderBrush="#E5E7EB">
+                        <GroupBox x:Name="AnkiSettingsGroup" Header="Anki 配置" Padding="14" Margin="0,0,0,16" BorderBrush="#E5E7EB">
                             <StackPanel>
                                 <CheckBox Content="启用 Anki 后台同步" IsChecked="{Binding AnkiEnabled}" Margin="0,0,0,10" FontWeight="Medium" />
 
