@@ -28,17 +28,20 @@ jobs:
         run: dotnet test desktop/WordCatcher.Desktop.sln -c Release --no-restore
 
       - name: Publish self-contained app
-        run: >-
-          dotnet publish desktop/src/WordCatcher.App/WordCatcher.App.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -p:DebugType=None
-          -p:DebugSymbols=false
-          -o publish
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          dotnet publish desktop/src/WordCatcher.App/WordCatcher.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:Version=$version `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -o publish
 
       - name: Create archive
         shell: pwsh

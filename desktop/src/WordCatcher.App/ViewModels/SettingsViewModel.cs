@@ -2,6 +2,8 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Text.Json;
 using System.Windows.Input;
@@ -26,6 +28,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IAnkiClient _ankiClient;
     private readonly OpenAiTranslationService _translationService;
     private readonly HotkeyManager _hotkeyManager;
+    private readonly UpdateCheckService? _updateCheckService;
 
     [ObservableProperty]
     private string _hotkey = "Alt+Q";
@@ -101,6 +104,13 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty] private bool _isSaving;
     [ObservableProperty] private string _statusMessage = "修改后点击保存，设置即可生效。";
+
+    [ObservableProperty] private bool _isCheckingForUpdates;
+    [ObservableProperty] private string _updateStatus = "尚未检查更新。";
+    [ObservableProperty] private string _latestReleaseUrl = UpdateCheckService.RepositoryUrl + "/releases/latest";
+
+    public string AppVersion => UpdateCheckService.CurrentVersion;
+    public string ProjectUrl => UpdateCheckService.RepositoryUrl;
 
     public string AppliedHotkey => _settingsService.Current.Hotkey;
     [ObservableProperty] private bool _isRecordingHotkey;
@@ -179,7 +189,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         IDictionaryInstaller dictInstaller,
         IAnkiClient ankiClient,
         OpenAiTranslationService translationService,
-        HotkeyManager hotkeyManager)
+        HotkeyManager hotkeyManager,
+        UpdateCheckService? updateCheckService = null)
     {
         _settingsService = settingsService;
         _secretStore = secretStore;
@@ -188,6 +199,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _ankiClient = ankiClient;
         _translationService = translationService;
         _hotkeyManager = hotkeyManager;
+        _updateCheckService = updateCheckService;
     }
 
     public async Task InitializeAsync()
@@ -597,6 +609,68 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"连接 Anki 失败：{ex.Message} 请确认 Anki 与 AnkiConnect 已启动。";
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync()
+    {
+        if (IsCheckingForUpdates) return;
+        if (_updateCheckService == null)
+        {
+            UpdateStatus = "更新检查服务不可用。";
+            return;
+        }
+
+        IsCheckingForUpdates = true;
+        UpdateStatus = "正在检查 GitHub Release…";
+        try
+        {
+            var result = await _updateCheckService.CheckAsync().ConfigureAwait(true);
+            LatestReleaseUrl = result.ReleaseUrl;
+            UpdateStatus = result.IsUpdateAvailable
+                ? $"发现新版本 {result.LatestVersion}，点击“打开下载页面”获取更新。"
+                : $"当前已是最新版本（{result.CurrentVersion}）。";
+        }
+        catch (InvalidOperationException ex)
+        {
+            UpdateStatus = ex.Message;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            UpdateStatus = "GitHub 上还没有已发布的版本。";
+        }
+        catch (Exception)
+        {
+            UpdateStatus = "检查更新失败，请检查网络连接后重试。";
+        }
+        finally
+        {
+            IsCheckingForUpdates = false;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenProjectPage()
+    {
+        OpenUrl(ProjectUrl);
+    }
+
+    [RelayCommand]
+    private void OpenLatestReleasePage()
+    {
+        OpenUrl(LatestReleaseUrl);
+    }
+
+    private void OpenUrl(string url)
+    {
+        try
+        {
+            UpdateCheckService.OpenUrl(url);
+        }
+        catch (Exception)
+        {
+            UpdateStatus = "无法打开浏览器，请手动访问项目页面。";
         }
     }
 

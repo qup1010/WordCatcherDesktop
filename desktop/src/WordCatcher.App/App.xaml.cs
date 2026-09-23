@@ -118,6 +118,7 @@ public partial class App : System.Windows.Application
 
         // HTTP Client
         services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromMinutes(15) });
+        services.AddSingleton<UpdateCheckService>();
 
         // Database & Repositories
         services.AddSingleton<SqliteConnectionFactory>();

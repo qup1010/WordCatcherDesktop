@@ -236,7 +236,7 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12"
+                                CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -264,6 +264,7 @@
             <Setter Property="Foreground" Value="#64748B" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
@@ -318,32 +319,13 @@
                                     BorderThickness="0,0,1,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
+                                    <ItemsPresenter Grid.Row="0" />
 
-                                    <StackPanel Margin="18,22,16,18">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Border Width="34" Height="34" Background="#0F766E" CornerRadius="8">
-                                                <TextBlock Text="W"
-                                                           FontSize="17"
-                                                           FontWeight="Bold"
-                                                           Foreground="White"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center" />
-                                            </Border>
-                                            <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Text="Word Catcher" Foreground="#0F172A" FontSize="15" FontWeight="Bold" />
-                                                <TextBlock Text="桌面伴侣" Foreground="#94A3B8" FontSize="11" Margin="0,1,0,0" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <ItemsPresenter Grid.Row="1" />
-
-                                    <Border Grid.Row="2"
-                                            Background="#FFFFFF"
+                                    <Border Grid.Row="1"
+                                            Background="#F8FAFC"
                                             BorderBrush="#E2E8F0"
                                             BorderThickness="1"
                                             CornerRadius="8"
@@ -438,7 +420,7 @@
                                 Background="#FFFFFF"
                                 BorderBrush="#E2E8F0"
                                 BorderThickness="1"
-                                CornerRadius="12"
+                                CornerRadius="8"
                                 Padding="12">
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -591,7 +573,7 @@
                                 Background="#FFFFFF"
                                 BorderBrush="#E2E8F0"
                                 BorderThickness="1"
-                                CornerRadius="12"
+                                CornerRadius="8"
                                 Padding="22">
                             <Grid>
                                 <!-- No selection prompt -->
@@ -887,7 +869,7 @@
                         Background="#FFFFFF"
                         BorderBrush="#E2E8F0"
                         BorderThickness="1"
-                        CornerRadius="14"
+                        CornerRadius="8"
                         Padding="18">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -1261,6 +1243,64 @@
                         <!-- 5. 交互行为 -->
                         <GroupBox Header="交互行为" Padding="14" Margin="0,0,0,20" BorderBrush="#E5E7EB">
                             <CheckBox Content="查词弹窗点击「保存」后自动关闭浮窗" IsChecked="{Binding ClosePopupAfterSave}" />
+                        </GroupBox>
+
+                        <!-- 6. 关于与更新 -->
+                        <GroupBox Header="关于与更新" Padding="14" Margin="0,0,0,20" BorderBrush="#E5E7EB">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Word Catcher" FontSize="16" FontWeight="SemiBold" Foreground="#0F172A" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                            <TextBlock Text="当前版本 " Foreground="#64748B" FontSize="12" />
+                                            <TextBlock Text="{Binding AppVersion}" Foreground="#334155" FontSize="12" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="检查更新"
+                                            Command="{Binding CheckForUpdatesCommand}"
+                                            IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource InverseBool}}"
+                                            Background="#0F766E"
+                                            Foreground="White"
+                                            Padding="14,7"
+                                            ToolTip="检查 GitHub Releases 中是否有新版本" />
+                                </Grid>
+                                <TextBlock Text="Word Catcher 是一款本地优先的桌面取词与词库工具，支持离线词典、语境记录和 Anki 同步。"
+                                           TextWrapping="Wrap"
+                                           Foreground="#475569"
+                                           FontSize="12"
+                                           LineHeight="19"
+                                           Margin="0,0,0,10" />
+                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" Foreground="#334155" FontSize="12" />
+                                        <TextBlock Text="更新检查只访问 GitHub Release 信息，不会上传词库、API Key 或取词内容。"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="#94A3B8"
+                                                   FontSize="11"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <WrapPanel>
+                                    <Button Content="打开项目主页"
+                                            Command="{Binding OpenProjectPageCommand}"
+                                            Padding="12,6"
+                                            Margin="0,0,8,0"
+                                            Background="#F1F5F9"
+                                            Foreground="#334155"
+                                            ToolTip="在浏览器中打开项目主页" />
+                                    <Button Content="打开下载页面"
+                                            Command="{Binding OpenLatestReleasePageCommand}"
+                                            Padding="12,6"
+                                            Background="#F1F5F9"
+                                            Foreground="#334155"
+                                            ToolTip="在浏览器中打开最新 GitHub Release" />
+                                </WrapPanel>
+                            </StackPanel>
                         </GroupBox>
 
                     </StackPanel>
