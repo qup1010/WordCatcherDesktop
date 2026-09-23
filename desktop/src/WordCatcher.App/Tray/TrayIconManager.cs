@@ -9,6 +9,7 @@ namespace WordCatcher.App.Tray;
 public sealed class TrayIconManager : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
+    private readonly Icon _applicationIcon;
     private readonly HotkeyManager _hotkeyManager;
     private readonly IAnkiSyncQueue _syncQueue;
 
@@ -22,11 +23,12 @@ public sealed class TrayIconManager : IDisposable
     {
         _hotkeyManager = hotkeyManager;
         _syncQueue = syncQueue;
+        _applicationIcon = LoadApplicationIcon();
 
         _notifyIcon = new NotifyIcon
         {
             Text = "Word Catcher",
-            Icon = SystemIcons.Application,
+            Icon = _applicationIcon,
             Visible = true
         };
 
@@ -85,5 +87,28 @@ public sealed class TrayIconManager : IDisposable
         _notifyIcon.Visible = false;
         _notifyIcon.ContextMenuStrip?.Dispose();
         _notifyIcon.Dispose();
+        _applicationIcon.Dispose();
+    }
+
+    private static Icon LoadApplicationIcon()
+    {
+        var processPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processPath))
+        {
+            try
+            {
+                var icon = Icon.ExtractAssociatedIcon(processPath);
+                if (icon != null)
+                {
+                    return icon;
+                }
+            }
+            catch (Exception)
+            {
+                // 读取 exe 图标失败时回退到系统默认应用图标。
+            }
+        }
+
+        return (Icon)SystemIcons.Application.Clone();
     }
 }

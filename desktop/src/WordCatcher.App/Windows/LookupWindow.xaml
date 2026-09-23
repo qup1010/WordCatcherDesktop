@@ -9,6 +9,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance vm:LookupViewModel}"
         Title="Word Catcher"
+        Icon="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.ico"
         Width="420"
         MinWidth="420"
         MaxWidth="420"

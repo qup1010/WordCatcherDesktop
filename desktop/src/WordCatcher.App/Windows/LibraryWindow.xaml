@@ -8,6 +8,7 @@
         xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
         mc:Ignorable="d"
         Title="Word Catcher 桌面伴侣"
+        Icon="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.ico"
         Width="1180"
         Height="780"
         MinWidth="900"
