@@ -15,6 +15,46 @@ namespace WordCatcher.App.Tests;
 public class LibraryLayoutTests
 {
     [Fact]
+    public void EmptyLibraryUsesSingleWorkspace()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var repo = DispatchProxy.Create<IWordRepository, LibraryViewModelTests.RepositoryProxy>();
+                var vm = new LibraryViewModel(repo);
+                var (settingsVm, _) = InteractionTests.Settings();
+                settingsVm.InitializeAsync().GetAwaiter().GetResult();
+                var syncRepo = DispatchProxy.Create<IWordRepository, InteractionTests.Proxy>();
+                var syncVm = new SyncViewModel(syncRepo, DispatchProxy.Create<IAnkiSyncQueue, InteractionTests.Proxy>());
+                var window = new LibraryWindow(vm, syncVm, settingsVm);
+                var root = (FrameworkElement)window.Content;
+                ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("LibraryTab");
+
+                root.Measure(new Size(1180, 700));
+                root.Arrange(new Rect(0, 0, 1180, 700));
+                root.UpdateLayout();
+
+                Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("EmptyLibraryWorkspace")).Visibility);
+                Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("LibraryWorkspace")).Visibility);
+
+                var bitmap = new RenderTargetBitmap(1180, 700, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(root);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var file = File.Create(Path.Combine(Path.GetTempPath(), "wordcatcher-LibraryEmpty-1180.png"));
+                encoder.Save(file);
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
+
+    [Fact]
     public void LibraryRendersAtMinimumAndDefaultSizes()
     {
         Exception? failure = null;

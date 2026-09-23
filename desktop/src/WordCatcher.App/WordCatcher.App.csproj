@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\WordCatcher.ico" />
+    <Resource Include="Assets\WordCatcher.png" />
   </ItemGroup>
 
 </Project>
