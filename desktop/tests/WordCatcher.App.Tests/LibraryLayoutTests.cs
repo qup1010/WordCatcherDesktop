@@ -5,7 +5,9 @@ using System.Windows.Controls;
 using WordCatcher.Core.Enums;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shell;
 using WordCatcher.App.ViewModels;
+using WordCatcher.App.Views;
 using WordCatcher.App.Windows;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
@@ -28,8 +30,12 @@ public class LibraryLayoutTests
                 settingsVm.InitializeAsync().GetAwaiter().GetResult();
                 var syncRepo = DispatchProxy.Create<IWordRepository, InteractionTests.Proxy>();
                 var syncVm = new SyncViewModel(syncRepo, DispatchProxy.Create<IAnkiSyncQueue, InteractionTests.Proxy>());
-                var window = new LibraryWindow(vm, syncVm, settingsVm);
+                var (lookupVm, _, _, _) = LookupViewModelTests.Create();
+                var window = new LibraryWindow(vm, syncVm, settingsVm, new WordLookupViewModel(lookupVm));
                 var root = (FrameworkElement)window.Content;
+                Assert.Equal(WindowStyle.None, window.WindowStyle);
+                Assert.Equal(42, WindowChrome.GetWindowChrome(window)?.CaptionHeight);
+                Assert.True(WindowChrome.GetIsHitTestVisibleInChrome((Button)window.FindName("CloseButton")));
                 ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("LibraryTab");
 
                 root.Measure(new Size(1180, 700));
@@ -75,7 +81,8 @@ public class LibraryLayoutTests
                 ((InteractionTests.Proxy)syncRepo).Jobs.Add(new SyncJob { Status = SyncStatus.Retryable, Word = word, LastError = "Anki 尚未启动，请打开 Anki 后重试。" });
                 var syncVm = new SyncViewModel(syncRepo, DispatchProxy.Create<IAnkiSyncQueue, InteractionTests.Proxy>());
                 syncVm.InitializeAsync().GetAwaiter().GetResult();
-                var window = new LibraryWindow(vm, syncVm, settingsVm);
+                var (lookupVm, _, _, _) = LookupViewModelTests.Create();
+                var window = new LibraryWindow(vm, syncVm, settingsVm, new WordLookupViewModel(lookupVm));
                 var root = (FrameworkElement)window.Content;
                 foreach (var page in new[] { "LibraryTab", "LookupTab", "SyncTab", "SettingsTab" })
                 foreach (var width in new[] { 900, 1180 })
@@ -84,6 +91,12 @@ public class LibraryLayoutTests
                     root.Measure(new Size(width, 700));
                     root.Arrange(new Rect(0, 0, width, 700));
                     root.UpdateLayout();
+                    if (page == "LookupTab")
+                    {
+                        var lookupPage = (WordLookupView)window.FindName("LookupPage");
+                        Assert.Equal(Visibility.Visible, ((FrameworkElement)lookupPage.FindName("LookupEmptyState")).Visibility);
+                        Assert.Equal(Visibility.Collapsed, ((FrameworkElement)lookupPage.FindName("LookupResultScroll")).Visibility);
+                    }
                     var bitmap = new RenderTargetBitmap(width, 700, 96, 96, PixelFormats.Pbgra32);
                     bitmap.Render(root);
                     var encoder = new PngBitmapEncoder();

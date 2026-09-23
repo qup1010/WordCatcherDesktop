@@ -59,6 +59,11 @@ public sealed partial class WordLookupViewModel : ObservableObject
     private void ClearQuery()
     {
         _lookup.CancelLookup();
+        _lookup.IsLoading = false;
+        _lookup.HasResult = false;
+        _lookup.HasError = false;
+        _lookup.CanSave = false;
+        _lookup.SavedStatusText = string.Empty;
         Query = string.Empty;
         QueryError = string.Empty;
         HasSearched = false;

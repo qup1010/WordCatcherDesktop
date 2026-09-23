@@ -9,64 +9,28 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:WordLookupViewModel}"
              FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
-             Background="#F8FAFC"
+             Background="#F6F8F7"
              UseLayoutRounding="True"
              SnapsToDevicePixels="True"
              Loaded="View_Loaded">
 
     <UserControl.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
+        </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <converters:StringToVisibilityConverter x:Key="StringToVis" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
 
-        <Style x:Key="LookupActionButton" TargetType="Button">
-            <Setter Property="Padding" Value="13,8" />
+        <Style x:Key="LookupActionButton" TargetType="Button" BasedOn="{StaticResource AppButtonStyle}">
             <Setter Property="MinHeight" Value="36" />
-            <Setter Property="Background" Value="#F1F5F9" />
-            <Setter Property="Foreground" Value="#334155" />
-            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="ButtonBorder"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                              RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.86" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.46" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#0F766E" />
-                                <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="1" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
-        <Style x:Key="LookupIconButton" TargetType="Button" BasedOn="{StaticResource LookupActionButton}">
-            <Setter Property="Width" Value="34" />
-            <Setter Property="Height" Value="34" />
-            <Setter Property="MinHeight" Value="34" />
-            <Setter Property="Padding" Value="0" />
+        <Style x:Key="LookupIconButton" TargetType="Button" BasedOn="{StaticResource AppIconButtonStyle}">
+            <Setter Property="FontSize" Value="12" />
         </Style>
 
         <Style TargetType="ScrollBar">
@@ -111,6 +75,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid TextElement.FontWeight="Normal" TextElement.Foreground="#334155">
@@ -190,7 +155,7 @@
         </StackPanel>
 
         <Grid Grid.Row="2">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+            <StackPanel x:Name="LookupEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
                         Visibility="{Binding HasSearched, Converter={StaticResource InverseBoolToVis}}">
                 <Border Width="68" Height="68" Background="#EAF3EE" CornerRadius="16" HorizontalAlignment="Center">
                     <Image Source="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.png"
@@ -223,7 +188,7 @@
                 </Border>
             </StackPanel>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
+            <ScrollViewer x:Name="LookupResultScroll" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           Visibility="{Binding Lookup.HasResult, Converter={StaticResource BoolToVis}}">
                 <StackPanel Margin="0,0,5,0">

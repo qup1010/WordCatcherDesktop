@@ -2,6 +2,8 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using WordCatcher.App.Services;
 using WordCatcher.App.ViewModels;
 
 namespace WordCatcher.App.Windows;
@@ -44,6 +46,15 @@ public partial class LibraryWindow : Window
         };
 
         Loaded += OnLoaded;
+        SourceInitialized += (_, _) =>
+        {
+            if (WindowBackdrop.TryApply(this, 42))
+            {
+                Background = System.Windows.Media.Brushes.Transparent;
+                TitleBar.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(221, 242, 247, 245));
+            }
+        };
+        StateChanged += (_, _) => MaximizeGlyph.Text = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
         Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
         IsVisibleChanged += (_, _) => { if (!IsVisible) _settingsVm.CancelHotkeyRecording(); };
         PreviewKeyDown += (_, e) =>
@@ -134,5 +145,20 @@ public partial class LibraryWindow : Window
     {
         if (_settingsVm != null && _settingsVm.ApiKey != ApiKeyBox.Password)
             _settingsVm.ApiKey = ApiKeyBox.Password;
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }
