@@ -158,6 +158,7 @@ public partial class App : System.Windows.Application
 
         // ViewModels
         services.AddTransient<LookupViewModel>();
+        services.AddSingleton<WordLookupViewModel>();
         services.AddSingleton<LibraryViewModel>();
         services.AddSingleton<SyncViewModel>();
         services.AddSingleton<SettingsViewModel>();

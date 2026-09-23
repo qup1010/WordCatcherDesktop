@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:WordCatcher.App.ViewModels"
+        xmlns:views="clr-namespace:WordCatcher.App.Views"
         xmlns:converters="clr-namespace:WordCatcher.App.Converters"
         xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
         mc:Ignorable="d"
@@ -955,7 +956,18 @@
                 </Grid>
             </TabItem>
 
-            <!-- ================= TAB 2: 待同步 ================= -->
+            <!-- ================= TAB 2: 查单词 ================= -->
+            <TabItem Style="{StaticResource TabItemStyle}" x:Name="LookupTab">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="16" Margin="0,0,11,0" />
+                        <TextBlock Text="查单词" />
+                    </StackPanel>
+                </TabItem.Header>
+                <views:WordLookupView x:Name="LookupPage" />
+            </TabItem>
+
+            <!-- ================= TAB 3: 待同步 ================= -->
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="SyncTab">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
@@ -1092,7 +1104,7 @@
                 </Grid>
             </TabItem>
 
-            <!-- ================= TAB 3: 设置 ================= -->
+            <!-- ================= TAB 4: 设置 ================= -->
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="SettingsTab">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">

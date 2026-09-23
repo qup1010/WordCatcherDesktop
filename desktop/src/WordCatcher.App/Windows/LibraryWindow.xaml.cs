@@ -11,19 +11,23 @@ public partial class LibraryWindow : Window
     private readonly LibraryViewModel _libraryVm;
     private readonly SyncViewModel _syncVm;
     private readonly SettingsViewModel _settingsVm;
+    private readonly WordLookupViewModel? _lookupVm;
 
     public LibraryWindow(
         LibraryViewModel libraryVm,
         SyncViewModel syncVm,
-        SettingsViewModel settingsVm)
+        SettingsViewModel settingsVm,
+        WordLookupViewModel? lookupVm = null)
     {
         InitializeComponent();
         _libraryVm = libraryVm;
         _syncVm = syncVm;
         _settingsVm = settingsVm;
+        _lookupVm = lookupVm;
         DataContext = _settingsVm;
 
         LibraryTab.DataContext = _libraryVm;
+        LookupTab.DataContext = _lookupVm;
         SyncTab.DataContext = _syncVm;
         SettingsTab.DataContext = _settingsVm;
         _settingsVm.PropertyChanged += (_, e) =>

@@ -77,7 +77,7 @@ public class LibraryLayoutTests
                 syncVm.InitializeAsync().GetAwaiter().GetResult();
                 var window = new LibraryWindow(vm, syncVm, settingsVm);
                 var root = (FrameworkElement)window.Content;
-                foreach (var page in new[] { "LibraryTab", "SyncTab", "SettingsTab" })
+                foreach (var page in new[] { "LibraryTab", "LookupTab", "SyncTab", "SettingsTab" })
                 foreach (var width in new[] { 900, 1180 })
                 {
                     ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName(page);
