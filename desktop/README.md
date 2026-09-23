@@ -57,6 +57,25 @@ dotnet run --project desktop/src/WordCatcher.App/WordCatcher.App.csproj
 
 应用启动后将常驻在右下角系统托盘，图标为应用默认图标。
 
+## 打包与 GitHub Release
+
+仓库已配置 GitHub Actions。推送版本标签后，GitHub 会自动执行测试，并构建无需安装 .NET Runtime 的 Windows x64 单文件压缩包：
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+构建完成后，在 GitHub 的 `Releases` 页面下载 `WordCatcher-v0.1.0-win-x64.zip`，解压到固定目录并运行 `WordCatcher.App.exe` 即可。两台常见的 Intel/AMD Windows 电脑都使用 `win-x64` 包；如果目标设备是 Windows ARM，需要另行增加 `win-arm64` 构建。
+
+发布包是自包含的，目标设备不需要安装 .NET SDK 或 .NET Runtime。首次运行后，离线词典可以在应用设置中下载安装。
+
+每台设备都会在本机保存自己的设置和词库数据库：
+
+`%LocalAppData%\WordCatcher\`
+
+应用当前不会自动把本地 SQLite 词库同步到 GitHub 或云盘。推荐在两台设备上分别安装 Anki 和 AnkiConnect，并让它们连接同一个 Anki 账号；Word Catcher 保存的卡片会进入同一个 Anki 牌组，再由 Anki 负责跨设备同步。若只需要迁移一次本地数据，可在「生词库」页面导出 JSON 备份；当前版本的 JSON 主要用于备份，不能替代实时同步。
+
 ## 离线词典安装
 
 ### 查词卡片的展示规则
