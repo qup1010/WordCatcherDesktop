@@ -29,7 +29,7 @@ public sealed class UpdateCheckServiceTests
 
         var result = await service.CheckAsync();
 
-        Assert.Equal("0.2.0", result.CurrentVersion);
+        Assert.Equal("0.2.1", result.CurrentVersion);
         Assert.Equal("0.3.0", result.LatestVersion);
         Assert.Equal("https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.3.0", result.ReleaseUrl);
         Assert.True(result.IsUpdateAvailable);

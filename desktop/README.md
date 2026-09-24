@@ -62,11 +62,11 @@ dotnet run --project desktop/src/WordCatcher.App/WordCatcher.App.csproj
 仓库已配置 GitHub Actions。推送版本标签后，GitHub 会自动执行测试，并构建无需安装 .NET Runtime 的 Windows x64 单文件压缩包：
 
 ```powershell
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
-构建完成后，在 GitHub 的 `Releases` 页面下载 `WordCatcher-v0.2.0-win-x64.zip`，解压到固定目录并运行 `WordCatcher.App.exe` 即可。两台常见的 Intel/AMD Windows 电脑都使用 `win-x64` 包；如果目标设备是 Windows ARM，需要另行增加 `win-arm64` 构建。
+构建完成后，在 GitHub 的 `Releases` 页面下载 `WordCatcher-v0.2.1-win-x64.zip`，解压到固定目录并运行 `WordCatcher.App.exe` 即可。两台常见的 Intel/AMD Windows 电脑都使用 `win-x64` 包；如果目标设备是 Windows ARM，需要另行增加 `win-arm64` 构建。
 
 发布包是自包含的，目标设备不需要安装 .NET SDK 或 .NET Runtime。首次运行后，离线词典可以在应用设置中下载安装。
 
