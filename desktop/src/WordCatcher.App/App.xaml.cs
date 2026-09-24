@@ -159,7 +159,7 @@ public partial class App : System.Windows.Application
 
         // Win32 Capture & Hotkey & Tray
         services.AddSingleton<ISelectionCaptureService, SelectionCaptureService>();
-        services.AddSingleton<SpeechService>();
+        services.AddSingleton<ISpeechService, SpeechService>();
         services.AddSingleton<HotkeyManager>();
         services.AddSingleton<TrayIconManager>();
 

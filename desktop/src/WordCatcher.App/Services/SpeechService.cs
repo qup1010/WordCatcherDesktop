@@ -7,7 +7,7 @@ namespace WordCatcher.App.Services;
 /// Uses the Windows SAPI COM voice already present on Windows. This keeps
 /// desktop TTS optional and avoids shipping another speech runtime.
 /// </summary>
-public sealed class SpeechService : IDisposable
+public sealed class SpeechService : ISpeechService, IDisposable
 {
     private readonly object _sync = new();
     private object? _voice;

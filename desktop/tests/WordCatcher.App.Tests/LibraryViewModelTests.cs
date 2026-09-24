@@ -4,6 +4,7 @@ using WordCatcher.App.ViewModels;
 using WordCatcher.App.Services;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
+using WordCatcher.Core.Enums;
 
 namespace WordCatcher.App.Tests;
 
@@ -14,8 +15,14 @@ public class LibraryViewModelTests
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public Func<string, Task<IReadOnlyList<Occurrence>>> ReadOccurrences = _ => Task.FromResult<IReadOnlyList<Occurrence>>([]);
         public Func<Word, Task> Update = _ => Task.CompletedTask;
+        public Func<string?, WordFilter, int, int, Task<IReadOnlyList<Word>>> ReadFiltered = (_, _, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
+        public Func<string, Task> Trash = _ => Task.CompletedTask;
+        public Func<string, Task> Restore = _ => Task.CompletedTask;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
+            nameof(IWordRepository.GetFilteredWordsAsync) => ReadFiltered((string?)args![0], (WordFilter)args[1]!, (int)args[2]!, (int)args[3]!),
+            nameof(IWordRepository.MoveWordToTrashAsync) => Trash((string)args![0]!),
+            nameof(IWordRepository.RestoreWordAsync) => Restore((string)args![0]!),
             nameof(IWordRepository.GetWordsAsync) => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
             nameof(IWordRepository.GetOccurrencesByWordIdAsync) => ReadOccurrences((string)args![0]!),
             nameof(IWordRepository.UpdateWordAsync) => Update((Word)args![0]!),
@@ -135,5 +142,48 @@ public class LibraryViewModelTests
         await vm.SaveEditCommand.ExecuteAsync(null);
         Assert.Contains("不能为空", vm.StatusMessage);
         Assert.True(vm.IsEditing);
+    }
+
+    [Fact]
+    public async Task DeleteLastWordCanBeUndoneAndFailedRestoreKeepsUndoAvailable()
+    {
+        var (vm, repo) = Create();
+        var word = new Word { Id = "one", DisplayWord = "one" };
+        var visible = true;
+        repo.ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>(visible ? [word] : []);
+        repo.Trash = _ => { visible = false; return Task.CompletedTask; };
+        repo.Restore = _ => throw new IOException();
+        await vm.InitializeAsync();
+        await vm.DeleteWordCommand.ExecuteAsync(null);
+        Assert.Empty(vm.Words);
+        Assert.True(vm.CanUndoDelete);
+        await vm.UndoDeleteCommand.ExecuteAsync(null);
+        Assert.True(vm.CanUndoDelete);
+        Assert.Contains("恢复失败", vm.DeleteStatusText);
+        repo.Restore = _ => { visible = true; return Task.CompletedTask; };
+        await vm.UndoDeleteCommand.ExecuteAsync(null);
+        Assert.Same(word, vm.SelectedWord);
+        Assert.False(vm.CanUndoDelete);
+    }
+
+    [Fact]
+    public async Task ChangingFilterResetsPaginationAndKeepsQuery()
+    {
+        var (vm, repo) = Create();
+        var offsets = new List<int>();
+        repo.ReadFiltered = (query, filter, limit, offset) =>
+        {
+            Assert.Equal("needle", query);
+            Assert.Equal(WordFilter.Failed, filter);
+            offsets.Add(offset);
+            return Task.FromResult<IReadOnlyList<Word>>(Enumerable.Range(offset, Math.Min(limit, 120 - offset))
+                .Select(i => new Word { Id = i.ToString() }).ToArray());
+        };
+        vm.SearchQuery = "needle";
+        vm.SelectedFilterIndex = 2;
+        Assert.Equal(100, vm.Words.Count);
+        await vm.LoadMoreCommand.ExecuteAsync(null);
+        Assert.Equal(120, vm.Words.Count);
+        Assert.Equal(new[] { 0, 100 }, offsets);
     }
 }

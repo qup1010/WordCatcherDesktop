@@ -166,4 +166,27 @@ public class InteractionTests
         Assert.False(vm.HasActionableIssues);
         Assert.False(vm.RetryAllCommand.CanExecute(null));
     }
+
+    [Fact]
+    public async Task SettingsDraftSurvivesReinitializationAndClearsOnlyAfterSuccessfulSave()
+    {
+        var (vm, service) = Settings();
+        await vm.InitializeAsync();
+        Assert.False(vm.HasUnsavedChanges);
+        var original = vm.ApiModel;
+        vm.ApiModel = "draft";
+        Assert.True(vm.HasUnsavedChanges);
+        vm.ApiModel = original;
+        Assert.False(vm.HasUnsavedChanges);
+        vm.ApiModel = "draft";
+        await vm.InitializeAsync();
+        Assert.Equal("draft", vm.ApiModel);
+        service.Fail = true;
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.True(vm.HasUnsavedChanges);
+        service.Fail = false;
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.False(vm.HasUnsavedChanges);
+        Assert.Equal("draft", service.Settings.ActiveTranslation.Model);
+    }
 }

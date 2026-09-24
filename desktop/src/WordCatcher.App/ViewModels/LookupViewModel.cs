@@ -19,7 +19,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private readonly IWordRepository _wordRepository;
     private readonly IAnkiSyncQueue _syncQueue;
     private readonly ISettingsService _settingsService;
-    private readonly SpeechService _speechService;
+    private readonly ISpeechService _speechService;
     private readonly WordCollectionEvents _wordCollectionEvents;
 
     [ObservableProperty]
@@ -93,6 +93,38 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty]
     private string _savedStatusText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SaveButtonText))]
+    private bool _isSaving;
+
+    [ObservableProperty]
+    private string _actionStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _syncStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _originalSentence = string.Empty;
+
+    public bool IsLongText => SelectedText.Length > 45 || SelectedText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 5;
+    public bool HasSecondaryContent => !string.IsNullOrWhiteSpace(ContextTranslation) || !string.IsNullOrWhiteSpace(MemoryHook) || !string.IsNullOrWhiteSpace(OriginalSentence);
+    public string SaveButtonText => IsSaving ? "保存中…" : IsSaved && !CanSave ? "已收藏 ✓" : IsSaved ? "保存新语境" : "存入生词库";
+    partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
+    partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
+    partial void OnSelectedTextChanged(string value) => OnPropertyChanged(nameof(IsLongText));
+    partial void OnContextTranslationChanged(string value) => OnPropertyChanged(nameof(HasSecondaryContent));
+    partial void OnMemoryHookChanged(string? value) => OnPropertyChanged(nameof(HasSecondaryContent));
+    partial void OnOriginalSentenceChanged(string value) => OnPropertyChanged(nameof(HasSecondaryContent));
+    private long _actionVersion;
+
+    private async Task ShowActionStatusAsync(string message)
+    {
+        var version = ++_actionVersion;
+        ActionStatusText = message;
+        await Task.Delay(2500).ConfigureAwait(true);
+        if (version == _actionVersion) ActionStatusText = string.Empty;
+    }
+
     public event Action? RequestClose;
 
     public bool KeepOpenAfterSave { get; set; }
@@ -107,7 +139,7 @@ public sealed partial class LookupViewModel : ObservableObject
         IWordRepository wordRepository,
         IAnkiSyncQueue syncQueue,
         ISettingsService settingsService,
-        SpeechService speechService,
+        ISpeechService speechService,
         WordCollectionEvents wordCollectionEvents)
     {
         _lookupService = lookupService;
@@ -144,9 +176,14 @@ public sealed partial class LookupViewModel : ObservableObject
         HasResult = false;
         HasError = false;
         IsSaved = false;
+        IsSaving = false;
+        ++_actionVersion;
+        ActionStatusText = string.Empty;
+        SyncStatusText = string.Empty;
+        OriginalSentence = capture.Sentence == capture.SelectedText ? string.Empty : capture.Sentence;
         CanSave = false;
         SavedStatusText = string.Empty;
-        StatusText = forceAi ? "正在调用 AI 语境详解..." : "正在查询词典与翻译...";
+        StatusText = forceAi ? "正在获取 AI 详解…" : "正在查询词典与翻译...";
 
         try
         {
@@ -168,6 +205,15 @@ public sealed partial class LookupViewModel : ObservableObject
 
             HasResult = true;
             CanSave = true;
+            // 收藏检查失败不影响已经取得的查询结果。
+            try
+            {
+                var existing = await _wordRepository.FindWordAsync(result.Word, currentLookup.Token).ConfigureAwait(true);
+                if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
+                IsSaved = existing != null;
+                if (IsSaved) SavedStatusText = "已在生词库中，可保存这次的语境。";
+            }
+            catch (Exception) when (!currentLookup.IsCancellationRequested) { }
         }
         catch (OperationCanceledException) when (currentLookup.IsCancellationRequested)
         {
@@ -207,7 +253,9 @@ public sealed partial class LookupViewModel : ObservableObject
             return;
 
         CanSave = false;
-        SavedStatusText = "正在保存到本地词库...";
+        IsSaving = true;
+        var wasSaved = IsSaved;
+        SavedStatusText = "正在保存到生词库…";
         var version = _lookupVersion;
 
         try
@@ -219,9 +267,9 @@ public sealed partial class LookupViewModel : ObservableObject
             if (version != _lookupVersion) return;
 
             IsSaved = true;
-            SavedStatusText = _settingsService.Current.Anki.Enabled
-                ? "✓ 已存入单词本 · 等待同步 Anki"
-                : "✓ 已存入单词本";
+            IsSaving = false;
+            SavedStatusText = wasSaved ? "✓ 已新增语境，释义已更新" : "✓ 已存入生词库";
+            SyncStatusText = _settingsService.Current.Anki.Enabled ? "Anki 等待同步 · 已保存在本地" : string.Empty;
 
             if (_settingsService.Current.Ui.ClosePopupAfterSave)
             {
@@ -233,6 +281,7 @@ public sealed partial class LookupViewModel : ObservableObject
         catch (Exception ex)
         {
             if (version != _lookupVersion) return;
+            IsSaving = false;
             CanSave = true;
             SavedStatusText = $"保存失败: {ex.Message}";
         }
@@ -282,15 +331,17 @@ public sealed partial class LookupViewModel : ObservableObject
     [RelayCommand]
     private void Speak()
     {
+        ++_actionVersion;
+        ActionStatusText = string.Empty;
+
         try
         {
             var text = !string.IsNullOrWhiteSpace(Word) ? Word : SelectedText;
             _speechService.Speak(text);
-            SavedStatusText = "正在朗读...";
         }
         catch (Exception ex)
         {
-            SavedStatusText = $"朗读不可用: {ex.Message}";
+            ActionStatusText = $"朗读不可用: {ex.Message}";
         }
     }
 
@@ -312,11 +363,12 @@ public sealed partial class LookupViewModel : ObservableObject
         try
         {
             Clipboard.SetText(string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line))));
-            SavedStatusText = "✓ 已复制";
+            _ = ShowActionStatusAsync("✓ 已复制");
         }
         catch (Exception ex)
         {
-            SavedStatusText = $"复制失败: {ex.Message}";
+            ++_actionVersion;
+            ActionStatusText = $"复制失败: {ex.Message}";
         }
     }
 }

@@ -20,8 +20,10 @@ public class LookupViewModelTests
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public AppSettings Settings = new() { Ui = new() { ClosePopupAfterSave = false } };
         public List<string> Queued = [];
+        public Word? ExistingWord;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
+            "FindWordAsync" => Task.FromResult(ExistingWord),
             "LookupAsync" => Lookup((CaptureResult)args![0]!),
             "SaveAsync" => Save((SaveCardCommand)args![0]!),
             "GetWordsAsync" => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
@@ -33,19 +35,60 @@ public class LookupViewModelTests
         private object? Enqueue(string id) { Queued.Add(id); return null; }
     }
 
+    private sealed class FakeSpeechService : ISpeechService
+    {
+        public string? LastText { get; private set; }
+        public Exception? Error { get; init; }
+
+        public void Speak(string text)
+        {
+            LastText = text;
+            if (Error is not null) throw Error;
+        }
+    }
+
     public static TranslationResult Digital() => OfflineDictionaryService.FormatEntry(
         JsonSerializer.Deserialize<DistributionEntryV5>(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "digital.v5.json")))!);
 
     public static CaptureResult Capture(string word = "digital") => new(word, "test", "test", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
 
-    public static (LookupViewModel Vm, ServiceProxy Lookup, ServiceProxy Repository, ServiceProxy Queue) Create(WordCollectionEvents? wordCollectionEvents = null)
+    public static (LookupViewModel Vm, ServiceProxy Lookup, ServiceProxy Repository, ServiceProxy Queue) Create(
+        WordCollectionEvents? wordCollectionEvents = null,
+        ISpeechService? speechService = null)
     {
         var lookup = DispatchProxy.Create<ILookupService, ServiceProxy>();
         var repo = DispatchProxy.Create<IWordRepository, ServiceProxy>();
         var queue = DispatchProxy.Create<IAnkiSyncQueue, ServiceProxy>();
         var settings = DispatchProxy.Create<ISettingsService, ServiceProxy>();
-        return (new LookupViewModel(lookup, repo, queue, settings, new SpeechService(), wordCollectionEvents ?? new WordCollectionEvents()),
+        return (new LookupViewModel(lookup, repo, queue, settings, speechService ?? new SpeechService(), wordCollectionEvents ?? new WordCollectionEvents()),
             (ServiceProxy)lookup, (ServiceProxy)repo, (ServiceProxy)queue);
+    }
+
+    [Fact]
+    public async Task SpeakingDoesNotReplaceCollectionFeedback()
+    {
+        var speech = new FakeSpeechService();
+        var (vm, _, _, _) = Create(speechService: speech);
+        await vm.StartLookupAsync(Capture());
+        vm.SavedStatusText = "已收藏";
+
+        vm.SpeakCommand.Execute(null);
+
+        Assert.Equal("digital", speech.LastText);
+        Assert.Equal("已收藏", vm.SavedStatusText);
+    }
+
+    [Fact]
+    public async Task SpeechFailureRemainsVisibleInFooter()
+    {
+        var speech = new FakeSpeechService { Error = new InvalidOperationException("speech unavailable") };
+        var (vm, _, _, _) = Create(speechService: speech);
+        await vm.StartLookupAsync(Capture());
+
+        vm.SpeakCommand.Execute(null);
+
+        Assert.Contains("朗读不可用", vm.ActionStatusText);
+        Assert.Empty(vm.SavedStatusText);
     }
 
     [Fact]
@@ -165,5 +208,29 @@ public class LookupViewModelTests
         Assert.Empty(vm.SavedStatusText);
         Assert.Contains("old-job", queue.Queued);
         Assert.Equal(1, notifications);
+    }
+
+    [Fact]
+    public async Task ExistingCollectionCanAddContextAndSpeechFailureDoesNotReplaceSavedState()
+    {
+        var speech = new FakeSpeechService { Error = new InvalidOperationException("unavailable") };
+        var (vm, _, repo, _) = Create(speechService: speech);
+        repo.ExistingWord = new Word { DisplayWord = "digital" };
+        await vm.StartLookupAsync(Capture());
+        Assert.True(vm.IsSaved);
+        Assert.Equal("保存新语境", vm.SaveButtonText);
+        var pending = new TaskCompletionSource<(Word, Occurrence, SyncJob)>();
+        repo.Save = _ => pending.Task;
+        var save = vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal("保存中…", vm.SaveButtonText);
+        pending.SetResult((repo.ExistingWord, new Occurrence(), new SyncJob()));
+        await save;
+        Assert.Equal("已收藏 ✓", vm.SaveButtonText);
+        Assert.False(vm.CanSave);
+        var savedStatus = vm.SavedStatusText;
+        vm.SpeakCommand.Execute(null);
+        Assert.Equal(savedStatus, vm.SavedStatusText);
+        Assert.Contains("新增语境", savedStatus);
+        Assert.Contains("朗读不可用", vm.ActionStatusText);
     }
 }

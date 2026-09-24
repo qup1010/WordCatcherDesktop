@@ -196,6 +196,10 @@ public sealed class AnkiSyncWorker : IAnkiSyncQueue, IDisposable
 
     private async Task ExecuteSyncAsync(SyncJob job, CancellationToken ct)
     {
+        // 列表读取后词条可能已被删除，开始同步前再次检查。
+        if (await _wordRepository.GetSyncJobByIdAsync(job.Id, ct).ConfigureAwait(false) == null)
+            return;
+
         job.Word ??= await _wordRepository.GetWordByIdAsync(job.WordId, ct).ConfigureAwait(false);
         if (job.Word == null)
         {

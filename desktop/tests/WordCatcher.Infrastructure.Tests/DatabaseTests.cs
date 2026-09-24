@@ -159,4 +159,70 @@ public class DatabaseTests : IDisposable
         Assert.Equal(JsonValueKind.Array, doc.RootElement.ValueKind);
         Assert.Equal(1, doc.RootElement.GetArrayLength());
     }
+
+    [Fact]
+    public async Task UndoRestoresAllContextsAndOriginalSyncState()
+    {
+        await _runner.MigrateAsync();
+        var capture = new CaptureResult("cat", "reader", "book", new ScreenPoint(0, 0), DateTimeOffset.UtcNow,
+            Sentence: "The cat crossed the garden.", SentenceOffset: 4);
+        var translation = new TranslationResult("cat", "/kæt/", "n.", "猫", "猫穿过花园。", null, LookupSource.OpenDictionary, "cat", "v5");
+        var (word, occurrence, job) = await _repo.SaveAsync(new(capture, translation));
+        job.Status = SyncStatus.Synced;
+        await _repo.UpdateSyncJobAsync(job);
+        await _repo.SaveAsync(new(capture with { Sentence = "Another cat." }, translation));
+
+        await _repo.MoveWordToTrashAsync(word.Id);
+        Assert.Empty(await _repo.GetWordsAsync());
+        Assert.Null(await _repo.FindWordAsync("cat"));
+        Assert.Empty(await _repo.GetSyncJobsAsync());
+        Assert.Null(await _repo.GetSyncJobByIdAsync(job.Id));
+        Assert.Equal("[]", await _repo.ExportWordsJsonAsync());
+
+        await _repo.RestoreWordAsync(word.Id);
+        Assert.Equal(word.Id, (await _repo.FindWordAsync(" CAT "))!.Id);
+        var contexts = await _repo.GetOccurrencesByWordIdAsync(word.Id);
+        Assert.Equal(2, contexts.Count);
+        Assert.Contains(contexts, item => item.Id == occurrence.Id && item.SelectionOffset == 4 && item.Sentence == capture.Sentence);
+        Assert.Equal(SyncStatus.Synced, (await _repo.GetSyncJobByIdAsync(job.Id))!.Status);
+        Assert.Equal(2, (await _repo.GetSyncJobsAsync()).Count);
+    }
+
+    [Fact]
+    public async Task FilterAndContextSearchApplyBeforePagination()
+    {
+        await _runner.MigrateAsync();
+        for (var index = 0; index < 105; index++)
+        {
+            var capture = new CaptureResult($"word{index}", "reader", "book", new ScreenPoint(0, 0), DateTimeOffset.UtcNow,
+                Sentence: "A shared context needle.");
+            var translation = new TranslationResult($"word{index}", "", "", "释义", "", null, LookupSource.OpenDictionary, null, null);
+            var (_, _, job) = await _repo.SaveAsync(new(capture, translation));
+            if (index % 2 == 0)
+            {
+                job.Status = SyncStatus.Failed;
+                await _repo.UpdateSyncJobAsync(job);
+            }
+        }
+        var first = await _repo.GetFilteredWordsAsync("needle", WordFilter.Failed, 30);
+        var second = await _repo.GetFilteredWordsAsync("needle", WordFilter.Failed, 30, 30);
+        Assert.Equal(30, first.Count);
+        Assert.Equal(23, second.Count);
+        Assert.Equal(52, (await _repo.GetFilteredWordsAsync(null, WordFilter.Pending)).Count);
+        Assert.Equal(105, (await _repo.GetWordsAsync("needle", 200)).Count);
+    }
+
+    [Fact]
+    public async Task SavingDeletedWordRestoresIdentityWithoutLosingOldContext()
+    {
+        await _runner.MigrateAsync();
+        var capture = new CaptureResult("cat", "reader", "book", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
+        var translation = new TranslationResult("cat", "", "n.", "猫", "", null, LookupSource.OpenDictionary, null, null);
+        var (word, _, _) = await _repo.SaveAsync(new(capture, translation));
+        await _repo.MoveWordToTrashAsync(word.Id);
+        var (saved, _, _) = await _repo.SaveAsync(new(capture, translation));
+        Assert.Equal(word.Id, saved.Id);
+        Assert.Single(await _repo.GetWordsAsync());
+        Assert.Equal(2, (await _repo.GetOccurrencesByWordIdAsync(word.Id)).Count);
+    }
 }

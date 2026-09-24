@@ -64,6 +64,8 @@ public sealed partial class WordLookupViewModel : ObservableObject
         _lookup.HasError = false;
         _lookup.CanSave = false;
         _lookup.SavedStatusText = string.Empty;
+        _lookup.ActionStatusText = string.Empty;
+        _lookup.SyncStatusText = string.Empty;
         Query = string.Empty;
         QueryError = string.Empty;
         HasSearched = false;

@@ -84,6 +84,14 @@ CREATE INDEX IF NOT EXISTS ix_sync_jobs_status ON sync_jobs(status, next_attempt
             @"
 ALTER TABLE occurrences ADD COLUMN selection_offset INTEGER NOT NULL DEFAULT -1;
 "
+        ),
+        (
+            3,
+            "Preserve deleted words for undo",
+            @"
+ALTER TABLE words ADD COLUMN deleted_at_utc TEXT NULL;
+CREATE INDEX IF NOT EXISTS ix_sync_jobs_word_status ON sync_jobs(word_id, status);
+"
         )
     };
 

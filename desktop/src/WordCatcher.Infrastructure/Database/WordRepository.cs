@@ -72,7 +72,8 @@ LIMIT 1;";
                         updateCmd.Transaction = transaction;
                         updateCmd.CommandText = @"
 UPDATE words
-SET display_word = $display,
+SET deleted_at_utc = NULL,
+    display_word = $display,
     reading = $reading,
     part_of_speech = $pos,
     definition = $def,
@@ -228,45 +229,64 @@ VALUES ($id, $wordId, $occId, $target, $status, $attempts, $lastError, $nextAtte
         }
     }
 
-    public async Task<IReadOnlyList<Word>> GetWordsAsync(
-        string? query = null,
-        int limit = 100,
-        int offset = 0,
-        CancellationToken ct = default)
+    public Task<IReadOnlyList<Word>> GetWordsAsync(string? query = null, int limit = 100,
+        int offset = 0, CancellationToken ct = default)
+        => GetFilteredWordsAsync(query, WordFilter.All, limit, offset, ct);
+
+    public async Task<IReadOnlyList<Word>> GetFilteredWordsAsync(string? query, WordFilter filter,
+        int limit = 100, int offset = 0, CancellationToken ct = default)
     {
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
-
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            cmd.CommandText = @"
+        cmd.CommandText = @"
 SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
-FROM words
+FROM words w
+WHERE deleted_at_utc IS NULL
+AND ($q = '' OR normalized_word LIKE $pattern OR display_word LIKE $pattern OR definition LIKE $pattern
+    OR EXISTS (SELECT 1 FROM occurrences o WHERE o.word_id = w.id
+        AND (o.sentence LIKE $pattern OR o.context_translation LIKE $pattern)))
+AND ($filter = 0
+    OR ($filter = 1 AND EXISTS (SELECT 1 FROM sync_jobs j WHERE j.word_id = w.id AND j.status IN ('Pending', 'Syncing', 'Retryable')))
+    OR ($filter = 2 AND EXISTS (SELECT 1 FROM sync_jobs j WHERE j.word_id = w.id AND j.status = 'Failed')))
 ORDER BY updated_at_utc DESC, id ASC
 LIMIT $limit OFFSET $offset;";
-        }
-        else
-        {
-            cmd.CommandText = @"
-SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
-FROM words
-WHERE normalized_word LIKE $q OR display_word LIKE $q OR definition LIKE $q
-ORDER BY updated_at_utc DESC, id ASC
-LIMIT $limit OFFSET $offset;";
-            cmd.Parameters.AddWithValue("$q", $"%{query.Trim()}%");
-        }
-
+        cmd.Parameters.AddWithValue("$q", query?.Trim() ?? string.Empty);
+        cmd.Parameters.AddWithValue("$pattern", $"%{query?.Trim()}%");
+        cmd.Parameters.AddWithValue("$filter", (int)filter);
         cmd.Parameters.AddWithValue("$limit", limit);
         cmd.Parameters.AddWithValue("$offset", offset);
-
         var list = new List<Word>();
         await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
-        {
-            list.Add(ReadWord(reader));
-        }
-
+        while (await reader.ReadAsync(ct).ConfigureAwait(false)) list.Add(ReadWord(reader));
         return list;
+    }
+
+    public async Task<Word?> FindWordAsync(string text, CancellationToken ct = default)
+    {
+        await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"
+SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
+FROM words WHERE language = 'en' AND normalized_word = $word AND deleted_at_utc IS NULL LIMIT 1;";
+        cmd.Parameters.AddWithValue("$word", text.Trim().ToLowerInvariant());
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        return await reader.ReadAsync(ct).ConfigureAwait(false) ? ReadWord(reader) : null;
+    }
+
+    public Task MoveWordToTrashAsync(string wordId, CancellationToken ct = default)
+        => SetDeletedAsync(wordId, DateTimeOffset.UtcNow.ToString("o"), ct);
+
+    public Task RestoreWordAsync(string wordId, CancellationToken ct = default)
+        => SetDeletedAsync(wordId, null, ct);
+
+    private async Task SetDeletedAsync(string wordId, string? deletedAt, CancellationToken ct)
+    {
+        await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "UPDATE words SET deleted_at_utc = $deleted WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$deleted", (object?)deletedAt ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$id", wordId);
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<Word?> GetWordByIdAsync(string id, CancellationToken ct = default)
@@ -276,7 +296,7 @@ LIMIT $limit OFFSET $offset;";
         cmd.CommandText = @"
 SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
 FROM words
-WHERE id = $id
+WHERE id = $id AND deleted_at_utc IS NULL
 LIMIT 1;";
         cmd.Parameters.AddWithValue("$id", id);
 
@@ -429,6 +449,7 @@ SELECT j.id, j.word_id, j.occurrence_id, j.target, j.status, j.attempts, j.last_
 FROM sync_jobs j
 INNER JOIN words w ON j.word_id = w.id
 INNER JOIN occurrences o ON j.occurrence_id = o.id
+WHERE w.deleted_at_utc IS NULL
 ORDER BY j.created_at_utc DESC;";
 
         var list = new List<SyncJob>();
@@ -490,7 +511,7 @@ ORDER BY j.created_at_utc DESC;";
         cmd.CommandText = @"
 SELECT id, word_id, occurrence_id, target, status, attempts, last_error, next_attempt_at_utc, created_at_utc, updated_at_utc
 FROM sync_jobs
-WHERE id = $id
+WHERE word_id IN (SELECT id FROM words WHERE deleted_at_utc IS NULL) AND id = $id
 LIMIT 1;";
         cmd.Parameters.AddWithValue("$id", id);
 

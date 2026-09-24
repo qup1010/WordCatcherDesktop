@@ -1,5 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
+using WordCatcher.Core.Enums;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -22,10 +24,21 @@ public sealed partial class LibraryViewModel : ObservableObject
     private int _occurrenceVersion;
     private CancellationTokenSource? _searchDelay;
     private bool _refreshPending;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteWordCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UndoDeleteCommand))]
+    private bool _isChangingCollection;
+    private bool CanChangeCollection => !IsChangingCollection && !IsEditing;
+
+    private readonly Stack<(string Id, string Name)> _deletedWords = new();
+    [ObservableProperty] private bool _canUndoDelete;
+    [ObservableProperty] private string _deleteStatusText = string.Empty;
+    [ObservableProperty] private int _selectedFilterIndex;
+    partial void OnSelectedFilterIndexChanged(int value) { if (!IsEditing) _ = SearchAsync(); }
 
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _hasMore;
-    [ObservableProperty] private bool _isCompact = true;
+    [ObservableProperty] private bool _isCompact;
     [ObservableProperty] private bool _isDefinitionExpanded;
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private string _emptyMessage = "还没有收藏的单词";
@@ -107,6 +120,8 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     partial void OnIsEditingChanged(bool value)
     {
+        DeleteWordCommand.NotifyCanExecuteChanged();
+        UndoDeleteCommand.NotifyCanExecuteChanged();
         if (!value && _refreshPending)
         {
             _refreshPending = false;
@@ -138,8 +153,10 @@ public sealed partial class LibraryViewModel : ObservableObject
         StatusMessage = "正在加载词条…";
         try
         {
-            var list = await _wordRepository.GetWordsAsync(SearchQuery, limit: PageSize + 1,
-                offset: append ? Words.Count : 0).ConfigureAwait(true);
+            var list = SelectedFilterIndex == 0
+                ? await _wordRepository.GetWordsAsync(SearchQuery, limit: PageSize + 1, offset: append ? Words.Count : 0).ConfigureAwait(true)
+                : await _wordRepository.GetFilteredWordsAsync(SearchQuery, (WordFilter)SelectedFilterIndex,
+                    limit: PageSize + 1, offset: append ? Words.Count : 0).ConfigureAwait(true);
             if (version != _loadVersion) return;
             var selectedId = SelectedWord?.Id;
             if (append)
@@ -152,7 +169,7 @@ public sealed partial class LibraryViewModel : ObservableObject
                 SelectedWord = Words.FirstOrDefault(w => w.Id == selectedId) ?? Words.FirstOrDefault();
             }
             HasMore = list.Count > PageSize;
-            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) ? "还没有收藏的单词" : "没有找到匹配的词条";
+            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 ? "还没有收藏的单词" : "没有符合当前搜索或筛选的词条";
             StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · 最近更新优先";
         }
         catch (Exception)
@@ -210,6 +227,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         EditDefinition = SelectedWord.Definition;
         EditMemoryHook = SelectedWord.MemoryHook;
         IsEditing = true;
+        StatusMessage = "正在编辑，保存或取消后可继续搜索和切换词条。";
     }
 
     [RelayCommand]
@@ -241,29 +259,45 @@ public sealed partial class LibraryViewModel : ObservableObject
     private void CancelEdit()
     {
         IsEditing = false;
+        StatusMessage = "已取消编辑。";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanChangeCollection))]
     private async Task DeleteWordAsync()
     {
-        if (SelectedWord == null) return;
+        if (SelectedWord == null || !CanChangeCollection) return;
 
-        var confirm = MessageBox.Show(
-            $"确定要从词库中删除单词「{SelectedWord.DisplayWord}」及其所有语境记录吗？此操作不可撤销。",
-            "删除确认",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (confirm == MessageBoxResult.Yes)
+        var word = SelectedWord;
+        IsChangingCollection = true;
+        try
         {
-            try
-            {
-                await _wordRepository.DeleteWordAsync(SelectedWord.Id).ConfigureAwait(true);
-                SelectedWord = null;
-                await LoadWordsAsync().ConfigureAwait(true);
-            }
-            catch (Exception) { StatusMessage = "删除失败，请重试。"; }
+            await _wordRepository.MoveWordToTrashAsync(word.Id).ConfigureAwait(true);
+            _deletedWords.Push((word.Id, word.DisplayWord));
+            CanUndoDelete = true;
+            DeleteStatusText = $"已删除「{word.DisplayWord}」及其语境，可撤销。";
+            if (SelectedWord?.Id == word.Id) SelectedWord = null;
+            await LoadWordsAsync().ConfigureAwait(true);
         }
+        catch (Exception) { StatusMessage = "删除失败，请重试。"; }
+        finally { IsChangingCollection = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeCollection))]
+    private async Task UndoDeleteAsync()
+    {
+        if (!CanChangeCollection || !_deletedWords.TryPeek(out var deleted)) return;
+        IsChangingCollection = true;
+        try
+        {
+            await _wordRepository.RestoreWordAsync(deleted.Id).ConfigureAwait(true);
+            _deletedWords.Pop();
+            CanUndoDelete = _deletedWords.Count > 0;
+            DeleteStatusText = $"已恢复「{deleted.Name}」及全部语境记录。";
+            await LoadWordsAsync().ConfigureAwait(true);
+            SelectedWord = Words.FirstOrDefault(word => word.Id == deleted.Id) ?? SelectedWord;
+        }
+        catch (Exception) { DeleteStatusText = "恢复失败，请重试；记录仍保留。"; }
+        finally { IsChangingCollection = false; }
     }
 
     [RelayCommand]

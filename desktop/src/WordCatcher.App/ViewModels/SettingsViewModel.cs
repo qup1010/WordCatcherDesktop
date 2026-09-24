@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,6 +103,36 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _closePopupAfterSave = true;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DraftStatusText))]
+    private bool _hasUnsavedChanges;
+    public string DraftStatusText => HasUnsavedChanges ? "有未保存的修改 · 切换页面会保留草稿" : "设置已保存";
+    private string? _savedEditorState;
+    private bool _initializing;
+    private static readonly HashSet<string> EditableProperties = new()
+    {
+        nameof(Hotkey), nameof(ExplainLanguage), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
+        nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
+        nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
+        nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
+        nameof(ClosePopupAfterSave)
+    };
+
+    private string EditorState() => JsonSerializer.Serialize(new
+    {
+        Hotkey, ExplainLanguage, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
+        ActiveAiProfileId, AiProfileName, MachineTranslationProvider, ApiKey, AnkiEnabled,
+        AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang, ClosePopupAfterSave,
+        Profiles = AiProfiles, Keys = _profileApiKeys
+    });
+
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (!_initializing && _savedEditorState != null && e.PropertyName != null && EditableProperties.Contains(e.PropertyName))
+            HasUnsavedChanges = EditorState() != _savedEditorState;
+    }
+
     [ObservableProperty] private bool _isSaving;
     [ObservableProperty] private string _statusMessage = "修改后点击保存，设置即可生效。";
 
@@ -204,43 +235,51 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        var s = _settingsService.Current;
-        Hotkey = s.Hotkey;
-        ExplainLanguage = s.ExplainLanguage;
-
-        var profiles = EnsureProfiles(s);
-        AiProfiles = new ObservableCollection<TranslationProfile>(profiles.Select(CloneProfile));
-        var active = AiProfiles.FirstOrDefault(p => p.Id == s.ActiveTranslationProfileId)
-            ?? AiProfiles.FirstOrDefault()
-            ?? CreateDefaultProfile();
-        if (AiProfiles.Count == 0)
-            AiProfiles.Add(active);
-
-        _profileApiKeys.Clear();
-        foreach (var profile in AiProfiles)
+        if (HasUnsavedChanges) return;
+        _initializing = true;
+        try
         {
-            _profileApiKeys[profile.Id] = await ReadProfileApiKeyAsync(profile.Id).ConfigureAwait(true);
+            var s = _settingsService.Current;
+            Hotkey = s.Hotkey;
+            ExplainLanguage = s.ExplainLanguage;
+
+            var profiles = EnsureProfiles(s);
+            AiProfiles = new ObservableCollection<TranslationProfile>(profiles.Select(CloneProfile));
+            var active = AiProfiles.FirstOrDefault(p => p.Id == s.ActiveTranslationProfileId)
+                ?? AiProfiles.FirstOrDefault()
+                ?? CreateDefaultProfile();
+            if (AiProfiles.Count == 0)
+                AiProfiles.Add(active);
+
+            _profileApiKeys.Clear();
+            foreach (var profile in AiProfiles)
+            {
+                _profileApiKeys[profile.Id] = await ReadProfileApiKeyAsync(profile.Id).ConfigureAwait(true);
+            }
+
+            _profileEditorReady = false;
+            ActiveAiProfileId = active.Id;
+            LoadProfile(active);
+            _editingProfileId = active.Id;
+            _profileEditorReady = true;
+
+            DictDownloadUrl = s.Dictionary.DownloadUrl;
+
+            AnkiEnabled = s.Anki.Enabled;
+            AnkiUrl = s.Anki.Url;
+            AnkiDeckName = s.Anki.DeckName;
+            AnkiNoteTypeName = s.Anki.NoteTypeName;
+            AnkiClozeContext = s.Anki.ClozeContext;
+            AnkiTtsLang = s.Anki.TtsLang;
+
+            ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
+
+            RefreshDictStatus();
+            OnPropertyChanged(nameof(AppliedHotkey));
+            _savedEditorState = EditorState();
         }
-
-        _profileEditorReady = false;
-        ActiveAiProfileId = active.Id;
-        LoadProfile(active);
-        _editingProfileId = active.Id;
-        _profileEditorReady = true;
-
-        DictDownloadUrl = s.Dictionary.DownloadUrl;
-
-        AnkiEnabled = s.Anki.Enabled;
-        AnkiUrl = s.Anki.Url;
-        AnkiDeckName = s.Anki.DeckName;
-        AnkiNoteTypeName = s.Anki.NoteTypeName;
-        AnkiClozeContext = s.Anki.ClozeContext;
-        AnkiTtsLang = s.Anki.TtsLang;
-
-        ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
-
-        RefreshDictStatus();
-        OnPropertyChanged(nameof(AppliedHotkey));
+        finally { _initializing = false; }
+        HasUnsavedChanges = false;
     }
 
     partial void OnActiveAiProfileIdChanged(string value)
@@ -383,6 +422,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             await _settingsService.SaveSettingsAsync(s).ConfigureAwait(true);
             OnPropertyChanged(nameof(AppliedHotkey));
+            _savedEditorState = EditorState();
+            HasUnsavedChanges = false;
             StatusMessage = "设置已保存并生效。";
             HotkeyHint = $"当前快捷键：{s.Hotkey}。";
         }
