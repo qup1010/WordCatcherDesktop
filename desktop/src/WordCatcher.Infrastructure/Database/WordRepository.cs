@@ -413,7 +413,8 @@ WHERE id = $id;";
 
     public async Task<string> ExportWordsJsonAsync(CancellationToken ct = default)
     {
-        var words = await GetWordsAsync(limit: 10000, ct: ct).ConfigureAwait(false);
+        // SQLite 的负数 LIMIT 表示不限制行数，备份必须包含全部未删除词条。
+        var words = await GetWordsAsync(limit: -1, ct: ct).ConfigureAwait(false);
         var exportList = new List<object>();
 
         foreach (var word in words)
