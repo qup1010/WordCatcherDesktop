@@ -92,6 +92,23 @@ public sealed class TrayIconManager : IDisposable
 
     private static Icon LoadApplicationIcon()
     {
+        try
+        {
+            var resource = System.Windows.Application.GetResourceStream(new Uri(
+                "pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.ico"));
+            if (resource != null)
+            {
+                using var stream = resource.Stream;
+                using var icon = new Icon(stream, SystemInformation.SmallIconSize);
+                // 克隆后释放资源流，托盘直接使用对应 DPI 的小尺寸帧。
+                return (Icon)icon.Clone();
+            }
+        }
+        catch (Exception)
+        {
+            // 资源读取失败时继续尝试 exe 图标。
+        }
+
         var processPath = Environment.ProcessPath;
         if (!string.IsNullOrWhiteSpace(processPath))
         {

@@ -18,8 +18,6 @@
     <UserControl.Resources>
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ui:ThemesDictionary Theme="Light" />
-            <ui:ControlsDictionary />
             <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
         </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -27,13 +25,7 @@
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
 
-        <Style x:Key="LookupActionButton" TargetType="{x:Type ui:Button}"
-               BasedOn="{StaticResource {x:Type ui:Button}}">
-            <Setter Property="Appearance" Value="Secondary" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="FontSize" Value="12" />
-        </Style>
+        <Style x:Key="LookupActionButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}" />
 
         <Style x:Key="LookupIconButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource LookupActionButton}">
             <Setter Property="Appearance" Value="Transparent" />
@@ -57,8 +49,8 @@
 
         <Grid Margin="0,0,0,18">
             <StackPanel>
-                <TextBlock Text="查单词" Style="{StaticResource PageTitleStyle}" />
-                <TextBlock Text="输入单词，查看发音、词性、释义与例句"
+                <TextBlock Text="查词" Style="{StaticResource PageTitleStyle}" />
+                <TextBlock Text="输入单词、短语或句子，查看释义与翻译。"
                            Style="{StaticResource PageSubtitleStyle}" />
             </StackPanel>
         </Grid>
@@ -84,7 +76,7 @@
                     <ui:TextBox x:Name="QueryBox"
                              Grid.Column="1"
                              Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="输入单词或短语"
+                             PlaceholderText="输入单词、短语或句子" AutomationProperties.Name="查词内容"
                              ClearButtonEnabled="False"
                              BorderThickness="0"
                              Background="Transparent"
@@ -93,14 +85,14 @@
                              Foreground="{StaticResource TextPrimaryBrush}"
                              VerticalContentAlignment="Center"
                              MinHeight="36"
-                             ToolTip="输入单词或短语"
+                             ToolTip="Enter 查询 · Esc 清空 · Ctrl+F 聚焦"
                              KeyDown="QueryBox_KeyDown" />
                     <ui:Button Grid.Column="2"
                             Command="{Binding ClearQueryCommand}"
                             Style="{StaticResource LookupIconButton}"
                             Background="Transparent"
                             Foreground="{StaticResource TextMutedBrush}"
-                            ToolTip="清空"
+                            ToolTip="清空（Esc）" AutomationProperties.Name="清空查词内容"
                             Visibility="{Binding Query, Converter={StaticResource StringToVis}}">
                         <TextBlock Text="&#xE894;" FontFamily="Segoe Fluent Icons" FontSize="13" />
                     </ui:Button>
@@ -132,10 +124,10 @@
                     <Image Source="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.png"
                            Width="43" Height="43" Stretch="Uniform" />
                 </Border>
-                <TextBlock Text="输入一个单词开始查询"
+                <TextBlock Text="从一个单词开始"
                            FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
                            HorizontalAlignment="Center" Margin="0,16,0,0" />
-                <TextBlock Text="结果会优先使用本地词典，必要时自动补充翻译"
+                <TextBlock Text="离线词典优先；短语和句子也可以查询。"
                            FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>

@@ -14,6 +14,11 @@ using Xunit;
 
 namespace WordCatcher.Infrastructure.Tests;
 
+[CollectionDefinition("Dictionary file maintenance", DisableParallelization = true)]
+public sealed class DictionaryMaintenanceCollection { }
+
+// 安装与清理会调用进程级 ClearAllPools，不能和其他数据库测试并行。
+[Collection("Dictionary file maintenance")]
 public class DictionaryTests : IDisposable
 {
     private readonly string _tempDir;

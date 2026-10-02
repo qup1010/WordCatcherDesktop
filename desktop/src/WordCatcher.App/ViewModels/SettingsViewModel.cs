@@ -106,7 +106,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DraftStatusText))]
     private bool _hasUnsavedChanges;
-    public string DraftStatusText => HasUnsavedChanges ? "有未保存的修改 · 切换页面会保留草稿" : "设置已保存";
+    public string DraftStatusText => HasUnsavedChanges ? "有未保存的修改" : "设置已保存";
     private string? _savedEditorState;
     private bool _initializing;
     private static readonly HashSet<string> EditableProperties = new()
@@ -134,6 +134,18 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [ObservableProperty] private bool _isSaving;
+    [ObservableProperty] private bool _isTestingAi;
+    [ObservableProperty] private bool _isTestingAnki;
+    [ObservableProperty] private string _dictFeedback = string.Empty;
+    [ObservableProperty] private bool _isDictProgressIndeterminate;
+    private CancellationTokenSource? _dictionaryInstallCancellation;
+
+    [RelayCommand]
+    private void CancelDictionaryInstall()
+    {
+        _dictionaryInstallCancellation?.Cancel();
+        DictProgressText = "正在取消…";
+    }
     [ObservableProperty] private string _statusMessage = "修改后点击保存，设置即可生效。";
 
     [ObservableProperty] private bool _isCheckingForUpdates;
@@ -282,6 +294,24 @@ public sealed partial class SettingsViewModel : ObservableObject
         HasUnsavedChanges = false;
     }
 
+    [RelayCommand]
+    private async Task DiscardChangesAsync()
+    {
+        if (IsSaving || IsTestingAi || IsTestingAnki || _initializing) return;
+        CancelHotkeyRecording();
+        HasUnsavedChanges = false;
+        try
+        {
+            await InitializeAsync().ConfigureAwait(true);
+            StatusMessage = "未保存的修改已放弃，已恢复当前生效的设置。";
+        }
+        catch (Exception)
+        {
+            HasUnsavedChanges = true;
+            StatusMessage = "恢复设置失败，请稍后重试。";
+        }
+    }
+
     partial void OnActiveAiProfileIdChanged(string value)
     {
         if (!_profileEditorReady || string.IsNullOrWhiteSpace(value))
@@ -346,14 +376,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (DictInstalled)
         {
             var meta = _offlineDict.Metadata;
-            DictStatusText = "已安装就绪 (Ready)";
+            DictStatusText = "已安装";
             if (meta != null)
             {
-                DictDetailsText = $"词条数: {meta.EntryCount:N0} 条 | 契约版本: {meta.SchemaVersion} | 安装日期: {meta.InstalledAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}";
+                DictDetailsText = $"{meta.EntryCount:N0} 条词条 · 安装于 {meta.InstalledAtUtc.ToLocalTime():yyyy-MM-dd}";
             }
             else
             {
-                DictDetailsText = "离线词典已挂载。";
+                DictDetailsText = "可以离线查词。";
             }
         }
         else
@@ -538,17 +568,23 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (IsDictInstalling) return;
         if (string.IsNullOrWhiteSpace(DictDownloadUrl) || !Uri.TryCreate(DictDownloadUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
-            MessageBox.Show("请输入合法的词典下载 URL。", "URL 错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            DictFeedback = "请填写有效的词典下载地址（HTTP 或 HTTPS）。";
             return;
         }
 
         IsDictInstalling = true;
-        DictProgressText = "准备下载...";
+        using var installCancellation = new CancellationTokenSource();
+        _dictionaryInstallCancellation = installCancellation;
+        IsDictProgressIndeterminate = true;
+        DictFeedback = string.Empty;
+        DictProgressText = "准备下载…";
         DictProgressValue = 0;
 
         var progress = new Progress<DictionaryInstallProgress>(p =>
         {
+            if (!ReferenceEquals(_dictionaryInstallCancellation, installCancellation)) return;
             DictProgressText = p.Message;
+            IsDictProgressIndeterminate = !p.TotalBytes.HasValue || p.TotalBytes.Value <= 0;
             if (p.TotalBytes.HasValue && p.TotalBytes.Value > 0)
             {
                 DictProgressValue = (double)p.BytesRead / p.TotalBytes.Value * 100.0;
@@ -557,16 +593,18 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         try
         {
-            await _dictInstaller.InstallFromUrlAsync(uri, progress).ConfigureAwait(true);
+            await _dictInstaller.InstallFromUrlAsync(uri, progress, installCancellation.Token).ConfigureAwait(true);
             RefreshDictStatus();
-            MessageBox.Show("Open Dictionary 离线词典安装成功！", "安装完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            DictFeedback = "词典已安装，可以离线查词。";
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (installCancellation.IsCancellationRequested)
         {
-            MessageBox.Show($"词典安装失败: {ex.Message}", "安装错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            DictFeedback = "已取消安装。";
         }
+        catch (Exception ex) { DictFeedback = $"词典安装失败：{ex.Message}"; }
         finally
         {
+            _dictionaryInstallCancellation = null;
             IsDictInstalling = false;
         }
     }
@@ -578,32 +616,39 @@ public sealed partial class SettingsViewModel : ObservableObject
         var ofd = new OpenFileDialog
         {
             Filter = "Open Dictionary 归档文件 (*.sqlite.gz;*.sqlite)|*.sqlite.gz;*.sqlite|所有文件 (*.*)|*.*",
-            Title = "选择离线词典工件"
+            Title = "选择离线词典文件"
         };
 
         if (ofd.ShowDialog() == true)
         {
             IsDictInstalling = true;
-            DictProgressText = "正在解压并校验...";
+            using var installCancellation = new CancellationTokenSource();
+            _dictionaryInstallCancellation = installCancellation;
+            IsDictProgressIndeterminate = true;
+            DictFeedback = string.Empty;
+            DictProgressText = "正在解压并校验…";
             DictProgressValue = 0;
 
             var progress = new Progress<DictionaryInstallProgress>(p =>
             {
+                if (!ReferenceEquals(_dictionaryInstallCancellation, installCancellation)) return;
                 DictProgressText = p.Message;
             });
 
             try
             {
-                await _dictInstaller.InstallFromFileAsync(ofd.FileName, progress).ConfigureAwait(true);
+                await _dictInstaller.InstallFromFileAsync(ofd.FileName, progress, installCancellation.Token).ConfigureAwait(true);
                 RefreshDictStatus();
-                MessageBox.Show("Open Dictionary 离线词典从本地文件安装成功！", "安装完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                DictFeedback = "词典已安装，可以离线查词。";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) when (installCancellation.IsCancellationRequested)
             {
-                MessageBox.Show($"词典安装失败: {ex.Message}", "安装错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                DictFeedback = "已取消安装。";
             }
+            catch (Exception ex) { DictFeedback = $"词典安装失败：{ex.Message}"; }
             finally
             {
+                _dictionaryInstallCancellation = null;
                 IsDictInstalling = false;
             }
         }
@@ -636,12 +681,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task TestAnkiConnectionAsync()
     {
+        if (IsTestingAnki) return;
         if (!string.Equals(AnkiUrl.Trim(), _settingsService.Current.Anki.Url, StringComparison.Ordinal))
         {
             StatusMessage = "Anki 地址已修改，请先保存再测试连接。";
             return;
         }
         StatusMessage = "正在测试 Anki 连接…";
+        IsTestingAnki = true;
         try
         {
             var version = await _ankiClient.CheckVersionAsync().ConfigureAwait(true);
@@ -651,6 +698,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             StatusMessage = $"连接 Anki 失败：{ex.Message} 请确认 Anki 与 AnkiConnect 已启动。";
         }
+        finally { IsTestingAnki = false; }
     }
 
     [RelayCommand]
@@ -718,6 +766,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task TestAiConnectionAsync()
     {
+        if (IsTestingAi) return;
+        IsTestingAi = true;
         StatusMessage = "正在测试当前 AI 配置…";
         try
         {
@@ -737,5 +787,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             StatusMessage = $"AI 连接测试失败：{ex.Message}";
         }
+        finally { IsTestingAi = false; }
     }
 }

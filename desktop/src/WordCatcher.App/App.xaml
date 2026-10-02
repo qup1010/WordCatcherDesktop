@@ -6,8 +6,6 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ui:ThemesDictionary Theme="Light" />
-                <ui:ControlsDictionary />
                 <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

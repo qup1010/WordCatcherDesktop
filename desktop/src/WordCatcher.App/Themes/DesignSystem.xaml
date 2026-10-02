@@ -1,10 +1,14 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
-    <SolidColorBrush x:Key="CanvasBrush" Color="#F6F8F7" />
+    <ResourceDictionary.MergedDictionaries>
+        <ui:ThemesDictionary Theme="Light" />
+        <ui:ControlsDictionary />
+    </ResourceDictionary.MergedDictionaries>
+    <SolidColorBrush x:Key="CanvasBrush" Color="#F7F9F8" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F1F5F4" />
-    <SolidColorBrush x:Key="BorderBrush" Color="#DCE5E4" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#E2E9E7" />
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="#172329" />
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#566976" />
     <SolidColorBrush x:Key="TextMutedBrush" Color="#657984" />
@@ -24,13 +28,46 @@
     <SolidColorBrush x:Key="WarningTextBrush" Color="#786D5E" />
 
     <SolidColorBrush x:Key="TextControlFocusedBorderBrush" Color="#168C82" />
+    <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="#0F766E" />
+    <SolidColorBrush x:Key="SystemAccentColorSecondaryBrush" Color="#0F766E" />
+    <!-- 原生导航指示条引用颜色值，单独覆盖同名画刷无法改变它。 -->
+    <Color x:Key="SystemAccentColorPrimary">#0F766E</Color>
+
+    <Style x:Key="SecondaryActionButton" TargetType="{x:Type ui:Button}"
+           BasedOn="{StaticResource {x:Type ui:Button}}">
+        <Setter Property="Appearance" Value="Secondary" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="QuietActionButton" TargetType="{x:Type ui:Button}"
+           BasedOn="{StaticResource SecondaryActionButton}">
+        <Setter Property="Appearance" Value="Transparent" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+
+    <Style x:Key="UtilityIconButton" TargetType="{x:Type ui:Button}"
+           BasedOn="{StaticResource QuietActionButton}">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
 
     <Style x:Key="PrimaryActionButton" TargetType="{x:Type ui:Button}">
         <Setter Property="Background" Value="{StaticResource AccentBrush}" />
         <Setter Property="Foreground" Value="{StaticResource OnAccentBrush}" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="MinHeight" Value="36" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
@@ -66,15 +103,17 @@
     <system:Double xmlns:system="clr-namespace:System;assembly=System.Runtime" x:Key="CaptionFontSize">12</system:Double>
 
     <Style x:Key="PageTitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="25" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
     </Style>
 
     <Style x:Key="PageSubtitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-        <Setter Property="Margin" Value="0,4,0,0" />
+        <Setter Property="Margin" Value="0,6,0,0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="20" />
     </Style>
 
     <Style x:Key="SurfaceCardStyle" TargetType="Border">

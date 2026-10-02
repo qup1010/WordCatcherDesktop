@@ -1,25 +1,28 @@
 using System.Collections.Specialized;
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WordCatcher.App.Services;
+using WordCatcher.App.Interop;
 
 internal static class Program
 {
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--clipboard-self-test"))
+        {
+            ClipboardSelfTest.Run();
+            return;
+        }
         var output = Path.GetFullPath(args.Length > 0 ? args[0] : "capture-result.json");
         var service = new SelectionCaptureService();
         using var hotkey = new HotkeyManager();
-        // 保存并恢复原有剪贴板的受支持格式，不读取或输出原有内容。
-        var snapshotMethod = typeof(SelectionCaptureService).GetMethod("CaptureClipboardSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!;
-        var restoreMethod = typeof(SelectionCaptureService).GetMethod("RestoreClipboardSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!;
-        var original = snapshotMethod.Invoke(null, null);
+        // 快照无法完整备份时直接退出，不触碰用户现有内容。
+        using var original = NativeClipboardBackup.Capture();
         var dispatcher = Dispatcher.CurrentDispatcher;
         var busy = false;
         var fixture = new DataObject();
@@ -33,6 +36,11 @@ internal static class Program
         fixture.SetFileDropList(new StringCollection { output });
         fixture.SetImage(BitmapSource.Create(2, 1, 96, 96, PixelFormats.Bgra32, null, pixels, 8));
         Clipboard.SetDataObject(fixture, true);
+        void RestoreOriginalIfFixtureUntouched()
+        {
+            var sequence = NativeMethods.GetClipboardSequenceNumber();
+            if (Clipboard.GetText() == text) original.Restore(sequence);
+        }
         hotkey.HotkeyTriggered += async () =>
         {
             if (busy) return;
@@ -62,13 +70,13 @@ internal static class Program
             catch (Exception ex) { Console.WriteLine(ex); }
             finally
             {
-                restoreMethod.Invoke(null, new[] { original });
+                RestoreOriginalIfFixtureUntouched();
                 dispatcher.BeginInvokeShutdown(DispatcherPriority.Normal);
             }
         };
         if (!hotkey.Register("Alt+Q"))
         {
-            restoreMethod.Invoke(null, new[] { original });
+            RestoreOriginalIfFixtureUntouched();
             throw new InvalidOperationException("Alt+Q is occupied; stop the other capture instance before running the probe.");
         }
         Console.WriteLine("READY: select test text and press Alt+Q.");

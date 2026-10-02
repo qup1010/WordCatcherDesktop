@@ -35,8 +35,6 @@
     <Window.Resources>
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ui:ThemesDictionary Theme="Light" />
-            <ui:ControlsDictionary />
             <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
         </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -45,6 +43,60 @@
         <converters:StringToVisibilityConverter x:Key="StringToVis" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+
+        <Style x:Key="WindowCaptionButton" TargetType="{x:Type ui:Button}">
+            <Setter Property="Width" Value="42" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ui:Button}">
+                        <Border x:Name="CaptionSurface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="CaptionSurface" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CaptionSurface" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="CaptionSurface" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BorderBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ControlBorderBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="WindowCloseButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource WindowCaptionButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource OnAccentBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
         <Style TargetType="ListBoxItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -59,7 +111,7 @@
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="5"
                                 BorderBrush="Transparent"
-                                BorderThickness="0"
+                                BorderThickness="1"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter />
                         </Border>
@@ -242,21 +294,18 @@
                     <TextBlock Text="Word Catcher" FontSize="13" FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
                 </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <ui:Button x:Name="MinimizeButton" Width="42" Height="34" MinHeight="34" Padding="0" Background="Transparent"
-                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <ui:Button x:Name="MinimizeButton" Style="{StaticResource WindowCaptionButton}"
                             Click="MinimizeButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化">
-                        <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons" FontSize="{StaticResource CaptionFontSize}" />
+                        <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons" FontSize="12" />
                     </ui:Button>
-                    <ui:Button x:Name="MaximizeButton" Width="42" Height="34" MinHeight="34" Padding="0" Background="Transparent"
-                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                            Click="MaximizeButton_Click" ToolTip="最大化或还原" AutomationProperties.Name="最大化或还原">
-                        <TextBlock x:Name="MaximizeGlyph" Text="&#xE922;" FontFamily="Segoe Fluent Icons" FontSize="{StaticResource CaptionFontSize}" />
+                    <ui:Button x:Name="MaximizeButton" Style="{StaticResource WindowCaptionButton}"
+                            Click="MaximizeButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化">
+                        <TextBlock x:Name="MaximizeGlyph" Text="&#xE922;" FontFamily="Segoe Fluent Icons" FontSize="12" />
                     </ui:Button>
-                    <ui:Button x:Name="CloseButton" Width="42" Height="34" MinHeight="34" Padding="0" Background="Transparent"
-                            Foreground="{StaticResource DangerBrush}" shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                    <ui:Button x:Name="CloseButton" Style="{StaticResource WindowCloseButton}"
                             Click="CloseButton_Click" ToolTip="关闭到托盘" AutomationProperties.Name="关闭到托盘">
-                        <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons" FontSize="{StaticResource CaptionFontSize}" />
+                        <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons" FontSize="12" />
                     </ui:Button>
                 </StackPanel>
             </Grid>
@@ -285,19 +334,19 @@
                                        OpenPaneLength="208"
                                        FrameMargin="0">
                         <ui:NavigationView.MenuItems>
-                            <ui:NavigationViewItem x:Name="LibraryNavigationItem" Content="生词库" Tag="Library"
+                            <ui:NavigationViewItem x:Name="LibraryNavigationItem" ToolTip="生词库（Ctrl+1）" Content="生词库" Tag="Library"
                                                    Icon="{ui:SymbolIcon Book24}" IsActive="True"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
-                            <ui:NavigationViewItem x:Name="LookupNavigationItem" Content="查单词" Tag="Lookup"
+                            <ui:NavigationViewItem x:Name="LookupNavigationItem" ToolTip="查词（Ctrl+2）" Content="查词" Tag="Lookup"
                                                    Icon="{ui:SymbolIcon Search24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
-                            <ui:NavigationViewItem x:Name="SyncNavigationItem" Content="Anki 同步" Tag="Sync"
+                            <ui:NavigationViewItem x:Name="SyncNavigationItem" ToolTip="Anki 同步（Ctrl+3）" Content="Anki 同步" Tag="Sync"
                                                    Icon="{ui:SymbolIcon ArrowSync24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
-                            <ui:NavigationViewItem x:Name="SettingsNavigationItem" Content="设置" Tag="Settings"
+                            <ui:NavigationViewItem x:Name="SettingsNavigationItem" ToolTip="设置（Ctrl+4）" Content="设置" Tag="Settings"
                                                    Icon="{ui:SymbolIcon Settings24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
@@ -348,7 +397,7 @@
                                        Style="{StaticResource PageSubtitleStyle}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <ui:Button Command="{Binding ExportJsonCommand}"
+                            <ui:Button x:Name="ExportBackupButton" Command="{Binding ExportJsonCommand}" ToolTip="导出全部词条与语境，不受当前搜索和筛选影响"
                                     Margin="0,0,10,0"
                                     Padding="12,6"
                                     Background="{StaticResource SurfaceBrush}"
@@ -359,11 +408,8 @@
                                     Cursor="Hand">
                                 <ui:Button.Style>
                                     <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Words.Count}" Value="0">
-                                                <Setter Property="IsEnabled" Value="False" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
+                                        <Setter Property="MinHeight" Value="36" />
+                                        <Setter Property="IsEnabled" Value="{Binding IsExporting, Converter={StaticResource InverseBool}}" />
                                     </Style>
                                 </ui:Button.Style>
                                 <StackPanel Orientation="Horizontal">
@@ -393,7 +439,7 @@
                                             <MultiDataTrigger.Conditions>
                                                 <Condition Binding="{Binding Words.Count}" Value="0" />
                                                 <Condition Binding="{Binding SearchQuery}" Value="" /><Condition Binding="{Binding SelectedFilterIndex}" Value="0" /><Condition Binding="{Binding CanUndoDelete}" Value="False" />
-                                                <Condition Binding="{Binding IsLoading}" Value="False" />
+                                                <Condition Binding="{Binding IsLoading}" Value="False" /><Condition Binding="{Binding HasLoadError}" Value="False" />
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Collapsed" />
                                         </MultiDataTrigger>
@@ -475,8 +521,9 @@
                                     </WrapPanel>
                                     <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" /><StackPanel Margin="0,8,0,0" Visibility="{Binding DeleteStatusText, Converter={StaticResource StringToVis}}">
 <TextBlock Text="{Binding DeleteStatusText}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" />
-<ui:Button Content="撤销删除" Command="{Binding UndoDeleteCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding CanUndoDelete, Converter={StaticResource BoolToVis}}" />
+<ui:Button Content="撤销删除" Style="{StaticResource SecondaryActionButton}" Command="{Binding UndoDeleteCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding CanUndoDelete, Converter={StaticResource BoolToVis}}" />
 </StackPanel>
+                                    <ui:Button Content="重新加载" Command="{Binding SearchCommand}" Style="{StaticResource SecondaryActionButton}" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding HasLoadError, Converter={StaticResource BoolToVis}}" />
                                     <ui:Button Content="加载更多词条" Command="{Binding LoadMoreCommand}" Margin="0,8,0,0" IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" Visibility="{Binding HasMore, Converter={StaticResource BoolToVis}}" />
                                 </StackPanel>
                                 <!-- Words ListBox -->
@@ -570,7 +617,7 @@
                                 Padding="22">
                             <Grid>
                                 <!-- No selection prompt -->
-                                            <TextBlock Text="从左侧选择一个词条，查看释义、语境记录或编辑内容"
+                                            <TextBlock Text="选择一个词条，查看释义与语境" TextWrapping="Wrap" TextAlignment="Center"
                                            Foreground="{StaticResource TextMutedBrush}"
                                            FontSize="{StaticResource BodyFontSize}"
                                            HorizontalAlignment="Center"
@@ -606,7 +653,7 @@
                                     </Grid.RowDefinitions>
 
                                     <!-- Scrollable Main Content -->
-                                    <ScrollViewer Grid.Row="0"
+                                    <ScrollViewer x:Name="DetailScroll" Grid.Row="0"
                                                   VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled"
                                                   Padding="0,0,10,0">
@@ -638,10 +685,10 @@
                                                 </WrapPanel>
 
                                                 <!-- Definition Text -->
-                                                <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="14" Margin="0,16,0,14">
+                                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,18">
                                                     <StackPanel>
                                                         <TextBlock Text="释义" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
-                                                        <TextBlock Text="{Binding DefinitionPreview}" TextTrimming="CharacterEllipsis" FontSize="{StaticResource BodyFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Visibility="{Binding IsDefinitionExpanded, Converter={StaticResource InverseBoolToVis}}" />
+                                                        <TextBlock Text="{Binding DefinitionPreview}" TextWrapping="Wrap" MaxHeight="72" LineHeight="24" TextTrimming="CharacterEllipsis" FontSize="{StaticResource BodyFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Visibility="{Binding IsDefinitionExpanded, Converter={StaticResource InverseBoolToVis}}" />
                                                         <Expander Header="完整释义" IsExpanded="{Binding IsDefinitionExpanded, Mode=TwoWay}" Margin="0,8,0,0" Foreground="{StaticResource AccentBrush}">
                                                             <TextBlock Text="{Binding SelectedWord.Definition}" FontSize="{StaticResource BodyFontSize}" LineHeight="24" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,10,0,0" />
                                                         </Expander>
@@ -666,13 +713,13 @@
                                                 <Border Background="{StaticResource SubtleSurfaceBrush}"
                                                         BorderBrush="{StaticResource BorderBrush}"
                                                         BorderThickness="1"
-                                                        CornerRadius="10"
-                                                        Padding="14"
+                                                        CornerRadius="6"
+                                                        Padding="12"
                                                         Margin="0,0,0,8">
                                                     <Expander IsExpanded="True">
                                                         <Expander.Header>
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="语境捕获记录"
+                                                            <TextBlock Text="语境记录"
                                                                        FontSize="13"
                                                                        FontWeight="SemiBold"
                                                                        Foreground="{StaticResource TextSecondaryBrush}" />
@@ -745,7 +792,7 @@
                                                                        FontSize="13"
                                                                        Foreground="{StaticResource TextMutedBrush}"
                                                                        HorizontalAlignment="Center" />
-                                                            <TextBlock Text="屏幕取词时会自动捕获并记录原句与来源"
+                                                            <TextBlock Text="屏幕取词时会尝试记录原句与来源。"
                                                                        FontSize="{StaticResource CaptionFontSize}"
                                                                        Foreground="{StaticResource TextMutedBrush}"
                                                                        HorizontalAlignment="Center"
@@ -757,31 +804,31 @@
                                             </StackPanel>
 
                                             <!-- Edit Mode Form -->
-                                            <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsSavingEdit, Converter={StaticResource InverseBool}}">
                                                 <TextBlock Text="编辑词条" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
 
-                                                <TextBlock Text="单词 / 原形:" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
-                                                <ui:TextBox Text="{Binding EditWordText, UpdateSourceTrigger=PropertyChanged}"
+                                                <TextBlock Text="单词 / 原形" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                                <ui:TextBox x:Name="EditWordBox" Text="{Binding EditWordText, UpdateSourceTrigger=PropertyChanged}"
                                                          MinHeight="36" Padding="10,6" FontSize="13"
                                                          Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
                                                          BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
                                                          VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
-                                                <TextBlock Text="音标:" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                                <TextBlock Text="音标" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                                 <ui:TextBox Text="{Binding EditReading, UpdateSourceTrigger=PropertyChanged}"
                                                          MinHeight="36" Padding="10,6" FontSize="13"
                                                          Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
                                                          BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
                                                          VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
-                                                <TextBlock Text="词性:" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                                <TextBlock Text="词性" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                                 <ui:TextBox Text="{Binding EditPartOfSpeech, UpdateSourceTrigger=PropertyChanged}"
                                                          MinHeight="36" Padding="10,6" FontSize="13"
                                                          Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
                                                          BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
                                                          VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
-                                                <TextBlock Text="释义:" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                                <TextBlock Text="释义" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                                 <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}"
                                                          MinHeight="36" Padding="10,8" FontSize="13"
                                                          Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -792,7 +839,7 @@
                                                          VerticalContentAlignment="Top"
                                                          Margin="0,0,0,10" />
 
-                                                <TextBlock Text="记忆线索:" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                                 <ui:TextBox Text="{Binding EditMemoryHook, UpdateSourceTrigger=PropertyChanged}"
                                                          MinHeight="36" Padding="10,6" FontSize="13"
                                                          Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -808,12 +855,15 @@
                                             BorderThickness="0,1,0,0"
                                             Padding="0,12,0,0"
                                             Margin="0,8,0,0">
+                                        <StackPanel>
+                                        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}" />
                                         <Grid>
                                             <!-- Normal Mode Actions -->
                                             <StackPanel Orientation="Horizontal"
                                                         HorizontalAlignment="Right"
                                                         Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
-                                                <ui:Button Content="编辑"
+                                                <ui:Button Content="复制" Command="{Binding CopyWordCommand}" Style="{StaticResource QuietActionButton}" ToolTip="复制单词与释义" Margin="0,0,8,0" />
+                                                <ui:Button Content="编辑" Style="{StaticResource SecondaryActionButton}" ToolTip="编辑词条（F2）"
                                                         Command="{Binding StartEditCommand}"
                                                         Padding="14,6"
                                                         Margin="0,0,8,0"
@@ -821,7 +871,7 @@
                                                         Foreground="{StaticResource TextSecondaryBrush}"
                                                         BorderThickness="0"
                                                         Cursor="Hand" />
-                                                <ui:Button Content="删除词条"
+                                                <ui:Button Content="删除词条" Style="{StaticResource QuietActionButton}" ToolTip="删除后可撤销；不会删除 Anki 中的笔记"
                                                         Command="{Binding DeleteWordCommand}"
                                                         Padding="14,6"
                                                         Background="{StaticResource DangerSurfaceBrush}"
@@ -830,20 +880,20 @@
                                                         Cursor="Hand" />
                                             </StackPanel>
 
-                                            <TextBlock Text="编辑中" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}" />
+                                            <TextBlock Text="Ctrl+S 保存" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}" />
                                             <!-- Edit Mode Actions -->
                                             <StackPanel Orientation="Horizontal"
                                                         HorizontalAlignment="Right"
                                                         Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
-                                                <ui:Button Content="保存修改"
-                                                        Command="{Binding SaveEditCommand}"
+                                                <ui:Button Content="保存修改" Style="{StaticResource PrimaryActionButton}" ToolTip="保存修改（Ctrl+S）"
+                                                        Command="{Binding SaveEditCommand}" IsEnabled="{Binding IsSavingEdit, Converter={StaticResource InverseBool}}"
                                                         Padding="14,6"
                                                         Background="{StaticResource AccentBrush}"
                                                         Foreground="{StaticResource OnAccentBrush}"
                                                         BorderThickness="0"
                                                         Margin="0,0,8,0"
                                                         Cursor="Hand" />
-                                                <ui:Button Content="取消"
+                                                <ui:Button Content="取消" Style="{StaticResource SecondaryActionButton}" ToolTip="放弃本次编辑（Esc）"
                                                         Command="{Binding CancelEditCommand}"
                                                         Padding="14,6"
                                                         Background="{StaticResource SubtleSurfaceBrush}"
@@ -852,6 +902,7 @@
                                                         Cursor="Hand" />
                                             </StackPanel>
                                         </Grid>
+                                        </StackPanel>
                                     </Border>
                                 </Grid>
                             </Grid>
@@ -868,7 +919,7 @@
                                             <MultiDataTrigger.Conditions>
                                                 <Condition Binding="{Binding Words.Count}" Value="0" />
                                                 <Condition Binding="{Binding SearchQuery}" Value="" /><Condition Binding="{Binding SelectedFilterIndex}" Value="0" /><Condition Binding="{Binding CanUndoDelete}" Value="False" />
-                                                <Condition Binding="{Binding IsLoading}" Value="False" />
+                                                <Condition Binding="{Binding IsLoading}" Value="False" /><Condition Binding="{Binding HasLoadError}" Value="False" />
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Visible" />
                                         </MultiDataTrigger>
@@ -885,7 +936,7 @@
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            HorizontalAlignment="Center"
                                            Margin="0,14,0,0" />
-                                <TextBlock Text="选中文字后按取词快捷键，即可收藏第一个单词"
+                                <TextBlock Text="先查一个词并收藏；阅读时也可以选中文字后取词。"
                                            FontSize="{StaticResource CaptionFontSize}"
                                            Foreground="{StaticResource TextMutedBrush}"
                                            HorizontalAlignment="Center"
@@ -902,7 +953,7 @@
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="16" Margin="0,0,11,0" />
-                        <TextBlock Text="查单词" />
+                        <TextBlock Text="查词" />
                     </StackPanel>
                 </TabItem.Header>
                 <views:WordLookupView x:Name="LookupPage" />
@@ -931,8 +982,8 @@
                             <TextBlock Text="收藏先保存在本地，Anki 在后台同步"
                                        Style="{StaticResource PageSubtitleStyle}" />
                         </StackPanel>
-                        <ui:Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Center"
-                                Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        <ui:Button Grid.Column="1" Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryActionButton}" VerticalAlignment="Center"
+                                Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                 ToolTip="刷新同步状态" AutomationProperties.Name="刷新同步状态">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="13" Margin="0,0,7,0" />
@@ -943,7 +994,7 @@
 
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel HorizontalAlignment="Stretch">
-                            <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20">
+                            <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="40" />
@@ -1127,19 +1178,21 @@
                         <GroupBox Header="离线词典" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="安装状态: " FontWeight="Medium" />
+                                    <TextBlock Text="状态：" FontWeight="Medium" />
                                     <TextBlock Text="{Binding DictStatusText}" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
                                 </StackPanel>
+                                <TextBlock Text="{Binding DictFeedback}" TextWrapping="Wrap" FontSize="13" LineHeight="20" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" Visibility="{Binding DictFeedback, Converter={StaticResource StringToVis}}" />
                                 <TextBlock Text="{Binding DictDetailsText}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
                                 <!-- Progress indicator during install -->
                                 <StackPanel Visibility="{Binding IsDictInstalling, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
-                                    <ProgressBar Value="{Binding DictProgressValue}" Height="6" Maximum="100" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4" />
+                                    <ProgressBar Value="{Binding DictProgressValue}" IsIndeterminate="{Binding IsDictProgressIndeterminate}" Height="4" Maximum="100" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4" />
                                     <TextBlock Text="{Binding DictProgressText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <ui:Button Content="取消安装" Command="{Binding CancelDictionaryInstallCommand}" Style="{StaticResource QuietActionButton}" HorizontalAlignment="Left" Margin="0,6,0,0" />
                                 </StackPanel>
 
                                 <WrapPanel>
-                                    <ui:Button Content="下载词典"
+                                    <ui:Button Content="下载词典" Style="{StaticResource PrimaryActionButton}"
                                             Command="{Binding InstallDictFromUrlCommand}"
                                             IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
                                             Padding="12,6"
@@ -1151,12 +1204,12 @@
 
                                 </WrapPanel>
 
-                                <Expander Header="词典高级选项" Margin="0,16,0,0"><StackPanel Margin="0,12,0,0"><TextBlock Text="官方下载源 URL:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
+                                <Expander Header="词典高级选项" Margin="0,16,0,0"><StackPanel Margin="0,12,0,0"><TextBlock Text="词典下载地址" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
                                 <ui:TextBox Text="{Binding DictDownloadUrl, UpdateSourceTrigger=PropertyChanged}"
                                          MinHeight="36" Padding="10,6" FontSize="13"
                                          Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
                                          BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
-                                         VerticalContentAlignment="Center" Margin="0,0,0,10" /><WrapPanel><ui:Button Content="从文件安装"
+                                         VerticalContentAlignment="Center" Margin="0,0,0,10" /><WrapPanel><ui:Button Content="从文件安装" Style="{StaticResource SecondaryActionButton}"
                                             Command="{Binding InstallDictFromFileCommand}"
                                             IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
                                             Padding="12,6"
@@ -1164,7 +1217,7 @@
                                             Foreground="{StaticResource TextSecondaryBrush}"
                                             BorderThickness="0"
                                             Margin="0,0,8,0"
-                                            Cursor="Hand" /><ui:Button Content="删除离线词典" IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
+                                            Cursor="Hand" /><ui:Button Content="删除离线词典" Style="{StaticResource QuietActionButton}" IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
                                             Command="{Binding RemoveDictCommand}"
                                             Padding="12,6"
                                             Background="{StaticResource DangerSurfaceBrush}"
@@ -1175,7 +1228,7 @@
                                 <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" Padding="10,2,0,2" Margin="0,14,0,0">
                                     <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" LineHeight="16">
                                         <Bold>数据署名与许可声明：</Bold><LineBreak />
-                                        离线词典基于 <Run Text="ahpxex/open-dictionary" FontWeight="SemiBold" /> 项目发行工件，数据源自 English Wiktionary 及贡献者与 Wiktextract 项目，遵循 CC BY-SA 4.0 知识共享许可协议。本桌面应用代码与词典数据独立授权。
+                                        离线词典基于 <Run Text="ahpxex/open-dictionary" FontWeight="SemiBold" /> 项目发行文件，数据源自 English Wiktionary 及贡献者与 Wiktextract 项目，遵循 CC BY-SA 4.0 知识共享许可协议。本桌面应用代码与词典数据独立授权。
                                     </TextBlock>
                                 </Border>
                             </StackPanel>
@@ -1194,7 +1247,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="AI 配置:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="AI 配置" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <WrapPanel Grid.Column="1">
                                         <ComboBox Width="220"
                                                   ItemsSource="{Binding AiProfiles}"
@@ -1226,7 +1279,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="未命中时的快速翻译:" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
+                                    <TextBlock Text="快速翻译" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
                                     <ComboBox Grid.Column="1"
                                               SelectedValue="{Binding MachineTranslationProvider, UpdateSourceTrigger=PropertyChanged}"
                                               SelectedValuePath="Tag"
@@ -1244,7 +1297,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="释义语言:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="释义语言" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1" Text="{Binding ExplainLanguage, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -1257,7 +1310,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="配置名称:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="配置名称" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1"
                                              Text="{Binding AiProfileName, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
@@ -1269,7 +1322,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Base URL:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="接口地址" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1" Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -1280,7 +1333,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="模型名称:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="模型名称" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1" Text="{Binding ApiModel, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -1291,7 +1344,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="API Key:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="API Key" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:PasswordBox x:Name="ApiKeyBox" Grid.Column="1"
                                                     PasswordChanged="ApiKeyBox_PasswordChanged"
                                                     MinHeight="36" Padding="10,6" FontSize="13"
@@ -1299,7 +1352,7 @@
                                                     BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
                                                     VerticalContentAlignment="Center"
                                                     ToolTip="密钥仅用于当前 AI 配置，本地加密保存" AutomationProperties.Name="API Key" />
-                                </Grid><ui:Button Content="测试连通性"
+                                </Grid><ui:Button Style="{StaticResource SecondaryActionButton}" IsEnabled="{Binding IsTestingAi, Converter={StaticResource InverseBool}}"
                                         Command="{Binding TestAiConnectionCommand}"
                                         HorizontalAlignment="Left"
                                         Padding="12,5"
@@ -1307,7 +1360,7 @@
                                         Foreground="{StaticResource TextSecondaryBrush}"
                                         BorderThickness="0"
                                         Margin="160,4,0,0"
-                                        Cursor="Hand" /></StackPanel></Expander></StackPanel>
+                                        Cursor="Hand" ><TextBlock><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="测试 AI 连接" /><Style.Triggers><DataTrigger Binding="{Binding IsTestingAi}" Value="True"><Setter Property="Text" Value="正在测试…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></ui:Button></StackPanel></Expander></StackPanel>
                         </GroupBox>
 
                         <!-- 4. Anki 同步 -->
@@ -1320,7 +1373,7 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="牌组名称 (Deck):" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="牌组名称" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1" Text="{Binding AnkiDeckName, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -1328,7 +1381,7 @@
                                              VerticalContentAlignment="Center" />
                                 </Grid>
 
-                                <ui:Button Content="测试 Anki 连接"
+                                <ui:Button Style="{StaticResource SecondaryActionButton}" IsEnabled="{Binding IsTestingAnki, Converter={StaticResource InverseBool}}"
                                         Command="{Binding TestAnkiConnectionCommand}"
                                         HorizontalAlignment="Left"
                                         Padding="12,5"
@@ -1336,13 +1389,13 @@
                                         Foreground="{StaticResource TextSecondaryBrush}"
                                         BorderThickness="0"
                                         Margin="160,4,0,0"
-                                        Cursor="Hand" />
+                                        Cursor="Hand" ><TextBlock><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="测试 Anki 连接" /><Style.Triggers><DataTrigger Binding="{Binding IsTestingAnki}" Value="True"><Setter Property="Text" Value="正在测试…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></ui:Button>
                             <Expander Header="Anki 高级选项" Margin="0,16,0,0"><StackPanel Margin="0,12,0,0"><Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="AnkiConnect URL:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="AnkiConnect 地址" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1" Text="{Binding AnkiUrl, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
@@ -1353,18 +1406,18 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="笔记类型 (Model):" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="笔记类型" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     <ui:TextBox Grid.Column="1" Text="{Binding AnkiNoteTypeName, UpdateSourceTrigger=PropertyChanged}"
                                              MinHeight="36" Padding="10,6" FontSize="13"
                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
                                              BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
                                              VerticalContentAlignment="Center" />
-                                </Grid><ui:ToggleSwitch Content="在例句中自动生成填空挖空 ([ ? ])" IsChecked="{Binding AnkiClozeContext}" Margin="160,4,0,8" /></StackPanel></Expander></StackPanel>
+                                </Grid><ui:ToggleSwitch Content="将例句中的单词替换为填空" IsChecked="{Binding AnkiClozeContext}" Margin="160,4,0,8" /></StackPanel></Expander></StackPanel>
                         </GroupBox>
 
                         <!-- 5. 交互行为 -->
                         <GroupBox Header="交互行为" Style="{StaticResource SettingsSectionStyle}">
-                            <ui:ToggleSwitch Content="查词弹窗点击「保存」后自动关闭浮窗" IsChecked="{Binding ClosePopupAfterSave}" />
+                            <ui:ToggleSwitch Content="收藏后自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupAfterSave}" />
                         </GroupBox>
 
                         <!-- 6. 关于与更新 -->
@@ -1383,7 +1436,7 @@
                                         </StackPanel>
                                     </StackPanel>
                                     <ui:Button Grid.Column="1"
-                                            Content="检查更新"
+                                            Content="检查更新" Style="{StaticResource SecondaryActionButton}"
                                             Command="{Binding CheckForUpdatesCommand}"
                                             IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource InverseBool}}"
                                             Background="{StaticResource AccentBrush}"
@@ -1408,14 +1461,14 @@
                                     </StackPanel>
                                 </Border>
                                 <WrapPanel>
-                                    <ui:Button Content="打开项目主页"
+                                    <ui:Button Content="打开项目主页" Style="{StaticResource QuietActionButton}"
                                             Command="{Binding OpenProjectPageCommand}"
                                             Padding="12,6"
                                             Margin="0,0,8,0"
                                             Background="{StaticResource SubtleSurfaceBrush}"
                                             Foreground="{StaticResource TextSecondaryBrush}"
                                             ToolTip="在浏览器中打开项目主页" />
-                                    <ui:Button Content="打开下载页面"
+                                    <ui:Button Content="打开下载页面" Style="{StaticResource QuietActionButton}"
                                             Command="{Binding OpenLatestReleasePageCommand}"
                                             Padding="12,6"
                                             Background="{StaticResource SubtleSurfaceBrush}"
@@ -1433,11 +1486,13 @@
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
 <TextBlock Text="{Binding DraftStatusText}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
 <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" MaxHeight="66" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" Margin="0" /></StackPanel>
-                        <ui:Button Grid.Column="1" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" Padding="18,9">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button x:Name="DiscardSettingsButton" Content="放弃修改" Command="{Binding DiscardChangesCommand}" Style="{StaticResource QuietActionButton}" Margin="0,0,8,0" Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" />
+                        <ui:Button x:Name="SettingsSaveButton" Style="{StaticResource PrimaryActionButton}" ToolTip="保存设置（Ctrl+S）；切换页面会保留未保存的修改" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" Padding="18,9">
                             <TextBlock>
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="保存所有设置" />
+                                        <Setter Property="Text" Value="保存设置" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSaving}" Value="True"><Setter Property="Text" Value="正在保存…" /></DataTrigger>
                                         </Style.Triggers>
@@ -1445,6 +1500,7 @@
                                 </TextBlock.Style>
                             </TextBlock>
                         </ui:Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
                 </Grid>

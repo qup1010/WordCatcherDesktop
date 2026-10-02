@@ -37,6 +37,44 @@ public class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task FailedLoadShowsRetryStateAndSuccessfulRetryClearsIt()
+    {
+        var (vm, repo) = Create();
+        repo.ReadWords = (_, _, _) => throw new IOException();
+        await vm.InitializeAsync();
+        Assert.True(vm.HasLoadError);
+        Assert.False(vm.IsLoading);
+        Assert.Contains("无法加载", vm.EmptyMessage);
+
+        repo.ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([new() { Id = "one" }]);
+        await vm.SearchCommand.ExecuteAsync(null);
+        Assert.False(vm.HasLoadError);
+        Assert.Single(vm.Words);
+    }
+
+    [Fact]
+    public async Task SavingLocksCancellationUntilWriteFinishes()
+    {
+        var (vm, repo) = Create();
+        var write = new TaskCompletionSource();
+        var word = new Word { Id = "one", DisplayWord = "word", Definition = "definition" };
+        repo.ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([word]);
+        repo.Update = _ => write.Task;
+        await vm.InitializeAsync();
+        vm.StartEditCommand.Execute(null);
+        var saving = vm.SaveEditCommand.ExecuteAsync(null);
+        Assert.True(vm.IsSavingEdit);
+        Assert.False(vm.CancelEditCommand.CanExecute(null));
+        vm.CancelEditCommand.Execute(null);
+        Assert.True(vm.IsEditing);
+        write.SetResult();
+        await saving;
+        Assert.False(vm.IsSavingEdit);
+        Assert.False(vm.IsEditing);
+        Assert.True(vm.CancelEditCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task RefreshReplacesSelectedInstanceAndClearsMissingSelection()
     {
         var (vm, repo) = Create();

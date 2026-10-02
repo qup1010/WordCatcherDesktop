@@ -27,6 +27,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteWordCommand))]
     [NotifyCanExecuteChangedFor(nameof(UndoDeleteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StartEditCommand))]
     private bool _isChangingCollection;
     private bool CanChangeCollection => !IsChangingCollection && !IsEditing;
 
@@ -37,6 +38,11 @@ public sealed partial class LibraryViewModel : ObservableObject
     partial void OnSelectedFilterIndexChanged(int value) { if (!IsEditing) _ = SearchAsync(); }
 
     [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private bool _hasLoadError;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CancelEditCommand))]
+    private bool _isSavingEdit;
+    [ObservableProperty] private bool _isExporting;
     [ObservableProperty] private bool _hasMore;
     [ObservableProperty] private bool _isCompact;
     [ObservableProperty] private bool _isDefinitionExpanded;
@@ -78,6 +84,9 @@ public sealed partial class LibraryViewModel : ObservableObject
     private ObservableCollection<Word> _words = new();
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartEditCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteWordCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CopyWordCommand))]
     private Word? _selectedWord;
 
     [ObservableProperty]
@@ -120,6 +129,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     partial void OnIsEditingChanged(bool value)
     {
+        StartEditCommand.NotifyCanExecuteChanged();
         DeleteWordCommand.NotifyCanExecuteChanged();
         UndoDeleteCommand.NotifyCanExecuteChanged();
         if (!value && _refreshPending)
@@ -150,6 +160,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
         var version = ++_loadVersion;
         IsLoading = true;
+        HasLoadError = false;
         StatusMessage = "正在加载词条…";
         try
         {
@@ -169,12 +180,17 @@ public sealed partial class LibraryViewModel : ObservableObject
                 SelectedWord = Words.FirstOrDefault(w => w.Id == selectedId) ?? Words.FirstOrDefault();
             }
             HasMore = list.Count > PageSize;
-            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 ? "还没有收藏的单词" : "没有符合当前搜索或筛选的词条";
+            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 ? "还没有收藏的词条" : "没有匹配的词条";
             StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · 最近更新优先";
         }
         catch (Exception)
         {
-            if (version == _loadVersion) StatusMessage = "词库加载失败，请点击搜索重试。";
+            if (version == _loadVersion)
+            {
+                HasLoadError = true;
+                EmptyMessage = "词库暂时无法加载";
+                StatusMessage = "加载失败，请重试；本地词条不会因此丢失。";
+            }
         }
         finally
         {
@@ -214,10 +230,12 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    private bool CanStartEdit() => SelectedWord != null && !IsChangingCollection && !IsEditing;
+
+    [RelayCommand(CanExecute = nameof(CanStartEdit))]
     private void StartEdit()
     {
-        if (SelectedWord == null) return;
+        if (!CanStartEdit() || SelectedWord == null) return;
         _searchDelay?.Cancel();
         ++_loadVersion;
         IsLoading = false;
@@ -246,18 +264,24 @@ public sealed partial class LibraryViewModel : ObservableObject
             PartOfSpeech = EditPartOfSpeech.Trim(), Definition = EditDefinition.Trim(),
             MemoryHook = EditMemoryHook.Trim()
         };
+        IsSavingEdit = true;
         try
         {
             await _wordRepository.UpdateWordAsync(word).ConfigureAwait(true);
             IsEditing = false;
             await LoadWordsAsync().ConfigureAwait(true);
+            if (!HasLoadError) StatusMessage = "修改已保存。";
         }
         catch (Exception) { StatusMessage = "保存失败，修改内容已保留，请重试。"; }
+        finally { IsSavingEdit = false; }
     }
 
-    [RelayCommand]
+    private bool CanCancelEdit() => !IsSavingEdit;
+
+    [RelayCommand(CanExecute = nameof(CanCancelEdit))]
     private void CancelEdit()
     {
+        if (!CanCancelEdit()) return;
         IsEditing = false;
         StatusMessage = "已取消编辑。";
     }
@@ -300,6 +324,20 @@ public sealed partial class LibraryViewModel : ObservableObject
         finally { IsChangingCollection = false; }
     }
 
+    private bool CanCopyWord() => SelectedWord != null;
+
+    [RelayCommand(CanExecute = nameof(CanCopyWord))]
+    private void CopyWord()
+    {
+        if (SelectedWord is not { } word) return;
+        try
+        {
+            Clipboard.SetText($"{word.DisplayWord}\n{word.Definition}");
+            StatusMessage = "已复制单词与释义。";
+        }
+        catch (Exception) { StatusMessage = "复制失败，请稍后重试。"; }
+    }
+
     [RelayCommand]
     private async Task ExportJsonAsync()
     {
@@ -312,6 +350,8 @@ public sealed partial class LibraryViewModel : ObservableObject
 
         if (sfd.ShowDialog() == true)
         {
+            IsExporting = true;
+            StatusMessage = "正在导出全部词条与语境…";
             try
             {
                 var json = await _wordRepository.ExportWordsJsonAsync().ConfigureAwait(true);
@@ -319,6 +359,7 @@ public sealed partial class LibraryViewModel : ObservableObject
                 StatusMessage = "词库备份导出成功。";
             }
             catch (Exception) { StatusMessage = "导出失败，请检查目标文件是否可写后重试。"; }
+            finally { IsExporting = false; }
         }
     }
 }

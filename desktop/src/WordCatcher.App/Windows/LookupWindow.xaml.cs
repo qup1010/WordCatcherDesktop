@@ -133,7 +133,8 @@ public partial class LookupWindow : Window
                 e.Handled = true;
             }
         }
-        else if (e.Key == Key.Enter)
+        else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None
+                 && !IsButtonSource(Keyboard.FocusedElement as DependencyObject))
         {
             if (_viewModel.SaveCommand.CanExecute(null))
             {
@@ -172,13 +173,15 @@ public partial class LookupWindow : Window
     {
         _viewModel.KeepOpenAfterSave = true;
         Topmost = true;
-        PinToggle.ToolTip = "已钉住；窗口保持当前位置，后续取词在此刷新 (Ctrl+P)";
+        PinToggle.ToolTip = "取消钉住（Ctrl+P）";
+        System.Windows.Automation.AutomationProperties.SetName(PinToggle, "取消钉住查词浮窗");
     }
 
     private void PinToggle_Unchecked(object sender, RoutedEventArgs e)
     {
         _viewModel.KeepOpenAfterSave = false;
         PinToggle.ToolTip = "钉住卡片；保持位置并在这里刷新后续取词 (Ctrl+P)";
+        System.Windows.Automation.AutomationProperties.SetName(PinToggle, "钉住查词浮窗");
     }
 
     protected override void OnClosed(EventArgs e)

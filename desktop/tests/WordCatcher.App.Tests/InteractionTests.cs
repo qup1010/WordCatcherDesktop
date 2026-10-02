@@ -10,6 +10,18 @@ namespace WordCatcher.App.Tests;
 
 public class InteractionTests
 {
+    public class InstallerProxy : DispatchProxy
+    {
+        public int Calls;
+        protected override object? Invoke(MethodInfo? method, object?[]? args)
+        {
+            if (method!.Name != nameof(IDictionaryInstaller.InstallFromUrlAsync))
+                throw new NotSupportedException(method.Name);
+            Calls++;
+            return Task.Delay(Timeout.Infinite, (CancellationToken)args![2]!);
+        }
+    }
+
     public class Proxy : DispatchProxy
     {
         public AppSettings Settings = new();
@@ -61,6 +73,77 @@ public class InteractionTests
         var secrets = DispatchProxy.Create<ISecretStore, Proxy>();
         var dict = DispatchProxy.Create<IOfflineDictionaryService, Proxy>();
         return (new SettingsViewModel(settings, secrets, dict, null!, null!, null!, new HotkeyManager()), (Proxy)settings);
+    }
+
+    [Fact]
+    public async Task ScheduledRetryRemainsWaitingUntilAutomaticRetriesAreExhausted()
+    {
+        var repo = DispatchProxy.Create<IWordRepository, Proxy>();
+        var job = new SyncJob { Status = SyncStatus.Retryable, NextAttemptAtUtc = DateTimeOffset.UtcNow.AddMinutes(2) };
+        ((Proxy)repo).Jobs.Add(job);
+        var vm = new SyncViewModel(repo, DispatchProxy.Create<IAnkiSyncQueue, Proxy>(), DispatchProxy.Create<ISettingsService, Proxy>());
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Waiting, vm.PageState);
+        Assert.Equal(1, vm.WaitingCount);
+        Assert.Empty(vm.IssueJobs);
+        Assert.False(vm.RetryAllCommand.CanExecute(null));
+
+        job.NextAttemptAtUtc = null;
+        await vm.RefreshAsync();
+        Assert.Equal(SyncPageState.Attention, vm.PageState);
+        Assert.Equal(0, vm.WaitingCount);
+        Assert.Single(vm.IssueJobs);
+        Assert.True(vm.RetryAllCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task DictionaryInstallationCanBeCancelledAndRetried()
+    {
+        var installer = DispatchProxy.Create<IDictionaryInstaller, InstallerProxy>();
+        using var hotkey = new HotkeyManager();
+        var vm = new SettingsViewModel(DispatchProxy.Create<ISettingsService, Proxy>(),
+            DispatchProxy.Create<ISecretStore, Proxy>(), DispatchProxy.Create<IOfflineDictionaryService, Proxy>(),
+            installer, null!, null!, hotkey);
+        vm.DictDownloadUrl = "https://example.test/dictionary.sqlite.gz";
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var installing = vm.InstallDictFromUrlCommand.ExecuteAsync(null);
+            Assert.True(vm.IsDictInstalling);
+            Assert.True(vm.IsDictProgressIndeterminate);
+            vm.CancelDictionaryInstallCommand.Execute(null);
+            await installing;
+            Assert.False(vm.IsDictInstalling);
+            Assert.Contains("已取消", vm.DictFeedback);
+        }
+        Assert.Equal(2, ((InstallerProxy)installer).Calls);
+    }
+
+    [Fact]
+    public async Task InvalidDictionaryAddressShowsInlineFeedbackWithoutStartingInstall()
+    {
+        var (vm, _) = Settings();
+        vm.DictDownloadUrl = "not a URL";
+        await vm.InstallDictFromUrlCommand.ExecuteAsync(null);
+        Assert.False(vm.IsDictInstalling);
+        Assert.Contains("下载地址", vm.DictFeedback);
+    }
+
+    [Fact]
+    public async Task DiscardRestoresAppliedSettingsWithoutWritingThem()
+    {
+        var (vm, service) = Settings();
+        await vm.InitializeAsync();
+        var original = vm.ApiModel;
+        vm.ApiModel = "draft-model";
+        vm.AnkiDeckName = "draft-deck";
+        vm.AddAiProfileCommand.Execute(null);
+        Assert.True(vm.HasUnsavedChanges);
+        await vm.DiscardChangesCommand.ExecuteAsync(null);
+        Assert.Equal(original, vm.ApiModel);
+        Assert.Equal(service.Settings.Anki.DeckName, vm.AnkiDeckName);
+        Assert.Single(vm.AiProfiles);
+        Assert.False(vm.HasUnsavedChanges);
+        Assert.Equal(0, service.Writes);
     }
 
     [Fact]

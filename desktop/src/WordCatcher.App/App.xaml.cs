@@ -10,6 +10,7 @@ using WordCatcher.App.Tray;
 using WordCatcher.App.ViewModels;
 using WordCatcher.App.Windows;
 using WordCatcher.Core.Interfaces;
+using WordCatcher.Core.Models;
 using WordCatcher.Infrastructure.Anki;
 using WordCatcher.Infrastructure.Database;
 using WordCatcher.Infrastructure.Dictionary;
@@ -179,14 +180,21 @@ public partial class App : System.Windows.Application
         var captureService = _serviceProvider?.GetRequiredService<ISelectionCaptureService>();
         if (captureService == null) return;
 
-        var capture = await captureService.CaptureSelectionAsync().ConfigureAwait(true);
+        CaptureResult? capture;
+        try
+        {
+            capture = await captureService.CaptureSelectionAsync().ConfigureAwait(true);
+        }
+        catch (CaptureException ex)
+        {
+            _trayManager?.ShowNotification("取词未完成", ex.Message, System.Windows.Forms.ToolTipIcon.Warning);
+            return;
+        }
+        catch (OperationCanceledException) { return; }
         if (capture == null || string.IsNullOrWhiteSpace(capture.SelectedText))
         {
             _logger?.LogInformation("No text captured on hotkey trigger");
-            _trayManager?.ShowNotification(
-                "未获取到选中文字",
-                "请先在目标程序中选中文字，再按 Alt+Q 重试。管理员权限程序可能需要提升本应用权限。",
-                System.Windows.Forms.ToolTipIcon.Warning);
+            // 重复热键请求由取词服务忽略，不重复弹出失败提示。
             return;
         }
 

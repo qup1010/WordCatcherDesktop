@@ -30,32 +30,63 @@
     <Window.Resources>
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ui:ThemesDictionary Theme="Light" />
-            <ui:ControlsDictionary />
             <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
         </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <converters:StringToVisibilityConverter x:Key="StringToVis" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
 
-        <Style x:Key="PopupButton" TargetType="{x:Type ui:Button}"
-               BasedOn="{StaticResource {x:Type ui:Button}}">
-            <Setter Property="Appearance" Value="Secondary" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12,7" />
-            <Setter Property="MinHeight" Value="36" />
+        <Style x:Key="PopupButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}" />
+
+        <Style x:Key="HeaderIconAction" TargetType="{x:Type ButtonBase}">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ButtonBase}">
+                        <Border x:Name="HeaderActionSurface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="HeaderActionSurface" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="HeaderActionSurface" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverSurfaceBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{StaticResource SelectedSurfaceBrush}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
-
-        <Style x:Key="IconButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}">
-            <Setter Property="Appearance" Value="Transparent" />
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="FontSize" Value="14" />
+        <Style x:Key="IconButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource HeaderIconAction}" />
+        <Style x:Key="CloseIconButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource IconButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="PopupToggleButton" TargetType="{x:Type ToggleButton}">
@@ -104,15 +135,12 @@
             </Setter>
         </Style>
 
-        <Style x:Key="PinToggleButton" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource PopupToggleButton}">
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Margin" Value="4,0" />
+        <Style x:Key="PinToggleButton" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource HeaderIconAction}">
+            <Setter Property="Margin" Value="6,0" />
             <Setter Property="Padding" Value="0" />
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter Property="Background" Value="{StaticResource AccentSubtleBrush}" />
-                    <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
                     <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                 </Trigger>
             </Style.Triggers>
@@ -171,22 +199,23 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="5" Padding="7,3" Margin="0,6,0,0"
-                                HorizontalAlignment="Left"
-                                Visibility="{Binding IsChecked, ElementName=PinToggle, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="已钉住" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
-                        </Border>
                     </StackPanel>
                 </Border>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                    <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读当前单词">
-                        <Path Width="13" Height="13" Stretch="Uniform" Fill="{StaticResource TextSecondaryBrush}" Data="M3,9 L7,9 L12,4 L12,20 L7,15 L3,15 Z M15,8 C17,10 17,14 15,16 L16.5,17.5 C19.5,14.5 19.5,9.5 16.5,6.5 Z" />
+                    <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读当前单词" AutomationProperties.Name="朗读">
+                        <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
+                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M3,9 L7,9 L12,5 L12,19 L7,15 L3,15 Z M16,8 C19,10 19,14 16,16 M19,5 C24,9 24,15 19,19" />
+                        </Canvas></Viewbox>
                     </ui:Button>
-                    <ToggleButton x:Name="PinToggle" Style="{StaticResource PinToggleButton}" ToolTip="钉住卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
-                        <Path Width="12" Height="12" Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Data="M7,2 L17,2 L17,4 L15,6 L15,12 L18,15 L18,17 L13,17 L13,22 L11,22 L11,17 L6,17 L6,15 L9,12 L9,6 L7,4 Z" />
+                    <ToggleButton x:Name="PinToggle" AutomationProperties.Name="钉住查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="钉住卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
+                        <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
+                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M8,3 L16,3 M9,3 L9,10 L6,14 L6,16 L18,16 L18,14 L15,10 L15,3 M12,16 L12,22" />
+                        </Canvas></Viewbox>
                     </ToggleButton>
-                    <ui:Button Command="{Binding CloseCommand}" Style="{StaticResource IconButton}" ToolTip="关闭 (Esc)">
-                        <Path Width="11" Height="11" Stretch="Uniform" Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="2" Data="M2,2 L10,10 M10,2 L2,10" />
+                    <ui:Button Command="{Binding CloseCommand}" Style="{StaticResource CloseIconButton}" ToolTip="关闭（Esc）" AutomationProperties.Name="关闭查词浮窗">
+                        <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
+                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M6,6 L18,18 M18,6 L6,18" />
+                        </Canvas></Viewbox>
                     </ui:Button>
                 </StackPanel>
                 </Grid>
@@ -304,7 +333,7 @@
                 <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="保存到生词库 (Enter)" />
+                        <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
                         <ui:Button Grid.Column="1" Content="AI 详解" Command="{Binding ForceAiCommand}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境重新解释 (Ctrl+Enter)">
                             <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}"><Style.Triggers><DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></ui:Button.Style>
                         </ui:Button>

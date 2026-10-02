@@ -19,8 +19,17 @@ public partial class WordLookupView : System.Windows.Controls.UserControl
         UpdateResultColumns();
         if (DataContext is WordLookupViewModel)
         {
-            QueryBox.Focus();
+            FocusQuery();
         }
+    }
+
+    public void FocusQuery()
+    {
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new System.Action(() =>
+        {
+            QueryBox.Focus();
+            QueryBox.SelectAll();
+        }));
     }
 
     private void ResultColumns_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResultColumns();
@@ -41,6 +50,12 @@ public partial class WordLookupView : System.Windows.Controls.UserControl
 
     private void QueryBox_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && DataContext is WordLookupViewModel clearVm)
+        {
+            clearVm.ClearQueryCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
         if (e.Key != Key.Enter)
             return;
 

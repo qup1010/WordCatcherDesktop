@@ -15,8 +15,68 @@ using WordCatcher.Core.Models;
 
 namespace WordCatcher.App.Tests;
 
+[CollectionDefinition("Application resource rendering", DisableParallelization = true)]
+public class ApplicationResourceRenderingCollection { }
+
+[Collection("Application resource rendering")]
 public class LibraryLayoutTests
 {
+    [Fact]
+    public void SettingsRendersWithActualApplicationResources()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            System.Windows.Application? application = null;
+            try
+            {
+                application = new System.Windows.Application();
+                application.Resources.MergedDictionaries.Add(new ResourceDictionary
+                {
+                    Source = new Uri("/WordCatcher.App;component/Themes/DesignSystem.xaml", UriKind.Relative)
+                });
+                application.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(
+                    Color.FromRgb(15, 118, 110), Wpf.Ui.Appearance.ApplicationTheme.Light,
+                    systemGlassColor: false, systemAccentColor: false);
+                var repo = DispatchProxy.Create<IWordRepository, LibraryViewModelTests.RepositoryProxy>();
+                var (settings, service) = InteractionTests.Settings();
+                settings.InitializeAsync().GetAwaiter().GetResult();
+                var syncRepo = DispatchProxy.Create<IWordRepository, InteractionTests.Proxy>();
+                var sync = new SyncViewModel(syncRepo, DispatchProxy.Create<IAnkiSyncQueue, InteractionTests.Proxy>(), (ISettingsService)service);
+                var (lookup, _, _, _) = LookupViewModelTests.Create();
+                var window = new LibraryWindow(new LibraryViewModel(repo, new WordCollectionEvents()), sync, settings, new WordLookupViewModel(lookup));
+                Assert.Contains(window.Resources.MergedDictionaries, d => d.Source?.OriginalString.Contains("DesignSystem.xaml") == true);
+                ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("SettingsTab");
+                var root = (FrameworkElement)window.Content;
+                root.Measure(new Size(900, 700));
+                root.Arrange(new Rect(0, 0, 900, 700));
+                root.UpdateLayout();
+                var scroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
+                scroll.ScrollToEnd();
+                root.UpdateLayout();
+                Assert.True(scroll.ScrollableHeight > 0);
+                foreach (var page in new[] { "LibraryTab", "LookupTab", "SyncTab", "SettingsTab" })
+                {
+                    ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName(page);
+                    root.Measure(new Size(900, 700));
+                    root.Arrange(new Rect(0, 0, 900, 700));
+                    root.UpdateLayout();
+                }
+                window.ShowSettings();
+                window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.True(window.IsVisible);
+                window.Hide();
+            }
+            catch (Exception ex) { failure = ex; }
+            finally { application?.Shutdown(); }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(30)));
+        Assert.Null(failure);
+    }
+
     [Fact]
     public void EmptyLibraryUsesSingleWorkspace()
     {
@@ -54,20 +114,29 @@ public class LibraryLayoutTests
                 Assert.NotNull(libraryNavigationItem.Template);
                 Assert.True(libraryNavigationItem.ActualWidth > 0);
                 Assert.True(libraryNavigationItem.ActualHeight > 0);
+                AssertNavigationAccent(libraryNavigationItem);
                 tabs.SelectedItem = lookupTab;
                 root.UpdateLayout();
                 Assert.False(libraryNavigationItem.IsActive);
                 Assert.True(lookupNavigationItem.IsActive);
+                AssertNavigationAccent(lookupNavigationItem);
                 var settingsNavigationItem = (Wpf.Ui.Controls.NavigationViewItem)window.FindName("SettingsNavigationItem");
                 settingsNavigationItem.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 Assert.Same(window.FindName("SettingsTab"), tabs.SelectedItem);
                 Assert.True(settingsNavigationItem.IsActive);
+                root.UpdateLayout();
+                AssertNavigationAccent(settingsNavigationItem);
+                tabs.SelectedItem = (TabItem)window.FindName("SyncTab");
+                root.UpdateLayout();
+                AssertNavigationAccent((Wpf.Ui.Controls.NavigationViewItem)window.FindName("SyncNavigationItem"));
                 tabs.SelectedItem = libraryTab;
                 root.UpdateLayout();
 
                 Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("EmptyLibraryWorkspace")).Visibility);
                 Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("LibraryWorkspace")).Visibility);
 
+                RenderState(root, "wordcatcher-titlebar-1180.png", 1180, 42);
+                RenderState(root, "wordcatcher-navigation-accent.png", 208, 260);
                 var bitmap = new RenderTargetBitmap(1180, 700, 96, 96, PixelFormats.Pbgra32);
                 bitmap.Render(root);
                 var encoder = new PngBitmapEncoder();
@@ -145,6 +214,38 @@ public class LibraryLayoutTests
                     }
                 }
 
+                // 最小窗口下草稿操作与编辑操作仍可见，不被滚动内容挤出。
+                settingsVm.ApiModel = "unsaved-draft";
+                ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("SettingsTab");
+                root.Measure(new Size(900, 600));
+                root.Arrange(new Rect(0, 0, 900, 600));
+                root.UpdateLayout();
+                foreach (var name in new[] { "DiscardSettingsButton", "SettingsSaveButton" })
+                {
+                    var button = (FrameworkElement)window.FindName(name);
+                    Assert.Equal(Visibility.Visible, button.Visibility);
+                    Assert.True(button.ActualWidth > 0);
+                    var bottom = button.TransformToAncestor(root).Transform(new Point(0, button.ActualHeight));
+                    Assert.InRange(bottom.Y, 0, 600);
+                }
+                RenderState(root, "wordcatcher-SettingsDraft-900x600.png", 900, 600);
+
+                ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("LibraryTab");
+                vm.StartEditCommand.Execute(null);
+                root.Measure(new Size(900, 600));
+                root.Arrange(new Rect(0, 0, 900, 600));
+                root.UpdateLayout();
+                Assert.True(((FrameworkElement)window.FindName("EditWordBox")).ActualHeight > 0);
+                RenderState(root, "wordcatcher-LibraryEdit-900x600.png", 900, 600);
+                vm.CancelEditCommand.Execute(null);
+
+                // 导出完整词库不应取决于当前筛选是否匹配任何词条。
+                vm.Words.Clear();
+                root.Measure(new Size(900, 600));
+                root.Arrange(new Rect(0, 0, 900, 600));
+                root.UpdateLayout();
+                Assert.True(((System.Windows.Controls.Button)window.FindName("ExportBackupButton")).IsEnabled);
+
                 ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("SyncTab");
                 var history = (Expander)window.FindName("SyncHistoryExpander");
                 history.IsExpanded = true;
@@ -199,5 +300,22 @@ public class LibraryLayoutTests
         thread.Start();
         thread.Join();
         Assert.Null(failure);
+    }
+
+    private static void AssertNavigationAccent(Wpf.Ui.Controls.NavigationViewItem item)
+    {
+        var indicator = Assert.IsType<System.Windows.Shapes.Rectangle>(item.Template.FindName("ActiveRectangle", item));
+        var brush = Assert.IsType<SolidColorBrush>(indicator.Fill);
+        Assert.Equal(Color.FromRgb(15, 118, 110), brush.Color);
+    }
+
+    private static void RenderState(FrameworkElement root, string fileName, int width, int height)
+    {
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(root);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file = File.Create(Path.Combine(Path.GetTempPath(), fileName));
+        encoder.Save(file);
     }
 }

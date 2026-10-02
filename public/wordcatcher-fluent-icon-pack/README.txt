@@ -10,3 +10,9 @@ Visual concept:
 Recommended extension sizes:
 16, 32, 48, 128 PNG.
 Use icon.svg or 1024 PNG as master artwork.
+
+Desktop optical sizing:
+- The tile occupies approximately 95% of the canvas (previously 87.5%).
+- ICO frames: 16, 20, 24, 32, 40, 48, 64, 96, 128, 256.
+- Rebuild with Node.js and sharp: node tools/build-icons.mjs [sharp-module-path]
+- Render on Windows with Georgia available to preserve the dictionary glyph.

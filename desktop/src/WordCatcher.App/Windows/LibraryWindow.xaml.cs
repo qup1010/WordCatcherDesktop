@@ -42,6 +42,17 @@ public partial class LibraryWindow : Window
             if (e.PropertyName == nameof(SettingsViewModel.ApiKey) && ApiKeyBox.Password != _settingsVm.ApiKey)
                 ApiKeyBox.Password = _settingsVm.ApiKey;
         };
+        _libraryVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(LibraryViewModel.IsEditing) && _libraryVm.IsEditing)
+                Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                {
+                    EditWordBox.Focus();
+                    EditWordBox.SelectAll();
+                }));
+            if (e.PropertyName == nameof(LibraryViewModel.SelectedWord))
+                DetailScroll.ScrollToTop();
+        };
         MainTabs.SelectionChanged += async (_, e) =>
         {
             if (e.Source != MainTabs) return;
@@ -63,7 +74,13 @@ public partial class LibraryWindow : Window
             }
         };
         UpdateNavigationSelection();
-        StateChanged += (_, _) => MaximizeGlyph.Text = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
+        StateChanged += (_, _) =>
+        {
+            var maximized = WindowState == WindowState.Maximized;
+            MaximizeGlyph.Text = maximized ? "\uE923" : "\uE922";
+            MaximizeButton.ToolTip = maximized ? "还原" : "最大化";
+            System.Windows.Automation.AutomationProperties.SetName(MaximizeButton, maximized ? "还原" : "最大化");
+        };
         Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
         IsVisibleChanged += (_, _) =>
         {
@@ -79,11 +96,40 @@ public partial class LibraryWindow : Window
                 e.Handled = key != Key.Tab;
                 return;
             }
-            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control && !_libraryVm.IsEditing)
+            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key is >= Key.D1 and <= Key.D4)
             {
-                MainTabs.SelectedItem = LibraryTab;
-                SearchBox.Focus();
-                SearchBox.SelectAll();
+                MainTabs.SelectedIndex = e.Key - Key.D1;
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (MainTabs.SelectedItem == LookupTab) LookupPage.FocusQuery();
+                else if (!_libraryVm.IsEditing)
+                {
+                    MainTabs.SelectedItem = LibraryTab;
+                    SearchBox.Focus();
+                    SearchBox.SelectAll();
+                }
+                e.Handled = true;
+            }
+            if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (MainTabs.SelectedItem == SettingsTab && _settingsVm.SaveSettingsCommand.CanExecute(null))
+                    _settingsVm.SaveSettingsCommand.Execute(null);
+                else if (MainTabs.SelectedItem == LibraryTab && _libraryVm.IsEditing && _libraryVm.SaveEditCommand.CanExecute(null))
+                    _libraryVm.SaveEditCommand.Execute(null);
+                e.Handled = true;
+            }
+            if (e.Key == Key.Escape && MainTabs.SelectedItem == LibraryTab && _libraryVm.IsEditing)
+            {
+                if (_libraryVm.CancelEditCommand.CanExecute(null)) _libraryVm.CancelEditCommand.Execute(null);
+                e.Handled = true;
+            }
+            if (e.Key == Key.F2 && Keyboard.Modifiers == ModifierKeys.None
+                && MainTabs.SelectedItem == LibraryTab && _libraryVm.StartEditCommand.CanExecute(null))
+            {
+                _libraryVm.StartEditCommand.Execute(null);
                 e.Handled = true;
             }
         };
@@ -131,6 +177,7 @@ public partial class LibraryWindow : Window
             "Settings" => SettingsTab,
             _ => MainTabs.SelectedItem
         };
+        if (MainTabs.SelectedItem == LookupTab) LookupPage.FocusQuery();
     }
 
     private void UpdateNavigationSelection()

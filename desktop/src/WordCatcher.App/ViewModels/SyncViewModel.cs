@@ -39,7 +39,8 @@ public sealed partial class SyncViewModel : ObservableObject
     private bool _isBusy;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
-    public int WaitingCount => SyncJobs.Count(j => j.Status is SyncStatus.Pending or SyncStatus.Syncing);
+    public int WaitingCount => SyncJobs.Count(j => j.Status is SyncStatus.Pending or SyncStatus.Syncing
+        || j.Status == SyncStatus.Retryable && j.NextAttemptAtUtc != null);
     public int IssueCount => _issueCount;
     public int MoreIssuesCount => Math.Max(0, IssueCount - IssueJobs.Count);
     public bool HasMoreIssues => MoreIssuesCount > 0;
@@ -80,14 +81,15 @@ public sealed partial class SyncViewModel : ObservableObject
     }
     public Task InitializeAsync() => RefreshAsync();
     private bool CanRefresh() => !IsBusy;
-    private static bool IsRetryable(SyncJob job) => job.Status is SyncStatus.Failed or SyncStatus.Retryable;
+    private static bool NeedsAttention(SyncJob job) => job.Status == SyncStatus.Failed
+        || job.Status == SyncStatus.Retryable && job.NextAttemptAtUtc == null;
     private bool CanRetryAll() => !IsBusy && HasActionableIssues;
 
     private async Task LoadSyncJobsAsync()
     {
         var list = await _wordRepository.GetSyncJobsAsync();
         SyncJobs = new ObservableCollection<SyncJob>(list);
-        var issues = list.Where(IsRetryable).ToList();
+        var issues = list.Where(NeedsAttention).ToList();
         _issueCount = issues.Count;
         IssueJobs = new ObservableCollection<SyncJob>(issues.Take(20));
         RecentJobs = new ObservableCollection<SyncJob>(list.Take(50));

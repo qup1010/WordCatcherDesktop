@@ -52,8 +52,10 @@ public class LookupLayoutTests
                 vm.StartLookupAsync(LookupViewModelTests.Capture()).GetAwaiter().GetResult();
                 var window = new LookupWindow(vm);
                 var root = (FrameworkElement)window.Content;
-                foreach (var mode in new[] { "compact", "expanded", "sense", "saved", "long" })
+                foreach (var mode in new[] { "compact", "pinned", "expanded", "sense", "saved", "long" })
                 {
+                    if (mode == "pinned") ((ToggleButton)window.FindName("PinToggle")).IsChecked = true;
+                    if (mode == "expanded") ((ToggleButton)window.FindName("PinToggle")).IsChecked = false;
                     if (mode == "expanded") vm.ToggleDetailsCommand.Execute(null);
                     if (mode == "saved") vm.SaveCommand.ExecuteAsync(null).GetAwaiter().GetResult();
                     if (mode == "long")
