@@ -22,16 +22,16 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore desktop/WordCatcher.Desktop.sln
+        run: dotnet restore WordCatcher.Desktop.sln
 
       - name: Test
-        run: dotnet test desktop/WordCatcher.Desktop.sln -c Release --no-restore
+        run: dotnet test WordCatcher.Desktop.sln -c Release --no-restore
 
       - name: Publish self-contained app
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF_NAME.TrimStart('v')
-          dotnet publish desktop/src/WordCatcher.App/WordCatcher.App.csproj `
+          dotnet publish src/WordCatcher.App/WordCatcher.App.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
@@ -41,13 +41,13 @@ jobs:
             -p:EnableCompressionInSingleFile=true `
             -p:DebugType=None `
             -p:DebugSymbols=false `
-            -o publish
+            -o artifacts/publish
 
       - name: Create archive
         shell: pwsh
         run: |
-          $archiveName = "WordCatcher-$env:GITHUB_REF_NAME-win-x64.zip"
-          Compress-Archive -Path publish\* -DestinationPath $archiveName
+          $archiveName = "artifacts/WordCatcher-$env:GITHUB_REF_NAME-win-x64.zip"
+          Compress-Archive -Path artifacts\publish\* -DestinationPath $archiveName
           "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_ENV
 
       - name: Create GitHub Release

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word Catcher · Windows 桌面版展示</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI","Microsoft YaHei",sans-serif;color:#172b2a;background:#edf4f0}.poster{width:1600px;height:1000px;position:relative;overflow:hidden;background:#edf4f0}.brand{position:absolute;top:62px;left:68px;display:flex;align-items:center;gap:20px}.brand img{width:64px;height:64px}.brand strong{font-size:54px;font-weight:650;letter-spacing:-1.5px}.edition{font-size:22px;color:#48665e;border-left:1px solid #b3c9bf;padding-left:24px;margin-left:12px}.headline{position:absolute;left:68px;top:150px;font-size:36px;font-weight:600;letter-spacing:1px;margin:0}.intro{position:absolute;left:69px;top:218px;font-size:22px;line-height:1.7;color:#5b7069;margin:0}.library{position:absolute;left:68px;top:323px;width:1000px;border-radius:13px;box-shadow:0 20px 60px #193c2926,0 0 0 1px #c7d7cf;overflow:hidden}.library img{display:block;width:100%}.lookup{position:absolute;left:1100px;top:316px;width:426px;filter:drop-shadow(0 18px 20px #14332728)}.lookup img{display:block;width:100%}.label{position:absolute;left:1127px;top:279px;color:#3d6257;font-size:16px;letter-spacing:2px}.footer{position:absolute;bottom:25px;left:68px;right:68px;border-top:1px solid #cadbd1;padding-top:19px;display:flex;align-items:center;gap:34px}.footer span{font-size:21px;font-weight:550}.footer i{height:16px;width:1px;background:#adc4b8}.footer small{margin-left:auto;color:#60766d;font-size:15px;font-weight:400}
+</style>
+</head>
+<body>
+<main class="poster" aria-label="Word Catcher 桌面版产品展示">
+  <div class="brand"><img src="../../assets/icons/icon.svg" alt=""><strong>Word Catcher</strong><span class="edition">Windows 桌面版</span></div>
+  <h1 class="headline">读懂外文资料，把生词和原句一起留下来。</h1>
+  <p class="intro">适合 PDF 文献、Word 文档与网页阅读。<br>理解词语在原句中的含义，积累自己的生词库。</p>
+  <div class="library"><img src="showcase-library.png" alt="真实 WPF 生词库界面，展示演示词条与语境"></div>
+  <span class="label">词义与语境</span>
+  <div class="lookup"><img src="showcase-lookup.png" alt="真实 WPF 查词浮窗，展示演示语境释义"></div>
+  <footer class="footer"><span>跨应用查词</span><i></i><span>理解当前语境</span><i></i><span>整理本地生词库</span><small>当前界面 · 演示数据</small></footer>
+</main>
+<script>Promise.all(Array.from(document.images).map(image=>image.decode())).then(()=>document.fonts.ready).then(()=>{document.body.dataset.showcaseReady='true'});</script>
+</body>
+</html>
