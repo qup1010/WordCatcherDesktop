@@ -227,14 +227,9 @@ LIMIT 1;";
         var definitions = new List<string>();
         string primaryPos = string.Empty;
 
-        foreach (var pg in entry.PosGroups)
+        foreach (var pg in entry.PosGroups.OrderBy(pg => IsProperName(pg) ? 1 : 0))
         {
             var formattedPos = FormatPosLabel(pg.Pos);
-            if (pg.Meanings.Count > 0 && string.IsNullOrEmpty(primaryPos))
-            {
-                primaryPos = formattedPos;
-            }
-
             var dictMeanings = new List<DictMeaning>();
             foreach (var m in pg.Meanings)
             {
@@ -257,17 +252,15 @@ LIMIT 1;";
             }
 
             // Preserve ALL senses. Priority controls presentation, never data retention.
-            var ordered = dictMeanings.OrderBy(m => m.PriorityRank).ToList();
-            var group = new DictPosGroup(formattedPos, pg.Summary, ordered);
+            var ordered = dictMeanings.OrderBy(m => m.PriorityRank).Select((meaning, index) => meaning with { DisplayNumber = index + 1 }).ToList();
+            var group = new DictPosGroup(formattedPos, pg.Summary, ordered, IsProperName(pg));
             mappedGroups.Add(group);
-            var usual = ordered.Where(m => m.PriorityRank < 2).ToList();
-            var savedMeanings = usual.Count > 0 ? usual : ordered;
-            var glosses = savedMeanings.Select(m => m.Heading)
-                .Where(text => !string.IsNullOrWhiteSpace(text)).Distinct();
-            var summary = string.Join("；", glosses);
-            if (string.IsNullOrWhiteSpace(summary)) summary = pg.Summary;
+            var summary = group.QuickSummary;
             if (!string.IsNullOrWhiteSpace(summary))
+            {
+                if (string.IsNullOrEmpty(primaryPos)) primaryPos = formattedPos;
                 definitions.Add(string.IsNullOrEmpty(formattedPos) ? summary : $"{formattedPos} {summary}");
+            }
         }
 
         var combinedDefinition = string.Join("\n", definitions);
@@ -287,6 +280,12 @@ LIMIT 1;";
             SourceEntryId: entry.EntryId,
             SourceSchemaVersion: entry.SchemaVersion ?? "distribution_entry_v5",
             PosGroups: mappedGroups);
+    }
+
+    private static bool IsProperName(DictionaryPosGroupV5 group)
+    {
+        var pos = group.Pos.Trim().TrimEnd('.').ToLowerInvariant();
+        return group.ProperName == true || pos is "name" or "proper noun" or "proper_noun" or "proper-noun" or "surname";
     }
 
     private static string NormalizeLanguageCode(string? value, string fallback)

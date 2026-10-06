@@ -319,7 +319,7 @@ public sealed partial class LookupViewModel : ObservableObject
         var count = groups?.Sum(group => group.Meanings.Count) ?? 0;
         CanExpandDetails = count > 0;
         IsDetailsExpanded = expanded && CanExpandDetails;
-        DetailsToggleText = IsDetailsExpanded ? "收起详细解释" : $"展开全部词性与义项（{count}）";
+        DetailsToggleText = IsDetailsExpanded ? "收起完整释义" : $"完整释义（{count}）";
     }
 
     [RelayCommand]

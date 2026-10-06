@@ -246,9 +246,9 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Margin="0,0,0,9">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                         <Border Background="{StaticResource AccentSubtleBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4,2" VerticalAlignment="Top" Margin="0,1,7,0">
-                                            <TextBlock Text="{Binding Pos}" FontSize="{StaticResource CaptionFontSize}" FontStyle="Italic" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding DisplayPos, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" FontStyle="Italic" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" />
                                         </Border>
                                         <TextBlock Grid.Column="1" Text="{Binding QuickSummary}" FontSize="{StaticResource BodyFontSize}" LineHeight="21" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                     </Grid>
@@ -256,6 +256,59 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
+                        <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}" Style="{StaticResource PopupButton}" HorizontalContentAlignment="Left" Background="{StaticResource SubtleSurfaceBrush}" Foreground="{StaticResource TextSecondaryBrush}" Padding="10,7" Margin="0,0,0,6" Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
+                        <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Visibility="{Binding IsDetailsExpanded, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,10,0,2">
+                                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,7" TextWrapping="Wrap"><Run Text="{Binding DisplayPos, Mode=OneWay}" FontWeight="Bold" /><Run Text="  " /><Run Text="{Binding Summary}" /></TextBlock>
+                                        <ItemsControl ItemsSource="{Binding Meanings}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="0" Padding="0,8" Margin="0,0,0,8" Background="{StaticResource SurfaceBrush}">
+                                                        <StackPanel>
+                                                            <StackPanel>
+                                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding DisplayHeading}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" /><TextBlock Grid.Column="1" Text="{Binding PriorityLabel}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="8,1,0,0" /></Grid>
+                                                            </StackPanel>
+                                                            <StackPanel Margin="4,10,4,2">
+                                                                <TextBlock Text="{Binding DetailExplanation}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" Visibility="{Binding DetailExplanation, Converter={StaticResource StringToVis}}" />
+                                                                <ItemsControl ItemsSource="{Binding FirstExamples}" Margin="0,7,0,0">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" Padding="9,2" Margin="0,0,0,8">
+                                                                                <StackPanel>
+                                                                                    <TextBlock Text="{Binding Text}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                                                                    <TextBlock Text="{Binding Translation}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+<Expander Header="{Binding AdditionalExamplesLabel}" Visibility="{Binding HasAdditionalExamples, Converter={StaticResource BoolToVis}}" Margin="0,0,0,6"><ItemsControl ItemsSource="{Binding AdditionalExamples}" Margin="0,7,0,0">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" Padding="9,2" Margin="0,0,0,8">
+                                                                                <StackPanel>
+                                                                                    <TextBlock Text="{Binding Text}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                                                                    <TextBlock Text="{Binding Translation}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl></Expander>
+                                                                <StackPanel TextElement.FontSize="{StaticResource CaptionFontSize}" TextElement.Foreground="{StaticResource TextSecondaryBrush}" Visibility="{Binding UsageNote, Converter={StaticResource StringToVis}}"><TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" Margin="0,8,0,0" />
+                                                                    <TextBlock Text="{Binding UsageNote}" FontSize="{StaticResource CaptionFontSize}" LineHeight="20" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                         <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}" />
 <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="11,9" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                             <StackPanel>
@@ -282,50 +335,6 @@
                                 </TextBlock>
                             </StackPanel>
                         </Border>
-                        <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}" Style="{StaticResource PopupButton}" HorizontalContentAlignment="Left" Background="{StaticResource SubtleSurfaceBrush}" Foreground="{StaticResource TextSecondaryBrush}" Padding="10,7" Margin="0,0,0,6" Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
-                        <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Visibility="{Binding IsDetailsExpanded, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="0,10,0,2">
-                                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,7" TextWrapping="Wrap"><Run Text="{Binding Pos}" FontWeight="Bold" /><Run Text="  " /><Run Text="{Binding Summary}" /></TextBlock>
-                                        <ItemsControl ItemsSource="{Binding Meanings}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="0" Padding="0,8" Margin="0,0,0,8" Background="{StaticResource SurfaceBrush}">
-                                                        <StackPanel>
-                                                            <StackPanel>
-                                                                <StackPanel MaxWidth="270">
-                                                                    <TextBlock Text="{Binding Heading}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                                                    <TextBlock Text="{Binding PriorityLabel}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0" />
-                                                                </StackPanel>
-                                                            </StackPanel>
-                                                            <StackPanel Margin="4,10,4,2">
-                                                                <TextBlock Text="{Binding LearnerExplanation}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" Visibility="{Binding LearnerExplanation, Converter={StaticResource StringToVis}}" />
-                                                                <ItemsControl ItemsSource="{Binding Examples}" Margin="0,7,0,0">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" Padding="9,2" Margin="0,0,0,8">
-                                                                                <StackPanel>
-                                                                                    <TextBlock Text="{Binding Text}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                                                                    <TextBlock Text="{Binding Translation}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
-                                                                                </StackPanel>
-                                                                            </Border>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                                <StackPanel TextElement.FontSize="{StaticResource CaptionFontSize}" TextElement.Foreground="{StaticResource TextSecondaryBrush}" Visibility="{Binding UsageNote, Converter={StaticResource StringToVis}}"><TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" Margin="0,8,0,0" />
-                                                                    <TextBlock Text="{Binding UsageNote}" FontSize="{StaticResource CaptionFontSize}" LineHeight="20" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                                                </StackPanel>
-                                                            </StackPanel>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

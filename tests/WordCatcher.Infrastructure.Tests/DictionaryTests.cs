@@ -207,6 +207,73 @@ public class DictionaryTests : IDisposable
     }
 
     [Fact]
+    public void PresentationPrioritizesOrdinaryGroupsAndUsesTheSameConciseSummaryForSaving()
+    {
+        var entry = new DistributionEntryV5
+        {
+            Headword = "agent",
+            PosGroups = [
+                new() { Pos = "name", Meanings = [new() { ShortGloss = "姓氏", Priority = "core" }] },
+                new() { Pos = "noun", Meanings = [
+                    new() { SenseId = "rare", ShortGloss = "少见义", Priority = "rare" },
+                    new() { SenseId = "common", ShortGloss = "常用义", Priority = "common" },
+                    new() { SenseId = "core1", ShortGloss = "代理人", Priority = "core" },
+                    new() { SenseId = "core2", ShortGloss = "作用者", Priority = "core" },
+                    new() { SenseId = "duplicate", ShortGloss = "代理人", Priority = "core" },
+                    new() { SenseId = "extra", ShortGloss = "其他常用义", Priority = "common" }
+                ] },
+                new() { Pos = "noun", ProperName = true, Meanings = [new() { ShortGloss = "专名", Priority = "core" }] },
+                new() { Pos = "verb", Meanings = [new() { ShortGloss = "动词义", Priority = "rare" }] },
+                new() { Pos = "adjective", Summary = "形容词摘要" },
+                new() { Pos = "adverb", Meanings = [new() { ShortGloss = "副词义", Priority = "common" }] }
+            ]
+        };
+        var result = OfflineDictionaryService.FormatEntry(entry);
+        Assert.Equal(new[] { "n.", "v.", "adj.", "adv.", "name.", "n." }, result.PosGroups!.Select(g => g.Pos));
+        Assert.Equal("n.", result.PartOfSpeech);
+        Assert.Equal(new[] { "core1", "core2", "duplicate", "common", "extra", "rare" }, result.PosGroups![0].Meanings.Select(m => m.SenseId));
+        Assert.Equal("代理人；作用者；常用义", result.PosGroups![0].QuickSummary);
+        Assert.Equal("n. 代理人；作用者；常用义\nv. 动词义\nadj. 形容词摘要\nadv. 副词义\nname. 姓氏\nn. 专名", result.Definition);
+        Assert.Equal("name", entry.PosGroups[0].Pos);
+        Assert.Equal("rare", entry.PosGroups[1].Meanings[0].SenseId);
+    }
+
+    [Fact]
+    public void PresentationNormalizesPriorityAndRecognizesProperNounLabels()
+    {
+        var result = OfflineDictionaryService.FormatEntry(new DistributionEntryV5
+        {
+            Headword = "word",
+            PosGroups = [
+                new() { Pos = "Proper Noun.", Meanings = [new() { ShortGloss = "专名" }] },
+                new() { Pos = "verb", Meanings = [
+                    new() { SenseId = "rare", ShortGloss = "少见", Priority = " RARE " },
+                    new() { SenseId = "common", ShortGloss = "常用", Priority = "unknown" },
+                    new() { SenseId = "core", ShortGloss = "核心", Priority = " CORE " }
+                ] }
+            ]
+        });
+        Assert.Equal("v.", result.PartOfSpeech);
+        Assert.Equal("核心；常用", result.PosGroups![0].QuickSummary);
+        Assert.Equal(new[] { "core", "common", "rare" }, result.PosGroups![0].Meanings.Select(m => m.SenseId));
+    }
+
+    [Fact]
+    public void EmptyCommonGlossDoesNotHideReadableRareSense()
+    {
+        var result = OfflineDictionaryService.FormatEntry(new DistributionEntryV5
+        {
+            Headword = "word",
+            PosGroups = [new() { Pos = "noun", Meanings = [
+                new() { Priority = "common", ShortGloss = " " },
+                new() { Priority = "rare", LearnerExplanation = "可读的少见义" }
+            ] }]
+        });
+        Assert.Equal("n. 可读的少见义", result.Definition);
+        Assert.Equal("可读的少见义", result.PosGroups![0].QuickSummary);
+    }
+
+    [Fact]
     public void RareOnlyEntryAndMissingGlossStillHaveReadableSummary()
     {
         var result = OfflineDictionaryService.FormatEntry(new DistributionEntryV5
