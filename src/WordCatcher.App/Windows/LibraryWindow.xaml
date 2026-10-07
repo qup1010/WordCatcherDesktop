@@ -751,12 +751,24 @@
                                                                             </Expander.Header>
                                                                             <StackPanel Margin="0,10,0,0">
                                                                                 <TextBlock Text="{Binding Sentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextPrimaryBrush}" />
-                                                                            <TextBlock Text="{Binding ContextTranslation}"
+                                                                            <TextBlock Text="{Binding Expression}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,4" />
+                                                                            <TextBlock Text="{Binding Definition}" TextWrapping="Wrap" />
+                                                                            <TextBlock Text="{Binding Translation}"
                                                                                        FontSize="{StaticResource CaptionFontSize}"
                                                                                        Foreground="{StaticResource TextSecondaryBrush}"
                                                                                        TextWrapping="Wrap"
                                                                                        Margin="0,4,0,0"
                                                                                        LineHeight="18" />
+                                                                            <Expander Header="理解与用法" Margin="0,8,0,0">
+                                                                                <StackPanel>
+                                                                                    <TextBlock Text="{Binding KeyExplanation}" TextWrapping="Wrap" />
+                                                                                    <TextBlock Text="{Binding UsageNote}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                                                    <TextBlock Text="{Binding Example}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                                                    <TextBlock Text="{Binding ExampleTranslation}" TextWrapping="Wrap" />
+                                                                                    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                                                </StackPanel>
+                                                                            </Expander>
+                                                                            <ui:Button Content="编辑这条语境" Command="{Binding DataContext.EditContextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}" Margin="0,8,0,0" />
                                                                             <TextBlock TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                                                                                        Foreground="{StaticResource TextMutedBrush}"
                                                                                        Margin="0,6,0,0">
@@ -773,6 +785,18 @@
                                                                 </DataTemplate>
                                                             </ListBox.ItemTemplate>
                                                         </ListBox>
+                                                        <StackPanel Visibility="{Binding IsEditingContext, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
+                                                            <TextBlock Text="语境义" />
+                                                            <ui:TextBox Text="{Binding ContextDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                                            <TextBlock Text="原句翻译" />
+                                                            <ui:TextBox Text="{Binding ContextTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                                            <TextBlock Text="我的笔记" />
+                                                            <ui:TextBox Text="{Binding ContextNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                                            <WrapPanel>
+                                                                <ui:Button Content="保存语境" Command="{Binding SaveContextEditCommand}" />
+                                                                <ui:Button Content="取消" Command="{Binding CancelContextEditCommand}" Margin="8,0,0,0" />
+                                                            </WrapPanel>
+                                                        </StackPanel>
 
                                                         <StackPanel HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center"

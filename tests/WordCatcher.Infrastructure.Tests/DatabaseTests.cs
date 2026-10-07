@@ -99,7 +99,7 @@ public class DatabaseTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveAsync_SameWord_UpdatesDefinitionAndAppendsOccurrenceWithoutDuplicateWord()
+    public async Task SaveAsync_SameWord_PreservesDefinitionAndAppendsIndependentOccurrence()
     {
         await _runner.MigrateAsync();
 
@@ -113,11 +113,13 @@ public class DatabaseTests : IDisposable
 
         var allWords = await _repo.GetWordsAsync();
         Assert.Single(allWords);
-        Assert.Equal("释义 2 (更新)", allWords[0].Definition);
-        Assert.Equal("线索", allWords[0].MemoryHook);
+        Assert.Equal("释义 1", allWords[0].Definition);
+        Assert.Equal("", allWords[0].MemoryHook);
 
         var occurrences = await _repo.GetOccurrencesByWordIdAsync(word2.Id);
         Assert.Equal(2, occurrences.Count);
+        Assert.Contains(occurrences, o => o.Definition == "释义 1");
+        Assert.Contains(occurrences, o => o.Definition == "释义 2 (更新)");
 
         var jobs = await _repo.GetSyncJobsAsync();
         Assert.Equal(2, jobs.Count);
@@ -293,6 +295,6 @@ FROM words w CROSS JOIN (SELECT 1 AS n UNION ALL SELECT 2) c;";
         var (saved, _, _) = await _repo.SaveAsync(new(capture, translation));
         Assert.Equal(word.Id, saved.Id);
         Assert.Single(await _repo.GetWordsAsync());
-        Assert.Equal(2, (await _repo.GetOccurrencesByWordIdAsync(word.Id)).Count);
+        Assert.Single(await _repo.GetOccurrencesByWordIdAsync(word.Id));
     }
 }

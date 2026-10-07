@@ -5,6 +5,7 @@ namespace WordCatcher.Core.Models;
 
 public sealed class SyncJob
 {
+    public int Revision { get; set; }
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string WordId { get; set; } = string.Empty;
     public string OccurrenceId { get; set; } = string.Empty;

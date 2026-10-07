@@ -13,8 +13,12 @@ public sealed record TranslationResult(
     LookupSource Source,
     string? SourceEntryId,
     string? SourceSchemaVersion,
-    IReadOnlyList<DictPosGroup>? PosGroups = null);
+    IReadOnlyList<DictPosGroup>? PosGroups = null,
+    LearningAnalysis? Analysis = null,
+    GenerationInfo? Generation = null);
 
 public sealed record SaveCardCommand(
     CaptureResult Capture,
-    TranslationResult Translation);
+    TranslationResult Translation,
+    LearningEdits? Edits = null,
+    bool UpdateExisting = false);

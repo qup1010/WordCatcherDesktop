@@ -24,6 +24,45 @@ public sealed partial class LibraryViewModel : ObservableObject
     private int _occurrenceVersion;
     private CancellationTokenSource? _searchDelay;
     private bool _refreshPending;
+    [ObservableProperty] private Occurrence? _editingOccurrence;
+    [ObservableProperty] private string _contextDefinition = string.Empty;
+    [ObservableProperty] private string _contextTranslation = string.Empty;
+    [ObservableProperty] private string _contextNote = string.Empty;
+    [ObservableProperty] private bool _isSavingContext;
+    public bool IsEditingContext => EditingOccurrence != null;
+    partial void OnEditingOccurrenceChanged(Occurrence? value) => OnPropertyChanged(nameof(IsEditingContext));
+
+    [RelayCommand]
+    private void EditContext(Occurrence occurrence)
+    {
+        EditingOccurrence = occurrence;
+        ContextDefinition = string.IsNullOrWhiteSpace(occurrence.Definition) ? SelectedWord?.Definition ?? "" : occurrence.Definition;
+        ContextTranslation = occurrence.Translation;
+        ContextNote = occurrence.Note;
+    }
+
+    [RelayCommand]
+    private void CancelContextEdit() { if (!IsSavingContext) EditingOccurrence = null; }
+
+    [RelayCommand]
+    private async Task SaveContextEditAsync()
+    {
+        if (EditingOccurrence == null || IsSavingContext) return;
+        if (string.IsNullOrWhiteSpace(ContextDefinition)) { StatusMessage = "语境义不能为空。"; return; }
+        IsSavingContext = true;
+        var occurrence = EditingOccurrence;
+        try
+        {
+            var edits = new LearningEdits(ContextDefinition.Trim(), ContextTranslation.Trim(), ContextNote.Trim());
+            await _wordRepository.UpdateOccurrenceEditsAsync(occurrence.Id, edits);
+            if (EditingOccurrence != occurrence) return;
+            EditingOccurrence = null;
+            if (SelectedWord?.Id == occurrence.WordId) await LoadOccurrencesForWordAsync(occurrence.WordId);
+            StatusMessage = "已保存这条语境，Anki 等待同步。";
+        }
+        catch (Exception ex) { StatusMessage = "保存语境失败：" + ex.Message; }
+        finally { IsSavingContext = false; }
+    }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteWordCommand))]
     [NotifyCanExecuteChangedFor(nameof(UndoDeleteCommand))]
@@ -200,6 +239,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     partial void OnSelectedWordChanged(Word? value)
     {
+        EditingOccurrence = null;
         IsEditing = false;
         IsDefinitionExpanded = false;
         OnPropertyChanged(nameof(DefinitionPreview));

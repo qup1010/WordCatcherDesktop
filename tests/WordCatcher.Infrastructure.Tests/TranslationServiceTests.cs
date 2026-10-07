@@ -55,15 +55,11 @@ public class TranslationServiceTests
     [Fact]
     public async Task TranslateAsync_ParsesJsonAndReturnsTranslationResult()
     {
-        var jsonResponse = @"{
-  ""choices"": [
-    {
-      ""message"": {
-        ""content"": ""{\""word\"": \""devastate\"", \""reading\"": \""devəsteɪt\"", \""partOfSpeech\"": \""v.\"", \""definition\"": \""使极度震惊、悲痛\"", \""contextTranslation\"": \""这消息让他极度震惊。\"", \""memoryHook\"": \""de + vast\""}""
-      }
-    }
-  ]
-}";
+        var content = System.Text.Json.JsonSerializer.Serialize(new {
+            word = "devastate", reading = "devəsteɪt", partOfSpeech = "v.", definition = "使极度震惊、悲痛",
+            contextTranslation = "这消息让他极度震惊。", memoryHook = "de + vast", inputKind = "word", expression = "devastate"
+        });
+        var jsonResponse = System.Text.Json.JsonSerializer.Serialize(new { choices = new[] { new { message = new { content } } } });
 
         var handler = new MockHttpMessageHandler(req =>
         {

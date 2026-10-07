@@ -25,6 +25,8 @@ public sealed class WordRepository : IWordRepository
     {
         var capture = command.Capture;
         var trans = command.Translation;
+        if (string.IsNullOrWhiteSpace(trans.Word) || string.IsNullOrWhiteSpace(trans.Definition))
+            throw new ArgumentException("表达和释义不能为空。");
 
         var displayWord = trans.Word.Trim();
         var normalized = displayWord.ToLowerInvariant();
@@ -62,10 +64,10 @@ LIMIT 1;";
                     var existingHook = reader.GetString(7);
                     var createdAt = DateTimeOffset.Parse(reader.GetString(8));
 
-                    var newReading = !string.IsNullOrWhiteSpace(trans.Reading) ? trans.Reading : existingReading;
-                    var newPos = !string.IsNullOrWhiteSpace(trans.PartOfSpeech) ? trans.PartOfSpeech : existingPos;
-                    var newDef = !string.IsNullOrWhiteSpace(trans.Definition) ? trans.Definition : existingDef;
-                    var newHook = !string.IsNullOrWhiteSpace(trans.MemoryHook) ? trans.MemoryHook : existingHook;
+                    var newReading = existingReading;
+                    var newPos = existingPos;
+                    var newDef = existingDef;
+                    var newHook = existingHook;
 
                     await using (var updateCmd = connection.CreateCommand())
                     {
@@ -142,11 +144,38 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
                 }
             }
 
-            // 2. Insert occurrence
-            var occurrenceId = Guid.NewGuid().ToString("N");
+            // 同一选区、原句、位置和来源只保存一条；更新必须由用户明确选择。
+            string? existingId = null;
+            string? existingEdits = null;
+            await using (var find = connection.CreateCommand())
+            {
+                find.Transaction = transaction;
+                find.CommandText = "SELECT id, user_edits_json FROM occurrences WHERE word_id = $word AND selected_text = $sel AND sentence = $sentence AND selection_offset = $offset AND source_uri = $uri LIMIT 1;";
+                find.Parameters.AddWithValue("$word", wordId);
+                find.Parameters.AddWithValue("$sel", capture.SelectedText);
+                find.Parameters.AddWithValue("$sentence", string.IsNullOrWhiteSpace(capture.Sentence) ? capture.SelectedText : capture.Sentence);
+                find.Parameters.AddWithValue("$offset", capture.SentenceOffset);
+                find.Parameters.AddWithValue("$uri", capture.SourceUri);
+                await using var existing = await find.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                if (await existing.ReadAsync(ct).ConfigureAwait(false))
+                { existingId = existing.GetString(0); existingEdits = existing.GetString(1); }
+            }
+            if (existingId != null && !command.UpdateExisting)
+            {
+                await transaction.CommitAsync(ct).ConfigureAwait(false);
+                var saved = await GetOccurrenceByIdAsync(existingId, ct).ConfigureAwait(false);
+                var jobs = await GetSyncJobsAsync(ct).ConfigureAwait(false);
+                var job = System.Linq.Enumerable.FirstOrDefault(jobs, j => j.OccurrenceId == existingId)
+                    ?? throw new InvalidOperationException("已保存语境缺少同步记录。");
+                return (word, saved!, job);
+            }
+            var preservedEdits = existingEdits == null ? null : JsonSerializer.Deserialize<LearningEdits>(existingEdits);
+            var occurrenceId = existingId ?? Guid.NewGuid().ToString("N");
             var occurrence = new Occurrence
             {
                 Id = occurrenceId,
+                LearningResult = trans,
+                Edits = command.Edits ?? preservedEdits,
                 WordId = wordId,
                 SelectedText = capture.SelectedText,
                 Sentence = string.IsNullOrWhiteSpace(capture.Sentence)
@@ -167,8 +196,12 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
             {
                 insertOccCmd.Transaction = transaction;
                 insertOccCmd.CommandText = @"
-INSERT INTO occurrences (id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc)
-VALUES ($id, $wordId, $sel, $sentence, $selectionOffset, $trans, $proc, $win, $uri, $source, $entryId, $schemaVer, $captured);";
+INSERT INTO occurrences (id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc, learning_json, user_edits_json)
+VALUES ($id, $wordId, $sel, $sentence, $selectionOffset, $trans, $proc, $win, $uri, $source, $entryId, $schemaVer, $captured, $learning, $edits)
+ON CONFLICT(id) DO UPDATE SET context_translation = excluded.context_translation, lookup_source = excluded.lookup_source,
+source_schema_version = excluded.source_schema_version, learning_json = excluded.learning_json, user_edits_json = excluded.user_edits_json;";
+                insertOccCmd.Parameters.AddWithValue("$learning", JsonSerializer.Serialize(trans));
+                insertOccCmd.Parameters.AddWithValue("$edits", JsonSerializer.Serialize(occurrence.Edits));
                 insertOccCmd.Parameters.AddWithValue("$id", occurrence.Id);
                 insertOccCmd.Parameters.AddWithValue("$wordId", occurrence.WordId);
                 insertOccCmd.Parameters.AddWithValue("$sel", occurrence.SelectedText);
@@ -188,7 +221,7 @@ VALUES ($id, $wordId, $sel, $sentence, $selectionOffset, $trans, $proc, $win, $u
             // 3. Insert sync_job
             var syncJob = new SyncJob
             {
-                Id = Guid.NewGuid().ToString("N"),
+                Id = existingId == null ? Guid.NewGuid().ToString("N") : await FindSyncJobIdAsync(connection, transaction, existingId, ct),
                 WordId = wordId,
                 OccurrenceId = occurrenceId,
                 Target = "anki",
@@ -205,7 +238,8 @@ VALUES ($id, $wordId, $sel, $sentence, $selectionOffset, $trans, $proc, $win, $u
                 insertJobCmd.Transaction = transaction;
                 insertJobCmd.CommandText = @"
 INSERT INTO sync_jobs (id, word_id, occurrence_id, target, status, attempts, last_error, next_attempt_at_utc, created_at_utc, updated_at_utc)
-VALUES ($id, $wordId, $occId, $target, $status, $attempts, $lastError, $nextAttempt, $created, $updated);";
+VALUES ($id, $wordId, $occId, $target, $status, $attempts, $lastError, $nextAttempt, $created, $updated)
+ON CONFLICT(id) DO UPDATE SET status = 'Pending', attempts = 0, last_error = '', next_attempt_at_utc = NULL, updated_at_utc = excluded.updated_at_utc, revision = revision + 1;";
                 insertJobCmd.Parameters.AddWithValue("$id", syncJob.Id);
                 insertJobCmd.Parameters.AddWithValue("$wordId", syncJob.WordId);
                 insertJobCmd.Parameters.AddWithValue("$occId", syncJob.OccurrenceId);
@@ -314,7 +348,7 @@ LIMIT 1;";
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
-SELECT id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc
+SELECT id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc, learning_json, user_edits_json
 FROM occurrences
 WHERE word_id = $wordId
 ORDER BY captured_at_utc DESC;";
@@ -338,7 +372,9 @@ ORDER BY captured_at_utc DESC;";
                 LookupSource = reader.GetString(9),
                 SourceEntryId = reader.GetString(10),
                 SourceSchemaVersion = reader.GetString(11),
-                CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(12))
+                CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(12)),
+                LearningResult = DeserializeResult(reader.GetString(13)),
+                Edits = JsonSerializer.Deserialize<LearningEdits>(reader.GetString(14))
             });
         }
 
@@ -350,7 +386,7 @@ ORDER BY captured_at_utc DESC;";
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
-SELECT id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc
+SELECT id, word_id, selected_text, sentence, selection_offset, context_translation, source_process, source_window_title, source_uri, lookup_source, source_entry_id, source_schema_version, captured_at_utc, learning_json, user_edits_json
 FROM occurrences
 WHERE id = $id
 LIMIT 1;";
@@ -374,7 +410,9 @@ LIMIT 1;";
             LookupSource = reader.GetString(9),
             SourceEntryId = reader.GetString(10),
             SourceSchemaVersion = reader.GetString(11),
-            CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(12))
+            CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(12)),
+                LearningResult = DeserializeResult(reader.GetString(13)),
+                Edits = JsonSerializer.Deserialize<LearningEdits>(reader.GetString(14))
         };
     }
 
@@ -400,6 +438,21 @@ WHERE id = $id;";
         cmd.Parameters.AddWithValue("$id", word.Id);
 
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task UpdateOccurrenceEditsAsync(string id, LearningEdits edits, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(edits.Definition)) throw new ArgumentException("释义不能为空。");
+        await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = @"UPDATE occurrences SET user_edits_json = $edits WHERE id = $id;
+UPDATE sync_jobs SET status = 'Pending', attempts = 0, last_error = '', next_attempt_at_utc = NULL, revision = revision + 1 WHERE occurrence_id = $id;";
+        cmd.Parameters.AddWithValue("$edits", JsonSerializer.Serialize(edits));
+        cmd.Parameters.AddWithValue("$id", id);
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        await transaction.CommitAsync(ct).ConfigureAwait(false);
     }
 
     public async Task DeleteWordAsync(string wordId, CancellationToken ct = default)
@@ -446,7 +499,7 @@ WHERE id = $id;";
         cmd.CommandText = @"
 SELECT j.id, j.word_id, j.occurrence_id, j.target, j.status, j.attempts, j.last_error, j.next_attempt_at_utc, j.created_at_utc, j.updated_at_utc,
        w.id, w.normalized_word, w.display_word, w.language, w.reading, w.part_of_speech, w.definition, w.memory_hook, w.created_at_utc, w.updated_at_utc,
-       o.id, o.word_id, o.selected_text, o.sentence, o.selection_offset, o.context_translation, o.source_process, o.source_window_title, o.source_uri, o.lookup_source, o.source_entry_id, o.source_schema_version, o.captured_at_utc
+       o.id, o.word_id, o.selected_text, o.sentence, o.selection_offset, o.context_translation, o.source_process, o.source_window_title, o.source_uri, o.lookup_source, o.source_entry_id, o.source_schema_version, o.captured_at_utc, o.learning_json, o.user_edits_json, j.revision
 FROM sync_jobs j
 INNER JOIN words w ON j.word_id = w.id
 INNER JOIN occurrences o ON j.occurrence_id = o.id
@@ -462,6 +515,7 @@ ORDER BY j.created_at_utc DESC;";
                 Id = reader.GetString(0),
                 WordId = reader.GetString(1),
                 OccurrenceId = reader.GetString(2),
+                Revision = reader.GetInt32(35),
                 Target = reader.GetString(3),
                 Status = Enum.Parse<SyncStatus>(reader.GetString(4)),
                 Attempts = reader.GetInt32(5),
@@ -496,7 +550,9 @@ ORDER BY j.created_at_utc DESC;";
                     LookupSource = reader.GetString(29),
                     SourceEntryId = reader.GetString(30),
                     SourceSchemaVersion = reader.GetString(31),
-                    CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(32))
+                    CapturedAtUtc = DateTimeOffset.Parse(reader.GetString(32)),
+                    LearningResult = DeserializeResult(reader.GetString(33)),
+                    Edits = JsonSerializer.Deserialize<LearningEdits>(reader.GetString(34))
                 }
             };
             list.Add(job);
@@ -510,7 +566,7 @@ ORDER BY j.created_at_utc DESC;";
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
-SELECT id, word_id, occurrence_id, target, status, attempts, last_error, next_attempt_at_utc, created_at_utc, updated_at_utc
+SELECT id, word_id, occurrence_id, target, status, attempts, last_error, next_attempt_at_utc, created_at_utc, updated_at_utc, revision
 FROM sync_jobs
 WHERE word_id IN (SELECT id FROM words WHERE deleted_at_utc IS NULL) AND id = $id
 LIMIT 1;";
@@ -524,6 +580,7 @@ LIMIT 1;";
                 Id = reader.GetString(0),
                 WordId = reader.GetString(1),
                 OccurrenceId = reader.GetString(2),
+                Revision = reader.GetInt32(10),
                 Target = reader.GetString(3),
                 Status = Enum.Parse<SyncStatus>(reader.GetString(4)),
                 Attempts = reader.GetInt32(5),
@@ -548,7 +605,8 @@ SET status = $status,
     last_error = $error,
     next_attempt_at_utc = $nextAttempt,
     updated_at_utc = $updated
-WHERE id = $id;";
+WHERE id = $id AND revision = $revision;";
+        cmd.Parameters.AddWithValue("$revision", job.Revision);
         cmd.Parameters.AddWithValue("$status", job.Status.ToString());
         cmd.Parameters.AddWithValue("$attempts", job.Attempts);
         cmd.Parameters.AddWithValue("$error", job.LastError);
@@ -605,6 +663,18 @@ SET status = 'Pending',
 WHERE status IN ('Failed', 'Retryable');";
         cmd.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("o"));
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
+    private static TranslationResult? DeserializeResult(string json)
+        => json == "" || json == "null" ? null : JsonSerializer.Deserialize<TranslationResult>(json);
+
+    private static async Task<string> FindSyncJobIdAsync(SqliteConnection connection, SqliteTransaction transaction, string occurrenceId, CancellationToken ct)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = "SELECT id FROM sync_jobs WHERE occurrence_id = $id LIMIT 1;";
+        cmd.Parameters.AddWithValue("$id", occurrenceId);
+        return (string?)await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false) ?? Guid.NewGuid().ToString("N");
     }
 
     private static Word ReadWord(SqliteDataReader reader)

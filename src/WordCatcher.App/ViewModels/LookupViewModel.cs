@@ -21,6 +21,28 @@ public sealed partial class LookupViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly ISpeechService _speechService;
     private readonly WordCollectionEvents _wordCollectionEvents;
+    private readonly IQueryHistory? _history;
+    public System.Collections.ObjectModel.ObservableCollection<QueryHistoryItem> History { get; } = new();
+    public async Task RefreshHistoryAsync()
+    {
+        if (_history == null) return;
+        try { var items = await _history.ReadAsync(); History.Clear(); foreach (var item in items) History.Add(item); }
+        catch (Exception) { ActionStatusText = "查询历史暂时无法读取。"; }
+    }
+    [ObservableProperty] private LearningAnalysis? _analysis;
+    [ObservableProperty] private string _editDefinition = string.Empty;
+    [ObservableProperty] private string _editTranslation = string.Empty;
+    [ObservableProperty] private string _learningNote = string.Empty;
+    [ObservableProperty] private bool _hasSavedContext;
+    private bool _lastForceAi;
+    public string LearningExpression => string.IsNullOrWhiteSpace(Analysis?.Expression) ? Word : Analysis.Expression;
+    public bool HasAnalysis => Analysis != null;
+    public bool HasLearningDetails => !string.IsNullOrWhiteSpace(Analysis?.KeyExplanation) || !string.IsNullOrWhiteSpace(Analysis?.UsageNote) || !string.IsNullOrWhiteSpace(Analysis?.Example);
+    public string AiButtonText => Source == LookupSource.Ai ? "重新生成" : "AI 详解";
+    partial void OnSourceChanged(LookupSource value) => OnPropertyChanged(nameof(AiButtonText));
+    partial void OnAnalysisChanged(LearningAnalysis? value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(HasAnalysis)); OnPropertyChanged(nameof(HasLearningDetails)); }
+    partial void OnWordChanged(string value) => OnPropertyChanged(nameof(LearningExpression));
+    partial void OnHasSavedContextChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
 
     [ObservableProperty]
     private bool _isLoading;
@@ -108,7 +130,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
     public bool IsLongText => SelectedText.Length > 45 || SelectedText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 5;
     public bool HasSecondaryContent => !string.IsNullOrWhiteSpace(ContextTranslation) || !string.IsNullOrWhiteSpace(MemoryHook) || !string.IsNullOrWhiteSpace(OriginalSentence);
-    public string SaveButtonText => IsSaving ? "保存中…" : IsSaved && !CanSave ? "已收藏 ✓" : IsSaved ? "保存新语境" : "存入生词库";
+    public string SaveButtonText => IsSaving ? "保存中…" : !CanSave && IsSaved ? "已收藏 ✓" : HasSavedContext ? "更新这条语境" : IsSaved ? "保存新语境" : "存入生词库";
     partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnSelectedTextChanged(string value) => OnPropertyChanged(nameof(IsLongText));
@@ -140,7 +162,7 @@ public sealed partial class LookupViewModel : ObservableObject
         IAnkiSyncQueue syncQueue,
         ISettingsService settingsService,
         ISpeechService speechService,
-        WordCollectionEvents wordCollectionEvents)
+        WordCollectionEvents wordCollectionEvents, IQueryHistory? history = null)
     {
         _lookupService = lookupService;
         _wordRepository = wordRepository;
@@ -148,10 +170,20 @@ public sealed partial class LookupViewModel : ObservableObject
         _settingsService = settingsService;
         _speechService = speechService;
         _wordCollectionEvents = wordCollectionEvents;
+        _history = history;
     }
 
-    public async Task StartLookupAsync(CaptureResult capture, bool forceAi = false)
+    public async Task StartLookupAsync(CaptureResult capture, bool forceAi = false, bool bypassCache = false, TranslationResult? historyResult = null)
     {
+        var keepEdits = _currentTranslation != null && _currentCapture?.SelectedText == capture.SelectedText
+            && _currentCapture?.Sentence == capture.Sentence && _currentCapture?.SentenceOffset == capture.SentenceOffset
+            && _currentCapture?.SourceUri == capture.SourceUri;
+        var previousEdits = keepEdits ? new LearningEdits(
+            EditDefinition != _currentTranslation?.Definition ? EditDefinition : null,
+            EditTranslation != _currentTranslation?.ContextTranslation ? EditTranslation : null, LearningNote) : null;
+        _lastForceAi = forceAi;
+        Analysis = null;
+        HasSavedContext = false;
         ++_lookupVersion;
         var previousLookup = _lookupCancellation;
         var currentLookup = new CancellationTokenSource();
@@ -187,7 +219,21 @@ public sealed partial class LookupViewModel : ObservableObject
 
         try
         {
-            var result = await _lookupService.LookupAsync(capture, forceAi, currentLookup.Token).ConfigureAwait(true);
+            var progress = new Progress<TranslationResult>(partial =>
+            {
+                if (!ReferenceEquals(_lookupCancellation, currentLookup) || currentLookup.IsCancellationRequested || _currentTranslation != null) return;
+                Word = partial.Word;
+                Reading = partial.Reading;
+                PartOfSpeech = partial.PartOfSpeech;
+                Definition = partial.Definition;
+                ContextTranslation = partial.ContextTranslation;
+                Analysis = partial.Analysis;
+                Source = partial.Source;
+                HasResult = true;
+            });
+            var result = historyResult ?? (_lookupService is IStreamingLookupService streaming
+                ? await streaming.LookupStreamingAsync(capture, forceAi, progress, bypassCache, currentLookup.Token).ConfigureAwait(true)
+                : await _lookupService.LookupAsync(capture, forceAi, currentLookup.Token).ConfigureAwait(true));
             if (!ReferenceEquals(_lookupCancellation, currentLookup))
                 return;
 
@@ -199,18 +245,43 @@ public sealed partial class LookupViewModel : ObservableObject
             Definition = result.Definition;
             ContextTranslation = result.ContextTranslation;
             MemoryHook = result.MemoryHook;
+            Analysis = result.Analysis;
+            EditDefinition = previousEdits?.Definition ?? result.Definition;
+            EditTranslation = previousEdits?.ContextTranslation ?? result.ContextTranslation;
+            LearningNote = previousEdits?.Note ?? string.Empty;
             Source = result.Source;
             PosGroups = result.PosGroups;
             UpdateStructuredDetails(expanded: false);
 
             HasResult = true;
             CanSave = true;
+            if (_history != null)
+            {
+                try { await _history.RecordAsync(capture, result, currentLookup.Token); await RefreshHistoryAsync(); }
+                catch (Exception) when (!currentLookup.IsCancellationRequested) { }
+                if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
+            }
             // 收藏检查失败不影响已经取得的查询结果。
             try
             {
                 var existing = await _wordRepository.FindWordAsync(result.Word, currentLookup.Token).ConfigureAwait(true);
                 if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
                 IsSaved = existing != null;
+                if (existing != null)
+                {
+                    var contexts = await _wordRepository.GetOccurrencesByWordIdAsync(existing.Id, currentLookup.Token).ConfigureAwait(true);
+                    if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
+                    var saved = contexts.FirstOrDefault(o => o.SelectedText == capture.SelectedText
+                        && o.Sentence == (string.IsNullOrWhiteSpace(capture.Sentence) ? capture.SelectedText : capture.Sentence)
+                        && o.SelectionOffset == capture.SentenceOffset && o.SourceUri == capture.SourceUri);
+                    HasSavedContext = saved != null;
+                    if (saved?.Edits != null && previousEdits == null)
+                    {
+                        EditDefinition = saved.Edits.Definition ?? result.Definition;
+                        EditTranslation = saved.Edits.ContextTranslation ?? result.ContextTranslation;
+                        LearningNote = saved.Edits.Note;
+                    }
+                }
                 if (IsSaved) SavedStatusText = "已在生词库中，可保存这次的语境。";
             }
             catch (Exception) when (!currentLookup.IsCancellationRequested) { }
@@ -224,6 +295,8 @@ public sealed partial class LookupViewModel : ObservableObject
             if (ReferenceEquals(_lookupCancellation, currentLookup))
             {
                 HasError = true;
+                HasResult = false;
+                CanSave = false;
                 ErrorMessage = ex.Message;
             }
         }
@@ -260,7 +333,12 @@ public sealed partial class LookupViewModel : ObservableObject
 
         try
         {
-            var cmd = new SaveCardCommand(_currentCapture, _currentTranslation);
+            if (string.IsNullOrWhiteSpace(EditDefinition)) throw new InvalidOperationException("释义不能为空。");
+            var edits = new LearningEdits(
+                EditDefinition != _currentTranslation.Definition ? EditDefinition.Trim() : null,
+                EditTranslation != _currentTranslation.ContextTranslation ? EditTranslation.Trim() : null,
+                LearningNote.Trim());
+            var cmd = new SaveCardCommand(_currentCapture, _currentTranslation, edits, HasSavedContext);
             var (savedWord, occ, syncJob) = await _wordRepository.SaveAsync(cmd).ConfigureAwait(true);
             _wordCollectionEvents.NotifyWordSaved();
             _syncQueue.Enqueue(syncJob.Id);
@@ -268,7 +346,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
             IsSaved = true;
             IsSaving = false;
-            SavedStatusText = wasSaved ? "✓ 已新增语境，释义已更新" : "✓ 已存入生词库";
+            SavedStatusText = HasSavedContext ? "✓ 已更新这条语境" : wasSaved ? "✓ 已新增语境" : "✓ 已存入生词库";
             SyncStatusText = _settingsService.Current.Anki.Enabled ? "Anki 等待同步 · 已保存在本地" : string.Empty;
 
             if (_settingsService.Current.Ui.ClosePopupAfterSave)
@@ -292,7 +370,7 @@ public sealed partial class LookupViewModel : ObservableObject
     {
         if (_currentCapture != null)
         {
-            await StartLookupAsync(_currentCapture, forceAi: true).ConfigureAwait(true);
+            await StartLookupAsync(_currentCapture, forceAi: true, bypassCache: true).ConfigureAwait(true);
         }
     }
 
@@ -301,7 +379,7 @@ public sealed partial class LookupViewModel : ObservableObject
     {
         if (_currentCapture != null)
         {
-            await StartLookupAsync(_currentCapture, forceAi: false).ConfigureAwait(true);
+            await StartLookupAsync(_currentCapture, forceAi: _lastForceAi, bypassCache: true).ConfigureAwait(true);
         }
     }
 

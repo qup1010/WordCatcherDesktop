@@ -10,7 +10,7 @@ using WordCatcher.Core.Models;
 
 namespace WordCatcher.Infrastructure.Translation;
 
-public sealed class LookupService : ILookupService
+public sealed class LookupService : IStreamingLookupService
 {
     private readonly IOfflineDictionaryService _offlineDict;
     private readonly ITranslationService _aiTranslation;
@@ -32,9 +32,14 @@ public sealed class LookupService : ILookupService
         _machineTranslation = machineTranslation;
     }
 
-    public async Task<TranslationResult> LookupAsync(
+    public Task<TranslationResult> LookupAsync(CaptureResult capture, bool forceAi, CancellationToken ct = default)
+        => LookupCoreAsync(capture, forceAi, null, false, ct);
+
+    private async Task<TranslationResult> LookupCoreAsync(
         CaptureResult capture,
         bool forceAi,
+        IProgress<TranslationResult>? progress,
+        bool bypassCache,
         CancellationToken ct = default)
     {
         var text = capture.SelectedText.Trim();
@@ -110,8 +115,14 @@ public sealed class LookupService : ILookupService
 
         // 3. Final fallback to online AI translation
         _logger?.LogInformation("Using AI translation for selected text {TextInfo} (forceAi={ForceAi}, isShort={IsShort})", textInfo, forceAi, isShortText);
-        return await _aiTranslation.TranslateAsync(capture, ct).ConfigureAwait(false);
+        return _aiTranslation is IStreamingTranslationService streaming && progress != null
+            ? await streaming.TranslateStreamingAsync(capture, progress, bypassCache, ct).ConfigureAwait(false)
+            : await _aiTranslation.TranslateAsync(capture, ct).ConfigureAwait(false);
     }
+
+    public Task<TranslationResult> LookupStreamingAsync(CaptureResult capture, bool forceAi,
+        IProgress<TranslationResult> progress, bool bypassCache = false, CancellationToken ct = default)
+        => LookupCoreAsync(capture, forceAi, progress, bypassCache, ct);
 
     private static string DescribeText(string text)
     {

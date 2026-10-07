@@ -286,6 +286,13 @@ hr#answer {
         await EnsureDeckAndModelAsync(ct).ConfigureAwait(false);
 
         var fields = BuildNoteFields(word, occurrence, ankiSettings.ClozeContext);
+        var contextTag = "wc-context-" + occurrence.Id;
+        var existing = await InvokeAsync<List<long>>("findNotes", new { query = $"tag:{contextTag} \"note:{EscapeQuery(ankiSettings.NoteTypeName)}\"" }, ct).ConfigureAwait(false);
+        if (existing is { Count: > 0 })
+        {
+            await InvokeAsync<object>("updateNoteFields", new { note = new { id = existing[0], fields } }, ct).ConfigureAwait(false);
+            return existing[0];
+        }
         try
         {
             var noteId = await InvokeAsync<long>("addNote", new
@@ -295,10 +302,10 @@ hr#answer {
                     deckName = ankiSettings.DeckName,
                     modelName = ankiSettings.NoteTypeName,
                     fields = fields,
-                    tags = new[] { "word-catcher" },
+                    tags = new[] { "word-catcher", contextTag },
                     options = new
                     {
-                        allowDuplicate = false,
+                        allowDuplicate = true,
                         duplicateScope = "deck"
                     }
                 }
@@ -361,19 +368,22 @@ hr#answer {
 
         return new Dictionary<string, string>
         {
-            ["Word"] = ClozeSentenceBuilder.EscapeHtml(word.DisplayWord),
-            ["Reading"] = ClozeSentenceBuilder.EscapeHtml(NormalizeReading(word.Reading)),
-            ["PartOfSpeech"] = ClozeSentenceBuilder.EscapeHtml(word.PartOfSpeech),
-            ["Definition"] = ClozeSentenceBuilder.EscapeHtml(word.Definition),
-            ["MemoryHook"] = ClozeSentenceBuilder.EscapeHtml(word.MemoryHook),
+            ["Word"] = ClozeSentenceBuilder.EscapeHtml(occurrence.LearningResult == null ? word.DisplayWord : occurrence.Expression),
+            ["Reading"] = ClozeSentenceBuilder.EscapeHtml(NormalizeReading(occurrence.LearningResult?.Reading ?? word.Reading)),
+            ["PartOfSpeech"] = ClozeSentenceBuilder.EscapeHtml(occurrence.LearningResult?.PartOfSpeech ?? word.PartOfSpeech),
+            ["Definition"] = ClozeSentenceBuilder.EscapeHtml(occurrence.LearningResult == null ? word.Definition : occurrence.Definition)
+                + (string.IsNullOrWhiteSpace(occurrence.UsageNote) ? "" : "<div class=\"wc-trans\">用法：" + ClozeSentenceBuilder.EscapeHtml(occurrence.UsageNote) + "</div>"),
+            ["MemoryHook"] = ClozeSentenceBuilder.EscapeHtml(occurrence.LearningResult?.MemoryHook ?? word.MemoryHook),
             ["Sentence"] = clozeContext
                 ? ClozeSentenceBuilder.BuildClozeSentence(occurrence.Sentence, occurrence.SelectedText, occurrence.SelectionOffset)
                 : ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
             ["SentencePlain"] = ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
-            ["SentenceTranslation"] = ClozeSentenceBuilder.EscapeHtml(occurrence.ContextTranslation),
+            ["SentenceTranslation"] = ClozeSentenceBuilder.EscapeHtml(occurrence.Translation),
             ["Source"] = sourceHtml
         };
     }
+
+    private static string EscapeQuery(string text) => text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("*", "\\*").Replace("_", "\\_").Replace(":", "\\:");
 
     private static List<AnkiCardTemplate> BuildCardTemplates(string ttsLang)
     {

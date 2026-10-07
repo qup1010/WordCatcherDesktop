@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WordCatcher.Core.Models;
+using WordCatcher.Core.Interfaces;
 
 namespace WordCatcher.App.ViewModels;
 
@@ -29,6 +30,15 @@ public sealed partial class WordLookupViewModel : ObservableObject
     }
 
     public LookupViewModel Lookup => _lookup;
+    [RelayCommand] private Task LoadHistoryAsync() => _lookup.RefreshHistoryAsync();
+    [RelayCommand]
+    private async Task OpenHistoryAsync(QueryHistoryItem item)
+    {
+        Query = item.Capture.SelectedText;
+        HasSearched = true;
+        QueryError = "";
+        await _lookup.StartLookupAsync(item.Capture, historyResult: item.Result);
+    }
 
     [RelayCommand]
     private async Task SearchAsync()

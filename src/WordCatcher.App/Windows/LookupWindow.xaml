@@ -309,7 +309,26 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
                         <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}" />
+                        <Expander Header="理解与用法" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Margin="0,8,0,0">
+                                <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </Expander>
+                        <Expander Header="编辑与笔记" Margin="0,4,0,10" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Margin="0,8,0,0">
+                                <TextBlock Text="语境义" />
+                                <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                <TextBlock Text="原句翻译" />
+                                <ui:TextBox Text="{Binding EditTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                <TextBlock Text="我的笔记" />
+                                <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Expander>
 <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="11,9" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
@@ -343,8 +362,8 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
-                        <ui:Button Grid.Column="1" Content="AI 详解" Command="{Binding ForceAiCommand}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境重新解释 (Ctrl+Enter)">
-                            <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}"><Style.Triggers><DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></ui:Button.Style>
+                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境重新解释 (Ctrl+Enter)">
+                            <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}" /></ui:Button.Style>
                         </ui:Button>
                         <ui:Button Grid.Column="2" Content="复制" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
                     </Grid>

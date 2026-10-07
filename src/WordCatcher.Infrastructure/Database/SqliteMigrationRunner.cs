@@ -92,6 +92,24 @@ ALTER TABLE occurrences ADD COLUMN selection_offset INTEGER NOT NULL DEFAULT -1;
 ALTER TABLE words ADD COLUMN deleted_at_utc TEXT NULL;
 CREATE INDEX IF NOT EXISTS ix_sync_jobs_word_status ON sync_jobs(word_id, status);
 "
+        ),
+        (
+            4,
+            "Store per-context learning snapshots and user edits",
+            @"
+ALTER TABLE occurrences ADD COLUMN learning_json TEXT NOT NULL DEFAULT '';
+ALTER TABLE occurrences ADD COLUMN user_edits_json TEXT NOT NULL DEFAULT 'null';
+ALTER TABLE sync_jobs ADD COLUMN revision INTEGER NOT NULL DEFAULT 0;
+UPDATE occurrences SET learning_json = (
+ SELECT json_object('Word', w.display_word, 'Reading', w.reading, 'PartOfSpeech', w.part_of_speech,
+ 'Definition', w.definition, 'ContextTranslation', occurrences.context_translation,
+ 'MemoryHook', w.memory_hook, 'Source', 0, 'SourceEntryId', NULL, 'SourceSchemaVersion', NULL)
+ FROM words w WHERE w.id = occurrences.word_id);
+CREATE INDEX IF NOT EXISTS ix_occurrences_context ON occurrences(word_id, selected_text, sentence, selection_offset);
+CREATE TABLE IF NOT EXISTS lookup_history (
+ id TEXT PRIMARY KEY, capture_json TEXT NOT NULL, result_json TEXT NOT NULL, queried_at_utc TEXT NOT NULL
+);
+"
         )
     };
 

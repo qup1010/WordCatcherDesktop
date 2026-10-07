@@ -18,6 +18,8 @@ public interface IWordRepository
     Task<Occurrence?> GetOccurrenceByIdAsync(string id, CancellationToken ct = default);
     Task<IReadOnlyList<Occurrence>> GetOccurrencesByWordIdAsync(string wordId, CancellationToken ct = default);
     Task UpdateWordAsync(Word word, CancellationToken ct = default);
+    Task UpdateOccurrenceEditsAsync(string id, LearningEdits edits, CancellationToken ct = default)
+        => throw new NotSupportedException();
     Task DeleteWordAsync(string wordId, CancellationToken ct = default);
     Task<string> ExportWordsJsonAsync(CancellationToken ct = default);
     Task<IReadOnlyList<SyncJob>> GetSyncJobsAsync(CancellationToken ct = default);

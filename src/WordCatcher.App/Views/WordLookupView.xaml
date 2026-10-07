@@ -115,6 +115,22 @@
                        FontSize="{StaticResource CaptionFontSize}"
                        Margin="3,7,0,0"
                        Visibility="{Binding QueryError, Converter={StaticResource StringToVis}}" />
+            <Expander Header="查询历史" Margin="0,10,0,0" MaxHeight="180">
+                <StackPanel>
+                    <ui:Button Content="加载最近查询" Command="{Binding LoadHistoryCommand}" HorizontalAlignment="Left" Margin="0,6,0,6" />
+                    <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Lookup.History}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ui:Button Command="{Binding DataContext.OpenHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,2">
+                                        <StackPanel><TextBlock Text="{Binding Capture.SelectedText}" /><TextBlock Text="{Binding Result.Definition}" TextTrimming="CharacterEllipsis" /></StackPanel>
+                                    </ui:Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Expander>
         </StackPanel>
 
         <Grid Grid.Row="2">
@@ -193,23 +209,18 @@
                                             <TextBlock Text="{Binding SaveButtonText}" Margin="6,0,0,0" />
                                         </StackPanel>
                                     </ui:Button>
-                                    <ui:Button Command="{Binding ForceAiCommand}"
+                                    <ui:Button Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}"
                                             Background="{StaticResource SubtleSurfaceBrush}"
                                             Foreground="{StaticResource AccentBrush}"
                                             Margin="6,0,0,0"
                                             ToolTip="结合语境重新解释当前单词">
                                         <ui:Button.Style>
                                             <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource LookupActionButton}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
                                             </Style>
                                         </ui:Button.Style>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
-                                            <TextBlock Text="AI 详解" Margin="6,0,0,0" />
+                                            <TextBlock Text="{Binding AiButtonText}" Margin="6,0,0,0" />
                                         </StackPanel>
                                     </ui:Button>
                                 </WrapPanel>
@@ -223,6 +234,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel x:Name="DefinitionPanel" Margin="0,0,24,0">
                                     <TextBlock Text="{Binding SelectedText}" Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" TextWrapping="Wrap" FontSize="13" LineHeight="22" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,16" /><TextBlock FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,9"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="核心释义" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="Text" Value="译文" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+                                    <TextBlock Text="{Binding LearningExpression}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,10" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
                                     <TextBlock Text="{Binding Definition}" FontSize="15" LineHeight="25" Foreground="{StaticResource TextPrimaryBrush}"
                                                TextWrapping="Wrap" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource InverseBoolToVis}}" />
                                     <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource BoolToVis}}">
@@ -298,6 +310,24 @@
                             </StackPanel>
                                 </StackPanel>
                                 <StackPanel x:Name="ContextPanel" Grid.Column="1" IsVisibleChanged="ContextPanel_IsVisibleChanged" Visibility="{Binding HasSecondaryContent, Converter={StaticResource BoolToVis}}">
+                                    <Expander Header="理解与用法" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                            <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                            <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Expander>
+                                    <Expander Header="编辑与笔记" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock Text="语境义" />
+                                            <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                            <TextBlock Text="原句翻译" />
+                                            <ui:TextBox Text="{Binding EditTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
+                                            <TextBlock Text="我的笔记" />
+                                            <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </Expander>
 <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Margin="0,0,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}" />
                                     <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="12,10"
                                             Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
