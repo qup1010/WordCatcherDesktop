@@ -79,6 +79,9 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty]
     private bool _isMemoryHookExpanded;
 
+    [ObservableProperty]
+    private bool _isEditingDefinition;
+
     public bool HasStructuredDefinitions => DisplayPosGroups?.Count > 0;
 
     partial void OnDisplayPosGroupsChanged(IReadOnlyList<DictPosGroup>? value)
@@ -158,6 +161,11 @@ public sealed partial class LookupViewModel : ObservableObject
         _lookupCancellation = currentLookup;
         previousLookup?.Cancel();
 
+        var previousTranslation = forceAi && _currentCapture != null &&
+                                  string.Equals(_currentCapture.SelectedText, capture.SelectedText, StringComparison.OrdinalIgnoreCase)
+            ? _currentTranslation
+            : null;
+
         _currentCapture = capture;
         SelectedText = capture.SelectedText;
         Word = capture.SelectedText;
@@ -168,6 +176,7 @@ public sealed partial class LookupViewModel : ObservableObject
         CanExpandDetails = false;
         IsDetailsExpanded = false;
         IsMemoryHookExpanded = false;
+        IsEditingDefinition = false;
         Definition = string.Empty;
         ContextTranslation = string.Empty;
         MemoryHook = null;
@@ -190,6 +199,16 @@ public sealed partial class LookupViewModel : ObservableObject
             var result = await _lookupService.LookupAsync(capture, forceAi, currentLookup.Token).ConfigureAwait(true);
             if (!ReferenceEquals(_lookupCancellation, currentLookup))
                 return;
+
+            if (previousTranslation != null)
+            {
+                result = result with
+                {
+                    Reading = !string.IsNullOrWhiteSpace(result.Reading) ? result.Reading : previousTranslation.Reading,
+                    MemoryHook = !string.IsNullOrWhiteSpace(result.MemoryHook) ? result.MemoryHook : previousTranslation.MemoryHook,
+                    PosGroups = result.PosGroups is { Count: > 0 } ? result.PosGroups : previousTranslation.PosGroups
+                };
+            }
 
             _currentTranslation = result;
 
@@ -247,6 +266,12 @@ public sealed partial class LookupViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleEditDefinition()
+    {
+        IsEditingDefinition = !IsEditingDefinition;
+    }
+
+    [RelayCommand]
     private async Task SaveAsync()
     {
         if (!CanSave || _currentCapture == null || _currentTranslation == null)
@@ -254,13 +279,23 @@ public sealed partial class LookupViewModel : ObservableObject
 
         CanSave = false;
         IsSaving = true;
+        IsEditingDefinition = false;
         var wasSaved = IsSaved;
         SavedStatusText = "正在保存到生词库…";
         var version = _lookupVersion;
 
         try
         {
-            var cmd = new SaveCardCommand(_currentCapture, _currentTranslation);
+            var effectiveTranslation = _currentTranslation with
+            {
+                Word = !string.IsNullOrWhiteSpace(Word) ? Word.Trim() : _currentTranslation.Word,
+                Reading = !string.IsNullOrWhiteSpace(Reading) ? Reading.Trim() : _currentTranslation.Reading,
+                PartOfSpeech = !string.IsNullOrWhiteSpace(PartOfSpeech) ? PartOfSpeech.Trim() : _currentTranslation.PartOfSpeech,
+                Definition = !string.IsNullOrWhiteSpace(Definition) ? Definition.Trim() : _currentTranslation.Definition,
+                ContextTranslation = !string.IsNullOrWhiteSpace(ContextTranslation) ? ContextTranslation.Trim() : _currentTranslation.ContextTranslation,
+                MemoryHook = !string.IsNullOrWhiteSpace(MemoryHook) ? MemoryHook.Trim() : _currentTranslation.MemoryHook
+            };
+            var cmd = new SaveCardCommand(_currentCapture, effectiveTranslation);
             var (savedWord, occ, syncJob) = await _wordRepository.SaveAsync(cmd).ConfigureAwait(true);
             _wordCollectionEvents.NotifyWordSaved();
             _syncQueue.Enqueue(syncJob.Id);

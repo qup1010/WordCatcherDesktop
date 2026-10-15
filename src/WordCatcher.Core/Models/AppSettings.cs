@@ -54,4 +54,5 @@ public sealed class AnkiSettings
 public sealed class UiSettings
 {
     public bool ClosePopupAfterSave { get; set; } = true;
+    public bool ClosePopupOnDeactivate { get; set; } = true;
 }

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using WordCatcher.App.Interop;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
+using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 
 namespace WordCatcher.App.Windows;
@@ -14,17 +15,40 @@ namespace WordCatcher.App.Windows;
 public partial class LookupWindow : Window
 {
     private readonly LookupViewModel _viewModel;
+    private readonly ISettingsService? _settingsService;
+    private bool _isClosing;
 
     public bool IsPinned => PinToggle.IsChecked == true;
 
-    public LookupWindow(LookupViewModel viewModel)
+    public LookupWindow(LookupViewModel viewModel, ISettingsService? settingsService = null)
     {
         InitializeComponent();
         WpfUiResourceScope.PreferApplicationResources(this);
         _viewModel = viewModel;
+        _settingsService = settingsService;
         DataContext = _viewModel;
         _viewModel.RequestClose += OnRequestClose;
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+        Deactivated += Window_Deactivated;
+    }
+
+    private void Window_Deactivated(object? sender, EventArgs e)
+    {
+        if (_isClosing || IsPinned || !IsLoaded || !IsVisible)
+            return;
+
+        if (_settingsService?.Current.Ui.ClosePopupOnDeactivate ?? true)
+        {
+            try
+            {
+                _isClosing = true;
+                Close();
+            }
+            catch (InvalidOperationException)
+            {
+                _isClosing = false;
+            }
+        }
     }
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -35,6 +59,8 @@ public partial class LookupWindow : Window
 
     private void OnRequestClose()
     {
+        if (_isClosing) return;
+        _isClosing = true;
         Dispatcher.Invoke(Close);
     }
 
@@ -109,6 +135,7 @@ public partial class LookupWindow : Window
     {
         if (e.Key == Key.Escape)
         {
+            _isClosing = true;
             Close();
             e.Handled = true;
         }
@@ -134,7 +161,8 @@ public partial class LookupWindow : Window
             }
         }
         else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None
-                 && !IsButtonSource(Keyboard.FocusedElement as DependencyObject))
+                 && !IsButtonSource(Keyboard.FocusedElement as DependencyObject)
+                 && Keyboard.FocusedElement is not System.Windows.Controls.TextBox)
         {
             if (_viewModel.SaveCommand.CanExecute(null))
             {
@@ -186,6 +214,8 @@ public partial class LookupWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _isClosing = true;
+        Deactivated -= Window_Deactivated;
         _viewModel.CancelLookup();
         _viewModel.RequestClose -= OnRequestClose;
         _viewModel.PropertyChanged -= ViewModel_PropertyChanged;

@@ -397,6 +397,26 @@
                                        Style="{StaticResource PageSubtitleStyle}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:Button x:Name="ImportBackupButton" Command="{Binding ImportJsonCommand}" ToolTip="导入桌面端或浏览器插件导出的 JSON 词库备份"
+                                    Margin="0,0,8,0"
+                                    Padding="12,6"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Foreground="{StaticResource TextSecondaryBrush}"
+                                    FontSize="{StaticResource CaptionFontSize}"
+                                    Cursor="Hand">
+                                <ui:Button.Style>
+                                    <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
+                                        <Setter Property="MinHeight" Value="36" />
+                                        <Setter Property="IsEnabled" Value="{Binding IsExporting, Converter={StaticResource InverseBool}}" />
+                                    </Style>
+                                </ui:Button.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8E5;" FontFamily="Segoe Fluent Icons" FontSize="13" Margin="0,0,7,0" />
+                                    <TextBlock Text="导入备份" />
+                                </StackPanel>
+                            </ui:Button>
                             <ui:Button x:Name="ExportBackupButton" Command="{Binding ExportJsonCommand}" ToolTip="导出全部词条与语境，不受当前搜索和筛选影响"
                                     Margin="0,0,10,0"
                                     Padding="12,6"
@@ -663,10 +683,12 @@
                                                 <!-- Header: Word, Reading, POS -->
                                                 <WrapPanel VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding SelectedWord.DisplayWord}"
-                                                               TextWrapping="Wrap" FontSize="26"
+                                                               FontFamily="Georgia, Cambria, Microsoft YaHei UI, serif"
+                                                               TextWrapping="Wrap" FontSize="28"
                                                                FontWeight="Bold"
                                                                Foreground="{StaticResource TextPrimaryBrush}" />
                                                     <TextBlock Text="{Binding SelectedWord.Reading}"
+                                                               FontFamily="Georgia, Cambria, Segoe UI, serif"
                                                                FontSize="15"
                                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                                Margin="10,0,0,0"
@@ -684,27 +706,25 @@
                                                     </Border>
                                                 </WrapPanel>
 
-                                                <!-- Definition Text -->
+                                                <!-- Definition Text (Flattened directly without redundant preview + expander) -->
                                                 <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,18">
                                                     <StackPanel>
                                                         <TextBlock Text="释义" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
-                                                        <TextBlock Text="{Binding DefinitionPreview}" TextWrapping="Wrap" MaxHeight="72" LineHeight="24" TextTrimming="CharacterEllipsis" FontSize="{StaticResource BodyFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Visibility="{Binding IsDefinitionExpanded, Converter={StaticResource InverseBoolToVis}}" />
-                                                        <Expander Header="完整释义" IsExpanded="{Binding IsDefinitionExpanded, Mode=TwoWay}" Margin="0,8,0,0" Foreground="{StaticResource AccentBrush}">
-                                                            <TextBlock Text="{Binding SelectedWord.Definition}" FontSize="{StaticResource BodyFontSize}" LineHeight="24" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,10,0,0" />
-                                                        </Expander>
+                                                        <TextBlock Text="{Binding SelectedWord.Definition}" FontSize="{StaticResource BodyFontSize}" LineHeight="24" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                                     </StackPanel>
                                                 </Border>
 
-                                                <!-- Memory Hook (Wrapping supported) -->
-                                                <Border Background="{StaticResource SubtleSurfaceBrush}"
-                                                        BorderBrush="{StaticResource BorderBrush}"
-                                                        BorderThickness="0"
-                                                        CornerRadius="8"
+                                                <!-- Memory Hook (Amber Callout matching Extension & Anki) -->
+                                                <Border Background="{StaticResource AmberHookSurfaceBrush}"
+                                                        BorderBrush="{StaticResource AmberHookBorderBrush}"
+                                                        BorderThickness="3,0,0,0"
+                                                        CornerRadius="0,8,8,0"
                                                         Padding="12,10"
-                                                        Margin="0,0,0,14"
+                                                        Margin="0,0,0,16"
                                                         Visibility="{Binding SelectedWord.MemoryHook, Converter={StaticResource StringToVis}}">
-                                                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" LineHeight="20" TextWrapping="Wrap">
-                                                        <Bold>记忆线索： </Bold>
+                                                    <TextBlock Foreground="{StaticResource AmberHookTextBrush}" FontSize="13" LineHeight="20" TextWrapping="Wrap">
+                                                        <Run Text="💡 记忆线索：" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
+                                                        <Run Text=" " />
                                                         <Run Text="{Binding SelectedWord.MemoryHook}" />
                                                     </TextBlock>
                                                 </Border>
@@ -713,20 +733,17 @@
                                                 <Border Background="{StaticResource SubtleSurfaceBrush}"
                                                         BorderBrush="{StaticResource BorderBrush}"
                                                         BorderThickness="1"
-                                                        CornerRadius="6"
-                                                        Padding="12"
+                                                        CornerRadius="8"
+                                                        Padding="14,12"
                                                         Margin="0,0,0,8">
-                                                    <Expander IsExpanded="True">
-                                                        <Expander.Header>
-                                                        <StackPanel Orientation="Horizontal">
+                                                    <StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                                             <TextBlock Text="语境记录"
                                                                        FontSize="13"
                                                                        FontWeight="SemiBold"
                                                                        Foreground="{StaticResource TextSecondaryBrush}" />
-                                                        <TextBlock Text="{Binding Occurrences.Count, StringFormat=（{0}）}" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                            <TextBlock Text="{Binding Occurrences.Count, StringFormat=（{0}）}" Foreground="{StaticResource TextSecondaryBrush}" />
                                                         </StackPanel>
-                                                        </Expander.Header>
-                                                        <StackPanel Margin="0,12,0,0">
                                                         <ListBox x:Name="OccurrenceList"
                                                                  ItemsSource="{Binding Occurrences}"
                                                                  BorderThickness="0"
@@ -740,23 +757,20 @@
                                                                             BorderThickness="1"
                                                                             CornerRadius="8"
                                                                             Margin="0,0,0,8">
-                                                                        <Expander IsExpanded="False">
-                                                                            <Expander.Header>
+                                                                        <StackPanel>
                                                                             <TextBlock Text="{Binding Sentence}"
+                                                                                       TextWrapping="Wrap"
                                                                                        FontSize="13"
-                                                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                                                        TextTrimming="CharacterEllipsis"
                                                                                        FontWeight="Medium"
-                                                                                       LineHeight="20" />
-                                                                            </Expander.Header>
-                                                                            <StackPanel Margin="0,10,0,0">
-                                                                                <TextBlock Text="{Binding Sentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                                                       LineHeight="21"
+                                                                                       Foreground="{StaticResource TextPrimaryBrush}" />
                                                                             <TextBlock Text="{Binding ContextTranslation}"
                                                                                        FontSize="{StaticResource CaptionFontSize}"
                                                                                        Foreground="{StaticResource TextSecondaryBrush}"
                                                                                        TextWrapping="Wrap"
-                                                                                       Margin="0,4,0,0"
-                                                                                       LineHeight="18" />
+                                                                                       Margin="0,5,0,0"
+                                                                                       LineHeight="19"
+                                                                                       Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}" />
                                                                             <TextBlock TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                                                                                        Foreground="{StaticResource TextMutedBrush}"
                                                                                        Margin="0,6,0,0">
@@ -768,7 +782,6 @@
                                                                                 <Run Text="{Binding CapturedAtUtc, Converter={StaticResource LocalTime}}" />
                                                                             </TextBlock>
                                                                         </StackPanel>
-                                                                        </Expander>
                                                                     </Border>
                                                                 </DataTemplate>
                                                             </ListBox.ItemTemplate>
@@ -799,7 +812,6 @@
                                                                        Margin="0,3,0,0" />
                                                         </StackPanel>
                                                     </StackPanel>
-                                                    </Expander>
                                                 </Border>
                                             </StackPanel>
 
@@ -1417,7 +1429,10 @@
 
                         <!-- 5. 交互行为 -->
                         <GroupBox Header="交互行为" Style="{StaticResource SettingsSectionStyle}">
-                            <ui:ToggleSwitch Content="收藏后自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupAfterSave}" />
+                            <StackPanel>
+                                <ui:ToggleSwitch Content="收藏后自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupAfterSave}" Margin="0,0,0,8" />
+                                <ui:ToggleSwitch Content="点击浮窗外部时自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupOnDeactivate}" />
+                            </StackPanel>
                         </GroupBox>
 
                         <!-- 6. 关于与更新 -->
