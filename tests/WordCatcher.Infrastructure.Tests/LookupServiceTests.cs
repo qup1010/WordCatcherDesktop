@@ -62,6 +62,29 @@ public sealed class LookupServiceTests
         Assert.Equal(0, ai.CallCount);
     }
 
+    [Fact]
+    public async Task ForceAi_CachesRepeatedLookupsAndBackfillsMemoryHookFromOfflineDictionary()
+    {
+        var offline = new FakeOfflineDictionary
+        {
+            Result = CreateResult(LookupSource.OpenDictionary) with { MemoryHook = "词根：quick（快）" }
+        };
+        var ai = new FakeTranslationService
+        {
+            Result = CreateResult(LookupSource.Ai) with { MemoryHook = null }
+        };
+        var service = new LookupService(offline, ai);
+        var capture = CreateCapture("quick");
+
+        var first = await service.LookupAsync(capture, forceAi: true);
+        var second = await service.LookupAsync(capture, forceAi: true);
+
+        Assert.Equal(LookupSource.Ai, first.Source);
+        Assert.Equal("词根：quick（快）", first.MemoryHook);
+        Assert.Equal("词根：quick（快）", second.MemoryHook);
+        Assert.Equal(1, ai.CallCount);
+    }
+
     private static CaptureResult CreateCapture(string text) =>
         new(text, "test.exe", "Test", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
 

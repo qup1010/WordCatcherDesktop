@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -12,11 +13,17 @@ namespace WordCatcher.Infrastructure.Translation;
 
 public sealed class LookupService : ILookupService
 {
+    private const int MaxAiCacheSize = 50;
+
     private readonly IOfflineDictionaryService _offlineDict;
     private readonly ITranslationService _aiTranslation;
     private readonly ILogger<LookupService>? _logger;
     private readonly ISettingsService? _settingsService;
     private readonly IMachineTranslationService? _machineTranslation;
+
+    private readonly object _aiCacheLock = new();
+    private readonly Dictionary<string, TranslationResult> _aiCache = new(StringComparer.Ordinal);
+    private readonly LinkedList<string> _aiCacheOrder = new();
 
     public LookupService(
         IOfflineDictionaryService offlineDict,
@@ -108,9 +115,85 @@ public sealed class LookupService : ILookupService
             }
         }
 
-        // 3. Final fallback to online AI translation
+        // 3. Final fallback to online AI translation (with LRU cache + offline dictionary MemoryHook/Reading backfill)
+        var cacheKey = BuildAiCacheKey(capture, text);
+        if (TryGetCachedAiResult(cacheKey, out var cachedResult))
+        {
+            _logger?.LogInformation("AI translation cache hit for selected text {TextInfo}", textInfo);
+            return cachedResult;
+        }
+
         _logger?.LogInformation("Using AI translation for selected text {TextInfo} (forceAi={ForceAi}, isShort={IsShort})", textInfo, forceAi, isShortText);
-        return await _aiTranslation.TranslateAsync(capture, ct).ConfigureAwait(false);
+        var aiResult = await _aiTranslation.TranslateAsync(capture, ct).ConfigureAwait(false);
+
+        if (forceAi && isShortText && dictionaryEnabled && _offlineDict.IsInstalled
+            && (string.IsNullOrWhiteSpace(aiResult.MemoryHook) || string.IsNullOrWhiteSpace(aiResult.Reading)))
+        {
+            try
+            {
+                var dictFallback = await _offlineDict.LookupAsync(
+                    !string.IsNullOrWhiteSpace(aiResult.Word) ? aiResult.Word : text,
+                    ct).ConfigureAwait(false);
+                if (dictFallback != null)
+                {
+                    aiResult = aiResult with
+                    {
+                        Reading = !string.IsNullOrWhiteSpace(aiResult.Reading) ? aiResult.Reading : dictFallback.Reading,
+                        MemoryHook = !string.IsNullOrWhiteSpace(aiResult.MemoryHook) ? aiResult.MemoryHook : dictFallback.MemoryHook,
+                        PosGroups = aiResult.PosGroups is { Count: > 0 } ? aiResult.PosGroups : dictFallback.PosGroups
+                    };
+                }
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _logger?.LogDebug(ex, "Optional offline dictionary backfill skipped after AI lookup");
+            }
+        }
+
+        StoreCachedAiResult(cacheKey, aiResult);
+        return aiResult;
+    }
+
+    private string BuildAiCacheKey(CaptureResult capture, string trimmedText)
+    {
+        var settings = _settingsService?.Current;
+        var active = settings?.ActiveTranslation;
+        return $"{active?.Id}|{active?.BaseUrl}|{active?.Model}|{settings?.ExplainLanguage}|{capture.Sentence}|{trimmedText.ToLowerInvariant()}";
+    }
+
+    private bool TryGetCachedAiResult(string key, out TranslationResult result)
+    {
+        lock (_aiCacheLock)
+        {
+            if (_aiCache.TryGetValue(key, out result!))
+            {
+                _aiCacheOrder.Remove(key);
+                _aiCacheOrder.AddLast(key);
+                return true;
+            }
+        }
+
+        result = null!;
+        return false;
+    }
+
+    private void StoreCachedAiResult(string key, TranslationResult result)
+    {
+        lock (_aiCacheLock)
+        {
+            if (_aiCache.ContainsKey(key))
+            {
+                _aiCacheOrder.Remove(key);
+            }
+            else if (_aiCache.Count >= MaxAiCacheSize && _aiCacheOrder.First is { } oldest)
+            {
+                _aiCache.Remove(oldest.Value);
+                _aiCacheOrder.RemoveFirst();
+            }
+
+            _aiCache[key] = result;
+            _aiCacheOrder.AddLast(key);
+        }
     }
 
     private static string DescribeText(string text)
