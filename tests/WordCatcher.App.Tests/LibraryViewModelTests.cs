@@ -18,6 +18,7 @@ public class LibraryViewModelTests
         public Func<string?, WordFilter, int, int, Task<IReadOnlyList<Word>>> ReadFiltered = (_, _, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public Func<string, Task> Trash = _ => Task.CompletedTask;
         public Func<string, Task> Restore = _ => Task.CompletedTask;
+        public Func<string, Task<int>> ImportJson = _ => Task.FromResult(0);
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             nameof(IWordRepository.GetFilteredWordsAsync) => ReadFiltered((string?)args![0], (WordFilter)args[1]!, (int)args[2]!, (int)args[3]!),
@@ -26,6 +27,7 @@ public class LibraryViewModelTests
             nameof(IWordRepository.GetWordsAsync) => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
             nameof(IWordRepository.GetOccurrencesByWordIdAsync) => ReadOccurrences((string)args![0]!),
             nameof(IWordRepository.UpdateWordAsync) => Update((Word)args![0]!),
+            nameof(IWordRepository.ImportWordsJsonAsync) => ImportJson((string)args![0]!),
             _ => throw new NotSupportedException(method.Name)
         };
     }

@@ -161,7 +161,7 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border Style="{StaticResource SurfaceCardStyle}" Margin="10" CornerRadius="8">
+    <Border Style="{StaticResource SurfaceCardStyle}" Margin="10" CornerRadius="10">
         <Border.Effect><DropShadowEffect BlurRadius="18" Opacity="0.14" ShadowDepth="4" Color="#334155" /></Border.Effect>
         <Grid Margin="16,14">
             <Grid.RowDefinitions>
@@ -185,9 +185,9 @@
                         MouseLeftButtonDown="DragSurface_MouseLeftButtonDown">
                     <StackPanel>
                         <TextBlock FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
-                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontSize" Value="24" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Georgia, Cambria, Microsoft YaHei UI, serif" /><Setter Property="FontSize" Value="24" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI, sans-serif" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                         </TextBlock>
-                        <TextBlock Text="{Binding Reading}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
+                        <TextBlock Text="{Binding Reading}" FontFamily="Georgia, Cambria, Segoe UI, serif" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
                         <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -241,6 +241,19 @@
 <TextBlock Text="{Binding SelectedText}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" />
 <TextBlock Text="译文" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,0" />
 </StackPanel><TextBlock Text="{Binding Definition}" FontSize="{StaticResource BodyFontSize}" LineHeight="23" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,10" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource InverseBoolToVis}}" />
+                        <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}"
+                                    Visibility="{Binding IsEditingDefinition, Converter={StaticResource BoolToVis}}"
+                                    AcceptsReturn="True"
+                                    TextWrapping="Wrap"
+                                    MinHeight="54"
+                                    Padding="8,6"
+                                    FontSize="13"
+                                    Foreground="{StaticResource TextPrimaryBrush}"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource ControlBorderBrush}"
+                                    BorderThickness="1"
+                                    Margin="0,0,0,8"
+                                    ToolTip="保存前可直接微调释义内容" />
                         <!-- One compact row for EVERY part of speech, never a global Take(3). -->
                         <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Margin="0,0,0,6">
                             <ItemsControl.ItemTemplate>
@@ -335,10 +348,10 @@
                                 <TextBlock Text="{Binding ContextTranslation}" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </StackPanel>
                         </Border>
-<Border Background="{StaticResource SubtleSurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
+<Border Background="{StaticResource AmberHookSurfaceBrush}" BorderBrush="{StaticResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,6">
-                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <TextBlock Text="💡 记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
                                 <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource DisclosureToggleButton}" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}" AutomationProperties.Name="展开或收起记忆线索">
                                         <TextBlock>
                                             <TextBlock.Style>
@@ -347,7 +360,7 @@
                                         </TextBlock>
                                     </ToggleButton>
                                 </Grid>
-                                <TextBlock Text="{Binding MemoryHook}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis">
+                                <TextBlock Text="{Binding MemoryHook}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource AmberHookTextBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock"><Setter Property="MaxHeight" Value="57" /><Style.Triggers><DataTrigger Binding="{Binding IsMemoryHookExpanded}" Value="True"><Setter Property="MaxHeight" Value="Infinity" /></DataTrigger></Style.Triggers></Style>
                                     </TextBlock.Style>
@@ -360,12 +373,13 @@
             <Border Grid.Row="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,10,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
                         <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境重新解释 (Ctrl+Enter)">
                             <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}" /></ui:Button.Style>
                         </ui:Button>
-                        <ui:Button Grid.Column="2" Content="复制" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
+                        <ui:Button Grid.Column="2" Content="编辑" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前微调释义" />
+                        <ui:Button Grid.Column="3" Content="复制" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
                     </Grid>
                     <TextBlock Text="{Binding SavedStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}" />
                     <TextBlock Text="{Binding SyncStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding SyncStatusText, Converter={StaticResource StringToVis}}" />

@@ -26,6 +26,53 @@ public sealed class LearningRecordTests : IDisposable
         Generation: new("test-model", "learning-v1", DateTimeOffset.UtcNow));
 
     [Fact]
+    public async Task BrowserContextIdentityIsReusedForAnkiAndCannotOverwriteAnotherContext()
+    {
+        await Init();
+        var id = Guid.NewGuid().ToString();
+        var (_, occurrence, _) = await _repo.SaveAsync(new(Capture(), Result(), OccurrenceId: id));
+        Assert.Equal(id, occurrence.Id);
+        var (_, updated, _) = await _repo.SaveAsync(new(Capture(), Result("新释义"), UpdateExisting: true, OccurrenceId: id));
+        Assert.Equal(id, updated.Id);
+        Assert.Equal("新释义", updated.Definition);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _repo.SaveAsync(
+            new(Capture("I went to the bank."), Result("银行"), OccurrenceId: id)));
+        Assert.Equal("新释义", (await _repo.GetOccurrenceByIdAsync(id))!.Definition);
+    }
+
+    [Fact]
+    public async Task BackupImportPreservesIndependentAnalysisAndEdits()
+    {
+        await Init();
+        var result = Result();
+        await _repo.SaveAsync(new(Capture(), result, new("用户释义", "我的译文", "个人笔记")));
+        await _repo.SaveAsync(new(Capture("I went to the bank."), Result("银行")));
+        var json = await _repo.ExportWordsJsonAsync();
+        var destinationPath = Path.Combine(Path.GetTempPath(), $"import-{Guid.NewGuid():N}.db");
+        try
+        {
+            var factory = new SqliteConnectionFactory(destinationPath);
+            await new SqliteMigrationRunner(factory).MigrateAsync();
+            var destination = new WordRepository(factory);
+            Assert.Equal(2, await destination.ImportWordsJsonAsync(json));
+            var word = (await destination.FindWordAsync("bank"))!;
+            var contexts = await destination.GetOccurrencesByWordIdAsync(word.Id);
+            var river = Assert.Single(contexts, item => item.Sentence == "We sat on the bank.");
+            Assert.Equal(result, river.LearningResult);
+            Assert.Equal("用户释义", river.Definition);
+            Assert.Equal("我的译文", river.Translation);
+            Assert.Equal("个人笔记", river.Note);
+            Assert.Contains(contexts, item => item.Definition == "银行");
+            Assert.Equal(0, await destination.ImportWordsJsonAsync(json));
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(destinationPath)) File.Delete(destinationPath);
+        }
+    }
+
+    [Fact]
     public async Task DifferentSensesRemainIndependentAndUserWordEditsArePreserved()
     {
         await Init();

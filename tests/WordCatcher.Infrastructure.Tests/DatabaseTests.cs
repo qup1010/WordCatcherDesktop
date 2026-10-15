@@ -164,6 +164,64 @@ public class DatabaseTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportWordsJsonAsync_SupportsDesktopAndExtensionFormatsAndDeduplicates()
+    {
+        await _runner.MigrateAsync();
+
+        var desktopJson = @"[
+  {
+    ""DisplayWord"": ""serendipity"",
+    ""Reading"": ""/ˌserənˈdɪpəti/"",
+    ""PartOfSpeech"": ""n."",
+    ""Definition"": ""意外发现珍奇事物的本领"",
+    ""MemoryHook"": ""serendip + ity"",
+    ""Occurrences"": [
+      {
+        ""SelectedText"": ""serendipity"",
+        ""Sentence"": ""It was pure serendipity."",
+        ""SelectionOffset"": 12,
+        ""ContextTranslation"": ""这完全是机缘巧合。"",
+        ""SourceProcess"": ""reader.exe"",
+        ""SourceWindowTitle"": ""Book"",
+        ""SourceUri"": ""https://example.com/1""
+      }
+    ]
+  }
+]";
+        var firstImport = await _repo.ImportWordsJsonAsync(desktopJson);
+        var duplicateImport = await _repo.ImportWordsJsonAsync(desktopJson);
+
+        Assert.Equal(1, firstImport);
+        Assert.Equal(0, duplicateImport);
+
+        var extensionBackupJson = @"{
+  ""version"": 1,
+  ""history"": [
+    {
+      ""word"": ""ephemeral"",
+      ""selection"": ""ephemeral"",
+      ""reading"": ""/ɪˈfemərəl/"",
+      ""partOfSpeech"": ""adj."",
+      ""definition"": ""短暂的；瞬息的"",
+      ""contextTranslation"": ""时尚是短暂的。"",
+      ""memoryHook"": ""e + phemer(day)"",
+      ""sentence"": ""Fashions are ephemeral."",
+      ""sentenceOffset"": 13,
+      ""pageUrl"": ""https://example.com/2"",
+      ""pageTitle"": ""Essay"",
+      ""source"": ""dict"",
+      ""timestamp"": 1720000000000
+    }
+  ]
+}";
+        var extImport = await _repo.ImportWordsJsonAsync(extensionBackupJson);
+        Assert.Equal(1, extImport);
+
+        var words = await _repo.GetWordsAsync();
+        Assert.Equal(2, words.Count);
+    }
+
+    [Fact]
     public async Task ExportWordsJsonAsync_ExportsOverTenThousandWordsWithAllContexts()
     {
         await _runner.MigrateAsync();

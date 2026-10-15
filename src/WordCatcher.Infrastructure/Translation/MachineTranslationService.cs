@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -100,10 +101,75 @@ public sealed class MachineTranslationService : IMachineTranslationService
             }
         }
 
-        var result = builder.ToString();
-        if (string.IsNullOrWhiteSpace(result))
+        var primary = builder.ToString().Trim();
+        var dictLines = TryParseGoogleDictionaryEntries(document.RootElement);
+        if (dictLines.Count > 0)
+        {
+            var dictSummary = string.Join("；", dictLines);
+            return string.IsNullOrWhiteSpace(primary)
+                ? dictSummary
+                : $"{primary}\n{dictSummary}";
+        }
+
+        if (string.IsNullOrWhiteSpace(primary))
             throw new InvalidOperationException("谷歌翻译未返回译文。");
-        return result;
+        return primary;
+    }
+
+    private static List<string> TryParseGoogleDictionaryEntries(JsonElement root)
+    {
+        var lines = new List<string>();
+        if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() <= 1 || root[1].ValueKind != JsonValueKind.Array)
+            return lines;
+
+        foreach (var posBlock in root[1].EnumerateArray())
+        {
+            if (posBlock.ValueKind != JsonValueKind.Array || posBlock.GetArrayLength() < 2)
+                continue;
+
+            var pos = posBlock[0].ValueKind == JsonValueKind.String ? posBlock[0].GetString()?.Trim() : null;
+            if (posBlock[1].ValueKind != JsonValueKind.Array)
+                continue;
+
+            var terms = new List<string>();
+            foreach (var termEl in posBlock[1].EnumerateArray())
+            {
+                if (termEl.ValueKind == JsonValueKind.String)
+                {
+                    var term = termEl.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(term))
+                    {
+                        terms.Add(term);
+                        if (terms.Count >= 4) break;
+                    }
+                }
+            }
+
+            if (terms.Count > 0)
+            {
+                var prefix = !string.IsNullOrWhiteSpace(pos) ? $"{AbbreviatePartOfSpeech(pos)} " : string.Empty;
+                lines.Add($"{prefix}{string.Join("，", terms)}");
+                if (lines.Count >= 3) break;
+            }
+        }
+
+        return lines;
+    }
+
+    private static string AbbreviatePartOfSpeech(string pos)
+    {
+        return pos.ToLowerInvariant() switch
+        {
+            "noun" => "n.",
+            "verb" => "v.",
+            "adjective" => "adj.",
+            "adverb" => "adv.",
+            "preposition" => "prep.",
+            "conjunction" => "conj.",
+            "pronoun" => "pron.",
+            "interjection" => "interj.",
+            _ => pos
+        };
     }
 
     private async Task<string> TranslateMicrosoftAsync(string text, string target, CancellationToken ct)

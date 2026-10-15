@@ -104,6 +104,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _closePopupAfterSave = true;
 
     [ObservableProperty]
+    private bool _closePopupOnDeactivate = true;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DraftStatusText))]
     private bool _hasUnsavedChanges;
     public string DraftStatusText => HasUnsavedChanges ? "有未保存的修改" : "设置已保存";
@@ -115,7 +118,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
         nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
-        nameof(ClosePopupAfterSave)
+        nameof(ClosePopupAfterSave), nameof(ClosePopupOnDeactivate)
     };
 
     private string EditorState() => JsonSerializer.Serialize(new
@@ -123,7 +126,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Hotkey, ExplainLanguage, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
         ActiveAiProfileId, AiProfileName, MachineTranslationProvider, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang, ClosePopupAfterSave,
-        Profiles = AiProfiles, Keys = _profileApiKeys
+        ClosePopupOnDeactivate, Profiles = AiProfiles, Keys = _profileApiKeys
     });
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -285,6 +288,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             AnkiTtsLang = s.Anki.TtsLang;
 
             ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
+            ClosePopupOnDeactivate = s.Ui.ClosePopupOnDeactivate;
 
             RefreshDictStatus();
             OnPropertyChanged(nameof(AppliedHotkey));
@@ -435,6 +439,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             s.Anki.TtsLang = AnkiTtsLang.Trim();
 
             s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
+            s.Ui.ClosePopupOnDeactivate = ClosePopupOnDeactivate;
 
             _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();
             if (_secretStore is IProfileSecretStore profileSecrets)

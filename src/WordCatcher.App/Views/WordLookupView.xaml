@@ -184,9 +184,9 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.ColumnSpan="2">
-                                    <TextBlock TextWrapping="Wrap" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+                                    <TextBlock TextWrapping="Wrap" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Georgia, Cambria, Microsoft YaHei UI, serif" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI, sans-serif" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <TextBlock Text="{Binding Reading}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"
+                                        <TextBlock Text="{Binding Reading}" FontFamily="Georgia, Cambria, Segoe UI, serif" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"
                                                    Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
                                         <TextBlock Text="{Binding PartOfSpeech}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource AccentBrush}"
                                                    Margin="12,0,0,0" Visibility="{Binding PartOfSpeech, Converter={StaticResource StringToVis}}" />
@@ -337,13 +337,13 @@
                                                        TextWrapping="Wrap" Margin="0,5,0,0" />
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="{StaticResource SubtleSurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" CornerRadius="0,8,8,0"
+                                    <Border Background="{StaticResource AmberHookSurfaceBrush}" BorderBrush="{StaticResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0"
                                             Padding="12,10" Margin="0,10,0,0" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                                         <StackPanel>
                                             <Grid>
-                                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                <TextBlock Text="💡 记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
                                                 <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" HorizontalAlignment="Right"
-                                                              Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextSecondaryBrush}"
+                                                              Background="Transparent" BorderThickness="0" Foreground="{StaticResource AmberHookLabelBrush}"
                                                               FontSize="{StaticResource CaptionFontSize}" Cursor="Hand" Padding="4,0">
                                                     <TextBlock>
                                                         <TextBlock.Style>
@@ -352,7 +352,7 @@
                                                     </TextBlock>
                                                 </ToggleButton>
                                             </Grid>
-                                            <TextBlock Text="{Binding MemoryHook}" FontSize="{StaticResource CaptionFontSize}" LineHeight="20" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,5,0,0">
+                                            <TextBlock Text="{Binding MemoryHook}" FontSize="{StaticResource CaptionFontSize}" LineHeight="20" Foreground="{StaticResource AmberHookTextBrush}" TextWrapping="Wrap" Margin="0,5,0,0">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock"><Setter Property="MaxHeight" Value="60" /><Style.Triggers><DataTrigger Binding="{Binding IsMemoryHookExpanded}" Value="True"><Setter Property="MaxHeight" Value="Infinity" /></DataTrigger></Style.Triggers></Style>
                                                 </TextBlock.Style>

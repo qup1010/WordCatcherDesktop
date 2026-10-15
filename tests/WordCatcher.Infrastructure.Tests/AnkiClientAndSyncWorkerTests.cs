@@ -109,6 +109,53 @@ public class AnkiClientAndSyncWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnkiConnectClient_AddNote_AppendsContextOnDuplicateWhenExistingNoteFound()
+    {
+        string? updatedPayload = null;
+        var handler = new MockHttpMessageHandler(async req =>
+        {
+            var content = await req.Content!.ReadAsStringAsync();
+            if (content.Contains("\"action\":\"deckNames\""))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"result\":[\"Word Catcher\",\"Word Catcher::Context\",\"Word Catcher::Recognition\",\"Word Catcher::Production\",\"Word Catcher::Listening\"],\"error\":null}") };
+            if (content.Contains("\"action\":\"modelNames\""))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"result\":[\"Word Catcher\"],\"error\":null}") };
+            if (content.Contains("\"action\":\"modelFieldNames\""))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"result\":[\"Word\",\"Reading\",\"PartOfSpeech\",\"Definition\",\"MemoryHook\",\"Sentence\",\"SentencePlain\",\"SentenceTranslation\",\"Source\"],\"error\":null}") };
+            if (content.Contains("\"action\":\"addNote\""))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"result\":null,\"error\":\"cannot create note because it is a duplicate\"}") };
+            if (content.Contains("\"action\":\"findNotes\""))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(
+                    content.Contains("wc-context-") ? "{\"result\":[],\"error\":null}" : "{\"result\":[98765],\"error\":null}") };
+            if (content.Contains("\"action\":\"notesInfo\""))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":[{\"noteId\":98765,\"fields\":{\"Sentence\":{\"value\":\"First <span class=\\\"wc-blank\\\">[…]</span>.\"},\"SentencePlain\":{\"value\":\"First test.\"},\"SentenceTranslation\":{\"value\":\"第一句。\"},\"Source\":{\"value\":\"Doc A\"}}}],\"error\":null}")
+                };
+            if (content.Contains("\"action\":\"updateNoteFields\""))
+            {
+                updatedPayload = content;
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"result\":null,\"error\":null}") };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"result\":null,\"error\":null}") };
+        });
+
+        var client = new HttpClient(handler);
+        var settings = new MemorySettingsService();
+        var anki = new AnkiConnectClient(client, settings);
+
+        var word = new Word { DisplayWord = "test", Reading = "/test/", Definition = "测试" };
+        var occ = new Occurrence { Sentence = "Second test.", SelectedText = "test", ContextTranslation = "第二句。", SourceWindowTitle = "Doc B" };
+
+        var noteId = await anki.AddNoteAsync(word, occ);
+        Assert.Equal(98765, noteId);
+        Assert.NotNull(updatedPayload);
+        using var payload = System.Text.Json.JsonDocument.Parse(updatedPayload);
+        Assert.Equal("First test.<br><br>Second test.",
+            payload.RootElement.GetProperty("params").GetProperty("note").GetProperty("fields").GetProperty("SentencePlain").GetString());
+    }
+
+    [Fact]
     public void BuildNoteFields_NormalizesReadingForAnkiTemplate()
     {
         var word = new Word { DisplayWord = "quick", Reading = "/kwɪk/", Definition = "快" };

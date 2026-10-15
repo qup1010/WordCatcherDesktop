@@ -27,8 +27,8 @@ public class LookupLayoutTests
 
                 Assert.Equal(72, handle.Width);
                 Assert.Equal(18, handle.Height);
-                Assert.Equal(Cursors.SizeAll, handle.Cursor);
-                Assert.Equal(Cursors.SizeAll, dragArea.Cursor);
+                Assert.Equal(Cursors.SizeAll.ToString(), handle.Cursor.ToString());
+                Assert.Equal(Cursors.SizeAll.ToString(), dragArea.Cursor.ToString());
                 Assert.DoesNotContain(speaker, Descendants(handle));
                 Assert.DoesNotContain(speaker, Descendants(dragArea));
             }

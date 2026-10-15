@@ -18,6 +18,7 @@ public sealed class AnkiConnectClient : IAnkiClient
     private readonly HttpClient _httpClient;
     private readonly ISettingsService _settingsService;
     private readonly ILogger<AnkiConnectClient>? _logger;
+    private string? _verifiedSchemaKey;
 
     private static readonly string[] AnkiFields =
     [
@@ -278,12 +279,18 @@ hr#answer {
                     $"Anki 笔记类型「{noteTypeName}」缺少字段：{string.Join("、", missingFields)}。为保护现有模板，应用未自动修改它；请新建 Word Catcher 专用笔记类型，或选择包含所需字段的笔记类型。");
             }
         }
+
+        _verifiedSchemaKey = BuildSchemaKey(settings);
     }
 
     public async Task<long> AddNoteAsync(Word word, Occurrence occurrence, CancellationToken ct = default)
     {
         var ankiSettings = _settingsService.Current.Anki;
-        await EnsureDeckAndModelAsync(ct).ConfigureAwait(false);
+        var schemaKey = BuildSchemaKey(ankiSettings);
+        if (!string.Equals(_verifiedSchemaKey, schemaKey, StringComparison.Ordinal))
+        {
+            await EnsureDeckAndModelAsync(ct).ConfigureAwait(false);
+        }
 
         var fields = BuildNoteFields(word, occurrence, ankiSettings.ClozeContext);
         var contextTag = "wc-context-" + occurrence.Id;
@@ -325,9 +332,103 @@ hr#answer {
         }
         catch (AnkiException ex) when (ex.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase))
         {
+            try
+            {
+                var updatedNoteId = await TryAppendContextToExistingNoteAsync(word, fields, ankiSettings, ct).ConfigureAwait(false);
+                if (updatedNoteId > 0)
+                {
+                    _logger?.LogInformation("Appended new context to existing Anki note {NoteId} for '{Word}'", updatedNoteId, word.DisplayWord);
+                    return updatedNoteId;
+                }
+            }
+            catch (Exception mergeEx)
+            {
+                _logger?.LogWarning(mergeEx, "Failed to append context to duplicate Anki note for '{Word}'", word.DisplayWord);
+            }
+
             _logger?.LogInformation("Note for '{Word}' is duplicate in Anki, treating as synced", word.DisplayWord);
             return 0; // Treated as synced
         }
+    }
+
+    private async Task<long> TryAppendContextToExistingNoteAsync(
+        Word word,
+        Dictionary<string, string> incomingFields,
+        AnkiSettings ankiSettings,
+        CancellationToken ct)
+    {
+        var escapedDeck = EscapeAnkiSearchTerm(ankiSettings.DeckName);
+        var escapedWord = EscapeAnkiSearchTerm(word.DisplayWord);
+        var query = $"\"deck:{escapedDeck}\" \"Word:{escapedWord}\"";
+
+        var noteIds = await InvokeAsync<List<long>>("findNotes", new { query }, ct).ConfigureAwait(false);
+        if (noteIds == null || noteIds.Count == 0)
+            return 0;
+
+        var existingNoteId = noteIds[0];
+        var notesInfo = await InvokeAsync<List<AnkiNoteInfo>>("notesInfo", new { notes = new[] { existingNoteId } }, ct).ConfigureAwait(false);
+        var existingFields = notesInfo != null && notesInfo.Count > 0 ? notesInfo[0].Fields : null;
+        if (existingFields == null)
+            return 0;
+
+        string GetExisting(string key) =>
+            existingFields.TryGetValue(key, out var val) && val?.Value != null ? val.Value : string.Empty;
+
+        var existingPlain = GetExisting("SentencePlain");
+        var incomingPlain = incomingFields.GetValueOrDefault("SentencePlain", string.Empty);
+
+        var updatedFields = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(incomingPlain) && !existingPlain.Contains(incomingPlain, StringComparison.Ordinal))
+        {
+            updatedFields["Sentence"] = AppendHtmlBlock(GetExisting("Sentence"), incomingFields.GetValueOrDefault("Sentence", string.Empty));
+            updatedFields["SentencePlain"] = AppendHtmlBlock(existingPlain, incomingPlain);
+            updatedFields["SentenceTranslation"] = AppendHtmlBlock(GetExisting("SentenceTranslation"), incomingFields.GetValueOrDefault("SentenceTranslation", string.Empty));
+            updatedFields["Source"] = AppendHtmlBlock(GetExisting("Source"), incomingFields.GetValueOrDefault("Source", string.Empty));
+        }
+
+        if (string.IsNullOrWhiteSpace(GetExisting("Reading")) && !string.IsNullOrWhiteSpace(incomingFields.GetValueOrDefault("Reading")))
+            updatedFields["Reading"] = incomingFields["Reading"];
+
+        if (string.IsNullOrWhiteSpace(GetExisting("PartOfSpeech")) && !string.IsNullOrWhiteSpace(incomingFields.GetValueOrDefault("PartOfSpeech")))
+            updatedFields["PartOfSpeech"] = incomingFields["PartOfSpeech"];
+
+        if (string.IsNullOrWhiteSpace(GetExisting("MemoryHook")) && !string.IsNullOrWhiteSpace(incomingFields.GetValueOrDefault("MemoryHook")))
+            updatedFields["MemoryHook"] = incomingFields["MemoryHook"];
+
+        if (updatedFields.Count > 0)
+        {
+            await InvokeAsync<object>("updateNoteFields", new
+            {
+                note = new
+                {
+                    id = existingNoteId,
+                    fields = updatedFields
+                }
+            }, ct).ConfigureAwait(false);
+        }
+
+        return existingNoteId;
+    }
+
+    private static string AppendHtmlBlock(string existingValue, string newValue)
+    {
+        var left = (existingValue ?? string.Empty).Trim();
+        var right = (newValue ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(right)) return left;
+        if (string.IsNullOrEmpty(left) || string.Equals(left, right, StringComparison.Ordinal)) return right;
+        return $"{left}<br><br>{right}";
+    }
+
+    private static string EscapeAnkiSearchTerm(string value)
+    {
+        return (value ?? string.Empty)
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+
+    private static string BuildSchemaKey(AnkiSettings settings)
+    {
+        return $"{settings.Url}|{settings.DeckName}|{settings.NoteTypeName}|{settings.TtsLang}";
     }
 
     private async Task RouteCardsToModeDecksAsync(long noteId, string deckName, CancellationToken ct)
@@ -418,7 +519,7 @@ hr#answer {
 {{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">&#x1F4A1; 记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}"),
 
             new("Listening",
-                "<div class=\"wc-tts\">{{tts " + ttsLang + @":Word}}</div>\n<div class=""wc-listen-hint"">听音</div>",
+                "<div class=\"wc-tts\">{{tts " + ttsLang + ":Word}}</div>\n<div class=\"wc-listen-hint\">听音</div>",
                 @"{{FrontSide}}
 <hr id=answer>
 <div class=""wc-word"">{{Word}}{{#Reading}} <span class=""wc-reading"">{{Reading}}</span>{{/Reading}}</div>
@@ -504,6 +605,21 @@ hr#answer {
 
         [JsonPropertyName("ord")]
         public int Ord { get; set; }
+    }
+
+    private sealed class AnkiNoteInfo
+    {
+        [JsonPropertyName("noteId")]
+        public long NoteId { get; set; }
+
+        [JsonPropertyName("fields")]
+        public Dictionary<string, AnkiFieldValue>? Fields { get; set; }
+    }
+
+    private sealed class AnkiFieldValue
+    {
+        [JsonPropertyName("value")]
+        public string? Value { get; set; }
     }
 }
 

@@ -5,20 +5,20 @@
         <ui:ThemesDictionary Theme="Light" />
         <ui:ControlsDictionary />
     </ResourceDictionary.MergedDictionaries>
-    <SolidColorBrush x:Key="CanvasBrush" Color="#F7F9F8" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F1F5F4" />
-    <SolidColorBrush x:Key="BorderBrush" Color="#E2E9E7" />
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#172329" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#566976" />
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#657984" />
+    <SolidColorBrush x:Key="CanvasBrush" Color="#FAF8F3" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFEFB" />
+    <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F3EFE6" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#E6E0D3" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1E1B16" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5C554B" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#8C8478" />
     <SolidColorBrush x:Key="AccentBrush" Color="#0F766E" />
     <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="AccentSubtleBrush" Color="#E8F3EF" />
     <SolidColorBrush x:Key="FocusBrush" Color="#168C82" />
-    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#F1F5F4" />
+    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#F3EFE6" />
     <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#E8F3EF" />
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#C9D9D7" />
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#D5CEC0" />
     <SolidColorBrush x:Key="DangerBrush" Color="#A43739" />
     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#FEF2F2" />
     <SolidColorBrush x:Key="DangerBorderBrush" Color="#FECACA" />
@@ -26,6 +26,10 @@
     <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#FAF5ED" />
     <SolidColorBrush x:Key="WarningBorderBrush" Color="#E8BD7C" />
     <SolidColorBrush x:Key="WarningTextBrush" Color="#786D5E" />
+    <SolidColorBrush x:Key="AmberHookSurfaceBrush" Color="#FAF3E4" />
+    <SolidColorBrush x:Key="AmberHookBorderBrush" Color="#B45309" />
+    <SolidColorBrush x:Key="AmberHookLabelBrush" Color="#92400E" />
+    <SolidColorBrush x:Key="AmberHookTextBrush" Color="#635B4F" />
 
     <SolidColorBrush x:Key="TextControlFocusedBorderBrush" Color="#168C82" />
     <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="#0F766E" />

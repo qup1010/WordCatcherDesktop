@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -170,7 +171,18 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
                 return (word, saved!, job);
             }
             var preservedEdits = existingEdits == null ? null : JsonSerializer.Deserialize<LearningEdits>(existingEdits);
-            var occurrenceId = existingId ?? Guid.NewGuid().ToString("N");
+            var occurrenceId = existingId ?? command.OccurrenceId ?? Guid.NewGuid().ToString("N");
+            if (existingId == null && command.OccurrenceId != null)
+            {
+                if (!Guid.TryParse(command.OccurrenceId, out _))
+                    throw new ArgumentException("语境标识不是有效的 GUID。", nameof(command));
+                await using var check = connection.CreateCommand();
+                check.Transaction = transaction;
+                check.CommandText = "SELECT COUNT(*) FROM occurrences WHERE id = $id;";
+                check.Parameters.AddWithValue("$id", occurrenceId);
+                if (Convert.ToInt64(await check.ExecuteScalarAsync(ct).ConfigureAwait(false)) > 0)
+                    throw new InvalidOperationException("语境标识已被另一条记录使用。");
+            }
             var occurrence = new Occurrence
             {
                 Id = occurrenceId,
@@ -492,6 +504,231 @@ UPDATE sync_jobs SET status = 'Pending', attempts = 0, last_error = '', next_att
         return JsonSerializer.Serialize(exportList, new JsonSerializerOptions { WriteIndented = true });
     }
 
+    public async Task<int> ImportWordsJsonAsync(string json, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            throw new ArgumentException("备份内容为空。", nameof(json));
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        JsonElement itemsArray;
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            itemsArray = root;
+        }
+        else if (root.ValueKind == JsonValueKind.Object && TryGetPropertyIgnoreCase(root, "history", out var historyEl) && historyEl.ValueKind == JsonValueKind.Array)
+        {
+            itemsArray = historyEl;
+        }
+        else if (root.ValueKind == JsonValueKind.Object && TryGetPropertyIgnoreCase(root, "words", out var wordsEl) && wordsEl.ValueKind == JsonValueKind.Array)
+        {
+            itemsArray = wordsEl;
+        }
+        else
+        {
+            throw new InvalidOperationException("不支持的 JSON 备份结构。");
+        }
+
+        var importedCount = 0;
+
+        foreach (var item in itemsArray.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+                continue;
+
+            var displayWord = GetStringIgnoreCase(item, "DisplayWord", "word", "Word")?.Trim();
+            var definition = GetStringIgnoreCase(item, "Definition", "definition")?.Trim();
+            if (string.IsNullOrWhiteSpace(displayWord) || string.IsNullOrWhiteSpace(definition))
+                continue;
+
+            var reading = GetStringIgnoreCase(item, "Reading", "reading") ?? string.Empty;
+            var pos = GetStringIgnoreCase(item, "PartOfSpeech", "partOfSpeech") ?? string.Empty;
+            var memoryHook = GetStringIgnoreCase(item, "MemoryHook", "memoryHook");
+
+            var existingWord = await FindWordAsync(displayWord, ct).ConfigureAwait(false);
+            var existingOccurrences = existingWord != null
+                ? await GetOccurrencesByWordIdAsync(existingWord.Id, ct).ConfigureAwait(false)
+                : Array.Empty<Occurrence>();
+
+            if (TryGetPropertyIgnoreCase(item, "Occurrences", out var occArray) && occArray.ValueKind == JsonValueKind.Array && occArray.GetArrayLength() > 0)
+            {
+                foreach (var occEl in occArray.EnumerateArray())
+                {
+                    if (occEl.ValueKind != JsonValueKind.Object)
+                        continue;
+
+                    var selectedText = GetStringIgnoreCase(occEl, "SelectedText", "selection") ?? displayWord;
+                    var sentence = GetStringIgnoreCase(occEl, "Sentence", "sentence") ?? selectedText;
+                    var offset = GetIntIgnoreCase(occEl, "SelectionOffset", "sentenceOffset") ?? -1;
+                    var contextTrans = GetStringIgnoreCase(occEl, "ContextTranslation", "contextTranslation") ?? string.Empty;
+                    var sourceProc = GetStringIgnoreCase(occEl, "SourceProcess") ?? "Import";
+                    var sourceTitle = GetStringIgnoreCase(occEl, "SourceWindowTitle", "pageTitle") ?? string.Empty;
+                    var sourceUri = GetStringIgnoreCase(occEl, "SourceUri", "pageUrl") ?? string.Empty;
+                    var lookupSourceStr = GetStringIgnoreCase(occEl, "LookupSource", "source");
+                    var capturedAt = GetDateTimeIgnoreCase(occEl, "CapturedAtUtc", "timestamp") ?? DateTimeOffset.UtcNow;
+
+                    if (existingOccurrences.Any(o =>
+                            string.Equals(o.SelectedText, selectedText, StringComparison.Ordinal) &&
+                            o.SelectionOffset == offset &&
+                            string.Equals(o.Sentence, sentence, StringComparison.Ordinal) &&
+                            string.Equals(o.SourceUri, sourceUri, StringComparison.Ordinal)))
+                    {
+                        continue;
+                    }
+
+                    var capture = new CaptureResult(
+                        selectedText,
+                        sourceProc,
+                        sourceTitle,
+                        new ScreenPoint(0, 0),
+                        capturedAt,
+                        Sentence: sentence,
+                        SentenceOffset: offset,
+                        SourceUri: sourceUri);
+
+                    var trans = new TranslationResult(
+                        displayWord,
+                        reading,
+                        pos,
+                        definition,
+                        contextTrans,
+                        memoryHook,
+                        ParseLookupSource(lookupSourceStr),
+                        GetStringIgnoreCase(occEl, "SourceEntryId"),
+                        GetStringIgnoreCase(occEl, "SourceSchemaVersion"));
+
+                    if (TryGetPropertyIgnoreCase(occEl, "LearningResult", out var learningEl)
+                        && learningEl.ValueKind == JsonValueKind.Object)
+                    {
+                        trans = JsonSerializer.Deserialize<TranslationResult>(learningEl.GetRawText(),
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? trans;
+                    }
+                    var edits = TryGetPropertyIgnoreCase(occEl, "Edits", out var editsEl)
+                        && editsEl.ValueKind == JsonValueKind.Object
+                        ? JsonSerializer.Deserialize<LearningEdits>(editsEl.GetRawText(),
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) : null;
+                    await SaveAsync(new SaveCardCommand(capture, trans, edits), ct).ConfigureAwait(false);
+                    importedCount++;
+                }
+            }
+            else
+            {
+                // Browser extension flat history item or word without occurrences
+                var selectedText = GetStringIgnoreCase(item, "selection", "SelectedText") ?? displayWord;
+                var sentence = GetStringIgnoreCase(item, "sentence", "Sentence") ?? selectedText;
+                var offset = GetIntIgnoreCase(item, "sentenceOffset", "SelectionOffset") ?? -1;
+                var contextTrans = GetStringIgnoreCase(item, "contextTranslation", "ContextTranslation") ?? string.Empty;
+                var sourceTitle = GetStringIgnoreCase(item, "pageTitle", "SourceWindowTitle") ?? "Browser";
+                var sourceUri = GetStringIgnoreCase(item, "pageUrl", "SourceUri") ?? string.Empty;
+                var lookupSourceStr = GetStringIgnoreCase(item, "source", "LookupSource");
+                var capturedAt = GetDateTimeIgnoreCase(item, "timestamp", "CapturedAtUtc") ?? DateTimeOffset.UtcNow;
+
+                if (existingOccurrences.Any(o =>
+                        string.Equals(o.SelectedText, selectedText, StringComparison.Ordinal) &&
+                        o.SelectionOffset == offset &&
+                        string.Equals(o.Sentence, sentence, StringComparison.Ordinal) &&
+                        string.Equals(o.SourceUri, sourceUri, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                var capture = new CaptureResult(
+                    selectedText,
+                    "BrowserExtension",
+                    sourceTitle,
+                    new ScreenPoint(0, 0),
+                    capturedAt,
+                    Sentence: sentence,
+                    SentenceOffset: offset,
+                    SourceUri: sourceUri);
+
+                var trans = new TranslationResult(
+                    displayWord,
+                    reading,
+                    pos,
+                    definition,
+                    contextTrans,
+                    memoryHook,
+                    ParseLookupSource(lookupSourceStr),
+                    null,
+                    null);
+
+                await SaveAsync(new SaveCardCommand(capture, trans), ct).ConfigureAwait(false);
+                importedCount++;
+            }
+        }
+
+        return importedCount;
+    }
+
+    private static bool TryGetPropertyIgnoreCase(JsonElement element, string name, out JsonElement value)
+    {
+        foreach (var prop in element.EnumerateObject())
+        {
+            if (string.Equals(prop.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = prop.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static string? GetStringIgnoreCase(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (TryGetPropertyIgnoreCase(element, name, out var prop) && prop.ValueKind == JsonValueKind.String)
+                return prop.GetString();
+        }
+        return null;
+    }
+
+    private static int? GetIntIgnoreCase(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (TryGetPropertyIgnoreCase(element, name, out var prop) && prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var val))
+                return val;
+        }
+        return null;
+    }
+
+    private static DateTimeOffset? GetDateTimeIgnoreCase(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!TryGetPropertyIgnoreCase(element, name, out var prop))
+                continue;
+
+            if (prop.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(prop.GetString(), out var dt))
+                return dt;
+
+            if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt64(out var unixMs))
+                return DateTimeOffset.FromUnixTimeMilliseconds(unixMs);
+        }
+        return null;
+    }
+
+    private static LookupSource ParseLookupSource(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+            return LookupSource.OpenDictionary;
+
+        if (Enum.TryParse<LookupSource>(source, ignoreCase: true, out var parsed))
+            return parsed;
+
+        return source.ToLowerInvariant() switch
+        {
+            "ai" => LookupSource.Ai,
+            "mt" => LookupSource.MachineTranslation,
+            _ => LookupSource.OpenDictionary
+        };
+    }
+
     public async Task<IReadOnlyList<SyncJob>> GetSyncJobsAsync(CancellationToken ct = default)
     {
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
@@ -502,7 +739,7 @@ SELECT j.id, j.word_id, j.occurrence_id, j.target, j.status, j.attempts, j.last_
        o.id, o.word_id, o.selected_text, o.sentence, o.selection_offset, o.context_translation, o.source_process, o.source_window_title, o.source_uri, o.lookup_source, o.source_entry_id, o.source_schema_version, o.captured_at_utc, o.learning_json, o.user_edits_json, j.revision
 FROM sync_jobs j
 INNER JOIN words w ON j.word_id = w.id
-INNER JOIN occurrences o ON j.occurrence_id = o.id
+INNER JOIN occurrences o ON j.word_id = o.word_id AND j.occurrence_id = o.id
 WHERE w.deleted_at_utc IS NULL
 ORDER BY j.created_at_utc DESC;";
 

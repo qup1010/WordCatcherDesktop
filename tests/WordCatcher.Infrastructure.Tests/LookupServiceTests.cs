@@ -62,8 +62,57 @@ public sealed class LookupServiceTests
         Assert.Equal(0, ai.CallCount);
     }
 
+    [Fact]
+    public async Task ForceAi_CachesRepeatedLookupsAndBackfillsMemoryHookFromOfflineDictionary()
+    {
+        var offline = new FakeOfflineDictionary
+        {
+            Result = CreateResult(LookupSource.OpenDictionary) with { MemoryHook = "词根：quick（快）" }
+        };
+        var ai = new FakeTranslationService
+        {
+            Result = CreateResult(LookupSource.Ai) with { MemoryHook = null }
+        };
+        var service = new LookupService(offline, ai);
+        var capture = CreateCapture("quick");
+
+        var first = await service.LookupAsync(capture, forceAi: true);
+        var second = await service.LookupAsync(capture, forceAi: true);
+
+        Assert.Equal(LookupSource.Ai, first.Source);
+        Assert.Equal("词根：quick（快）", first.MemoryHook);
+        Assert.Equal("词根：quick（快）", second.MemoryHook);
+        Assert.Equal(1, ai.CallCount);
+    }
+
     private static CaptureResult CreateCapture(string text) =>
         new(text, "test.exe", "Test", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
+
+    [Fact]
+    public async Task StreamingLookupDelegatesCacheAndRegenerationToTranslationService()
+    {
+        var ai = new StreamingTranslationService();
+        var service = new LookupService(new FakeOfflineDictionary(), ai);
+        var progress = new Progress<TranslationResult>();
+        var capture = CreateCapture("quick");
+        await service.LookupStreamingAsync(capture, true, progress);
+        await service.LookupStreamingAsync(capture, true, progress, bypassCache: true);
+        await service.LookupStreamingAsync(capture, true, progress);
+        Assert.Equal(new[] { false, true, false }, ai.BypassValues);
+    }
+
+    private sealed class StreamingTranslationService : IStreamingTranslationService
+    {
+        public List<bool> BypassValues { get; } = new();
+        public Task<TranslationResult> TranslateAsync(CaptureResult capture, CancellationToken ct = default)
+            => throw new InvalidOperationException("Expected streaming path.");
+        public Task<TranslationResult> TranslateStreamingAsync(CaptureResult capture,
+            IProgress<TranslationResult> progress, bool bypassCache = false, CancellationToken ct = default)
+        {
+            BypassValues.Add(bypassCache);
+            return Task.FromResult(CreateResult(LookupSource.Ai));
+        }
+    }
 
     private static TranslationResult CreateResult(LookupSource source) =>
         new("quick", "/kwɪk/", "adj.", "快速的", string.Empty, null, source, null, null);
