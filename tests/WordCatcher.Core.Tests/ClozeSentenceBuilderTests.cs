@@ -58,4 +58,16 @@ public class ClozeSentenceBuilderTests
         var outStr = ClozeSentenceBuilder.EscapeHtml("Use <script>alert(1)</script> & carefully.");
         Assert.Equal("Use &lt;script&gt;alert(1)&lt;/script&gt; &amp; carefully.", outStr);
     }
+
+    [Fact]
+    public void SentenceExtractor_PreservesAbbreviationsAndDecimalsInAcademicText()
+    {
+        const string paragraph = "First sentence. Dr. Smith et al. (e.g. in Fig. 1) showed the ratio reached 3.14 during the surge. Next sentence.";
+        var target = "surge";
+        var idx = paragraph.IndexOf(target, System.StringComparison.Ordinal);
+
+        var extracted = SentenceExtractor.Extract(paragraph, idx, target.Length);
+        Assert.Equal("Dr. Smith et al. (e.g. in Fig. 1) showed the ratio reached 3.14 during the surge.", extracted.Sentence);
+        Assert.Equal("surge", extracted.Sentence.Substring(extracted.Offset, target.Length));
+    }
 }

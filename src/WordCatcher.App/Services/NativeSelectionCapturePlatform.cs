@@ -1,10 +1,12 @@
-using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
 using WordCatcher.App.Interop;
+using WordCatcher.Core.Algorithms;
 using WordCatcher.Core.Models;
 
 namespace WordCatcher.App.Services;
@@ -12,6 +14,34 @@ namespace WordCatcher.App.Services;
 internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
 {
     private static readonly SemaphoreSlim UiaLock = new(1, 1);
+    private static readonly BlockingCollection<Action> StaWorkQueue = new();
+    private static readonly Thread StaWorkerThread = CreatePersistentStaWorker();
+
+    private static Thread CreatePersistentStaWorker()
+    {
+        var thread = new Thread(() =>
+        {
+            foreach (var work in StaWorkQueue.GetConsumingEnumerable())
+            {
+                try
+                {
+                    work();
+                }
+                catch
+                {
+                    // Individual tasks capture their own exceptions into TaskCompletionSource.
+                }
+            }
+        })
+        {
+            Name = "WordCatcher_Capture_STA",
+            IsBackground = true
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        return thread;
+    }
+
     public uint ClipboardSequence => NativeMethods.GetClipboardSequenceNumber();
 
     public CaptureSource GetSource()
@@ -160,24 +190,42 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
         }
     }
 
-
     private static Task<T> ExecuteInStaAsync<T>(Func<T> action)
     {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var thread = new Thread(() =>
+        if (StaWorkerThread.IsAlive)
         {
-            try
+            StaWorkQueue.Add(() =>
             {
-                tcs.SetResult(action());
-            }
-            catch (Exception ex)
+                try
+                {
+                    tcs.SetResult(action());
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+        }
+        else
+        {
+            var fallbackThread = new Thread(() =>
             {
-                tcs.SetException(ex);
-            }
-        });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.IsBackground = true;
-        thread.Start();
+                try
+                {
+                    tcs.SetResult(action());
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            })
+            {
+                IsBackground = true
+            };
+            fallbackThread.SetApartmentState(ApartmentState.STA);
+            fallbackThread.Start();
+        }
         return tcs.Task;
     }
 
@@ -188,31 +236,7 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
 
     internal static SelectionSnapshot ExtractSentence(string paragraph, int selectionOffset, int selectionLength)
     {
-        var from = selectionOffset;
-        while (from > 0 && !IsSentenceBoundary(paragraph[from - 1]))
-            from--;
-
-        var to = selectionOffset + selectionLength;
-        while (to < paragraph.Length && !IsSentenceBoundary(paragraph[to]))
-            to++;
-        if (to < paragraph.Length)
-            to++;
-
-        var sentence = NormalizeWhitespace(paragraph[from..to]).Trim();
-        var prefix = NormalizeWhitespace(paragraph[from..selectionOffset]);
-        var offset = prefix.Length;
-        if (offset > 0
-            && selectionOffset > from
-            && char.IsWhiteSpace(paragraph[selectionOffset - 1])
-            && offset < sentence.Length)
-        {
-            offset++;
-        }
-        return new SelectionSnapshot(paragraph.Substring(selectionOffset, selectionLength).Trim(), sentence, offset);
+        var (text, sentence, offset) = SentenceExtractor.Extract(paragraph, selectionOffset, selectionLength);
+        return new SelectionSnapshot(text, sentence, offset);
     }
-
-    private static bool IsSentenceBoundary(char value)
-        => value is '.' or '!' or '?' or '。' or '！' or '？' or '；' or ';';
-
-
 }
