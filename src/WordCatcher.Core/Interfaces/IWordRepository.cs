@@ -20,6 +20,7 @@ public interface IWordRepository
     Task UpdateWordAsync(Word word, CancellationToken ct = default);
     Task DeleteWordAsync(string wordId, CancellationToken ct = default);
     Task<string> ExportWordsJsonAsync(CancellationToken ct = default);
+    Task<int> ImportWordsJsonAsync(string json, CancellationToken ct = default);
     Task<IReadOnlyList<SyncJob>> GetSyncJobsAsync(CancellationToken ct = default);
     Task<SyncJob?> GetSyncJobByIdAsync(string id, CancellationToken ct = default);
     Task UpdateSyncJobAsync(SyncJob job, CancellationToken ct = default);

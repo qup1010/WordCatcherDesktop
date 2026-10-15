@@ -33,6 +33,7 @@ public partial class App : System.Windows.Application
     private HotkeyManager? _hotkeyManager;
     private TrayIconManager? _trayManager;
     private AnkiSyncWorker? _syncWorker;
+    private LocalBridgeServer? _bridgeServer;
     private LibraryWindow? _libraryWindow;
     private LookupWindow? _activeLookupWindow;
 
@@ -74,9 +75,12 @@ public partial class App : System.Windows.Application
             await migrator.MigrateAsync().ConfigureAwait(true);
             _logger.LogInformation("Database migration completed");
 
-            // 4. Start Anki Background Sync Worker
+            // 4. Start Anki Background Sync Worker & Browser Extension Local Bridge
             _syncWorker = _serviceProvider.GetRequiredService<AnkiSyncWorker>();
             _syncWorker.Start();
+
+            _bridgeServer = _serviceProvider.GetRequiredService<LocalBridgeServer>();
+            _bridgeServer.Start();
 
             // 5. Initialize Services & Tray
             _hotkeyManager = _serviceProvider.GetRequiredService<HotkeyManager>();
@@ -153,10 +157,11 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IMachineTranslationService, MachineTranslationService>();
         services.AddSingleton<ILookupService, LookupService>();
 
-        // Anki Sync
+        // Anki Sync & Browser Bridge
         services.AddSingleton<IAnkiClient, AnkiConnectClient>();
         services.AddSingleton<AnkiSyncWorker>();
         services.AddSingleton<IAnkiSyncQueue>(sp => sp.GetRequiredService<AnkiSyncWorker>());
+        services.AddSingleton<LocalBridgeServer>();
 
         // Win32 Capture & Hotkey & Tray
         services.AddSingleton<ISelectionCaptureService, SelectionCaptureService>();
@@ -214,7 +219,8 @@ public partial class App : System.Windows.Application
         }
 
         var vm = _serviceProvider!.GetRequiredService<LookupViewModel>();
-        var lookupWindow = new LookupWindow(vm);
+        var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+        var lookupWindow = new LookupWindow(vm, settingsService);
         _activeLookupWindow = lookupWindow;
         lookupWindow.Closed += (_, _) =>
         {
@@ -247,6 +253,7 @@ public partial class App : System.Windows.Application
 
         _hotkeyManager?.Dispose();
         _trayManager?.Dispose();
+        _bridgeServer?.Dispose();
         _syncWorker?.Dispose();
 
         if (_ownsSingleInstanceMutex && _singleInstanceMutex != null)

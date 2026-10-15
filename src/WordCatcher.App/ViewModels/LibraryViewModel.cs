@@ -362,4 +362,37 @@ public sealed partial class LibraryViewModel : ObservableObject
             finally { IsExporting = false; }
         }
     }
+
+    [RelayCommand]
+    private async Task ImportJsonAsync()
+    {
+        var ofd = new OpenFileDialog
+        {
+            Filter = "JSON 备份文件 (*.json)|*.json",
+            Title = "导入词库或浏览器插件备份"
+        };
+
+        if (ofd.ShowDialog() == true)
+        {
+            IsExporting = true;
+            StatusMessage = "正在导入词库备份…";
+            try
+            {
+                var json = await File.ReadAllTextAsync(ofd.FileName).ConfigureAwait(true);
+                var count = await _wordRepository.ImportWordsJsonAsync(json).ConfigureAwait(true);
+                await LoadWordsAsync().ConfigureAwait(true);
+                StatusMessage = count > 0
+                    ? $"成功导入 {count} 条词条/语境记录。"
+                    : "备份文件已解析，未发现新的词条或语境。";
+            }
+            catch (Exception)
+            {
+                StatusMessage = "导入失败，请确认所选文件是有效的 JSON 备份。";
+            }
+            finally
+            {
+                IsExporting = false;
+            }
+        }
+    }
 }
