@@ -1,13 +1,16 @@
 using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using TextBox = System.Windows.Controls.TextBox;
 using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
-using TextBox = System.Windows.Controls.TextBox;
 
 namespace WordCatcher.App.Windows;
 
@@ -18,6 +21,45 @@ public partial class LibraryWindow : Window
     private readonly SettingsViewModel _settingsVm;
     private readonly WordLookupViewModel? _lookupVm;
     private readonly DispatcherTimer _syncRefreshTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+
+    private const int MonitorDefaultToNearest = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Win32Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Win32Rect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public Win32Rect Monitor;
+        public Win32Rect WorkArea;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorInfo lpmi);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetClientRect(IntPtr hWnd, out Win32Rect lpRect);
+
+    [DllImport("user32.dll")]
+    private static extern bool ClientToScreen(IntPtr hWnd, ref Win32Point lpPoint);
 
     public LibraryWindow(
         LibraryViewModel libraryVm,
@@ -73,14 +115,20 @@ public partial class LibraryWindow : Window
                 Background = System.Windows.Media.Brushes.Transparent;
                 TitleBar.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(221, 242, 247, 245));
             }
+            UpdateWindowStateVisuals();
         };
         UpdateNavigationSelection();
         StateChanged += (_, _) =>
         {
-            var maximized = WindowState == WindowState.Maximized;
-            MaximizeGlyph.Text = maximized ? "\uE923" : "\uE922";
-            MaximizeButton.ToolTip = maximized ? "还原" : "最大化";
-            System.Windows.Automation.AutomationProperties.SetName(MaximizeButton, maximized ? "还原" : "最大化");
+            UpdateWindowStateVisuals();
+            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(UpdateWindowStateVisuals));
+        };
+        SizeChanged += (_, _) =>
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                UpdateWindowStateVisuals();
+            }
         };
         Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
         IsVisibleChanged += (_, _) =>
@@ -122,6 +170,43 @@ public partial class LibraryWindow : Window
                     _libraryVm.SaveEditCommand.Execute(null);
                 e.Handled = true;
             }
+            if (MainTabs.SelectedItem == LibraryTab && _libraryVm.IsReviewMode && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                var focused = Keyboard.FocusedElement as DependencyObject;
+                if (focused is not TextBox)
+                {
+                    if (e.Key == Key.Space)
+                    {
+                        _libraryVm.ToggleAnswerCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    if (e.Key is Key.Right or Key.J)
+                    {
+                        _libraryVm.NextReviewCardCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    if (e.Key is Key.Left or Key.K)
+                    {
+                        _libraryVm.PrevReviewCardCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    if (e.Key == Key.P)
+                    {
+                        _libraryVm.SpeakWordCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    if (e.Key == Key.Escape)
+                    {
+                        _libraryVm.ExitReviewCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
             if (e.Key == Key.Escape && MainTabs.SelectedItem == LibraryTab && _libraryVm.IsEditing)
             {
                 if (_libraryVm.CancelEditCommand.CanExecute(null)) _libraryVm.CancelEditCommand.Execute(null);
@@ -136,8 +221,74 @@ public partial class LibraryWindow : Window
         };
     }
 
+    private void UpdateWindowStateVisuals()
+    {
+        var maximized = WindowState == WindowState.Maximized;
+        MaximizeGlyph.Text = maximized ? "\uE923" : "\uE922";
+        MaximizeButton.ToolTip = maximized ? "向下还原" : "最大化";
+        System.Windows.Automation.AutomationProperties.SetName(MaximizeButton, maximized ? "向下还原" : "最大化");
+
+        if (RootLayoutGrid == null) return;
+
+        if (!maximized)
+        {
+            RootLayoutGrid.Margin = new Thickness(0);
+            RootLayoutGrid.MaxWidth = double.PositiveInfinity;
+            RootLayoutGrid.MaxHeight = double.PositiveInfinity;
+            return;
+        }
+
+        // Compensate for the Win32 maximized border overhang so the top-right
+        // caption buttons (Minimize / Maximize / Close) never clip off-screen.
+        var fallbackBorder = SystemParameters.WindowResizeBorderThickness;
+        var margin = new Thickness(
+            Math.Max(6, fallbackBorder.Left + 4),
+            Math.Max(6, fallbackBorder.Top + 4),
+            Math.Max(6, fallbackBorder.Right + 4),
+            Math.Max(6, fallbackBorder.Bottom + 4));
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd != IntPtr.Zero && GetClientRect(hwnd, out var clientRect))
+        {
+            var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+            var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+            if (monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref monitorInfo))
+            {
+                var topLeft = new Win32Point { X = clientRect.Left, Y = clientRect.Top };
+                var bottomRight = new Win32Point { X = clientRect.Right, Y = clientRect.Bottom };
+                ClientToScreen(hwnd, ref topLeft);
+                ClientToScreen(hwnd, ref bottomRight);
+
+                var dpi = VisualTreeHelper.GetDpi(this);
+                var scaleX = dpi.DpiScaleX > 0 ? dpi.DpiScaleX : 1.0;
+                var scaleY = dpi.DpiScaleY > 0 ? dpi.DpiScaleY : 1.0;
+
+                var leftOverhang = Math.Max(0, monitorInfo.WorkArea.Left - topLeft.X) / scaleX;
+                var topOverhang = Math.Max(0, monitorInfo.WorkArea.Top - topLeft.Y) / scaleY;
+                var rightOverhang = Math.Max(0, bottomRight.X - monitorInfo.WorkArea.Right) / scaleX;
+                var bottomOverhang = Math.Max(0, bottomRight.Y - monitorInfo.WorkArea.Bottom) / scaleY;
+
+                if (leftOverhang > 0 || topOverhang > 0 || rightOverhang > 0 || bottomOverhang > 0)
+                {
+                    margin = new Thickness(leftOverhang, topOverhang, rightOverhang, bottomOverhang);
+                }
+
+                var workWidthDip = (monitorInfo.WorkArea.Right - monitorInfo.WorkArea.Left) / scaleX;
+                var workHeightDip = (monitorInfo.WorkArea.Bottom - monitorInfo.WorkArea.Top) / scaleY;
+                if (workWidthDip > 0 && workHeightDip > 0)
+                {
+                    RootLayoutGrid.MaxWidth = workWidthDip;
+                    RootLayoutGrid.MaxHeight = workHeightDip;
+                }
+            }
+        }
+
+        RootLayoutGrid.Margin = margin;
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        UpdateWindowStateVisuals();
         UpdateSyncRefreshTimer();
         await _libraryVm.InitializeAsync();
         await _syncVm.InitializeAsync();

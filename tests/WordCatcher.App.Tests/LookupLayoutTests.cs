@@ -9,6 +9,7 @@ using WordCatcher.App.Windows;
 
 namespace WordCatcher.App.Tests;
 
+[Collection("Application resource rendering")]
 public class LookupLayoutTests
 {
     [Fact]

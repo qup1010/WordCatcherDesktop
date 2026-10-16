@@ -50,7 +50,7 @@
         <Grid Margin="0,0,0,18">
             <StackPanel>
                 <TextBlock Text="查词" Style="{StaticResource PageTitleStyle}" />
-                <TextBlock Text="输入单词、短语或句子，查看释义与翻译。"
+                <TextBlock Text="输入单词、短语或句子，查看释义与语境解析"
                            Style="{StaticResource PageSubtitleStyle}" />
             </StackPanel>
         </Grid>
@@ -68,7 +68,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="&#xE721;"
-                               FontFamily="Segoe Fluent Icons"
+                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                FontSize="17"
                                Foreground="{StaticResource AccentBrush}"
                                VerticalAlignment="Center"
@@ -94,17 +94,16 @@
                             Foreground="{StaticResource TextMutedBrush}"
                             ToolTip="清空（Esc）" AutomationProperties.Name="清空查词内容"
                             Visibility="{Binding Query, Converter={StaticResource StringToVis}}">
-                        <TextBlock Text="&#xE894;" FontFamily="Segoe Fluent Icons" FontSize="13" />
+                        <TextBlock Text="&#xE894;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" />
                     </ui:Button>
                     <ui:Button Grid.Column="3"
                             Command="{Binding SearchCommand}"
                             IsEnabled="{Binding Lookup.IsLoading, Converter={StaticResource InverseBool}}"
-
                             Style="{StaticResource PrimaryActionButton}"
                             Margin="8,0,0,0"
                             ToolTip="查询（Enter）">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" />
                             <TextBlock Text="查询" Margin="6,0,0,0" />
                         </StackPanel>
                     </ui:Button>
@@ -117,13 +116,13 @@
                        Visibility="{Binding QueryError, Converter={StaticResource StringToVis}}" />
             <Expander Header="查询历史" Margin="0,10,0,0" MaxHeight="180">
                 <StackPanel>
-                    <ui:Button Content="加载最近查询" Command="{Binding LoadHistoryCommand}" HorizontalAlignment="Left" Margin="0,6,0,6" />
+                    <ui:Button Content="刷新历史" Command="{Binding LoadHistoryCommand}" HorizontalAlignment="Left" Margin="0,6,0,6" />
                     <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding Lookup.History}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <ui:Button Command="{Binding DataContext.OpenHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,2">
-                                        <StackPanel><TextBlock Text="{Binding Capture.SelectedText}" /><TextBlock Text="{Binding Result.Definition}" TextTrimming="CharacterEllipsis" /></StackPanel>
+                                        <StackPanel><TextBlock Text="{Binding Capture.SelectedText}" FontWeight="SemiBold" /><TextBlock Text="{Binding Result.Definition}" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" /></StackPanel>
                                     </ui:Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -140,10 +139,10 @@
                     <Image Source="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.png"
                            Width="43" Height="43" Stretch="Uniform" />
                 </Border>
-                <TextBlock Text="从一个单词开始"
+                <TextBlock Text="输入或粘贴词句开始查询"
                            FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
                            HorizontalAlignment="Center" Margin="0,16,0,0" />
-                <TextBlock Text="离线词典优先；短语和句子也可以查询。"
+                <TextBlock Text="优先查询本地离线词典，未收录词条与长句自动使用在线翻译。"
                            FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
@@ -158,7 +157,7 @@
             <StackPanel Visibility="{Binding Lookup.HasError, Converter={StaticResource BoolToVis}}">
                 <Border Background="{StaticResource DangerSurfaceBrush}" BorderBrush="{StaticResource DangerBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel>
-                        <TextBlock Text="暂时无法完成查询" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+                        <TextBlock Text="查询未完成" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
                         <TextBlock Text="{Binding Lookup.ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
                                    TextWrapping="Wrap" Margin="0,6,0,0" />
                         <ui:Button Content="重新查询" Command="{Binding SearchCommand}" Style="{StaticResource LookupActionButton}"
@@ -194,18 +193,18 @@
                                 </StackPanel>
                                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0">
                                     <ui:Button Command="{Binding SpeakCommand}" Style="{StaticResource LookupIconButton}"
-                                            ToolTip="朗读当前单词" Margin="0,0,6,0">
-                                        <TextBlock Text="&#xE767;" FontFamily="Segoe Fluent Icons" FontSize="15" />
+                                            ToolTip="朗读" Margin="0,0,6,0">
+                                        <TextBlock Text="&#xE767;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" />
                                     </ui:Button>
                                     <ui:Button Command="{Binding CopyResultCommand}" Style="{StaticResource LookupIconButton}"
-                                            ToolTip="复制单词和释义" Margin="0,0,6,0">
-                                        <TextBlock Text="&#xE8C8;" FontFamily="Segoe Fluent Icons" FontSize="{StaticResource BodyFontSize}" />
+                                            ToolTip="复制单词与释义" Margin="0,0,6,0">
+                                        <TextBlock Text="&#xE8C8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="{StaticResource BodyFontSize}" />
                                     </ui:Button>
                                     <ui:Button Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}"
                                             Style="{StaticResource PrimaryActionButton}"
-                                            ToolTip="保存到生词库">
+                                            ToolTip="存入生词库">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
+                                            <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding SaveButtonText}" Margin="6,0,0,0" />
                                         </StackPanel>
                                     </ui:Button>
@@ -213,13 +212,13 @@
                                             Background="{StaticResource SubtleSurfaceBrush}"
                                             Foreground="{StaticResource AccentBrush}"
                                             Margin="6,0,0,0"
-                                            ToolTip="结合语境重新解释当前单词">
+                                            ToolTip="使用 AI 结合语境生成详解">
                                         <ui:Button.Style>
                                             <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource LookupActionButton}">
                                             </Style>
                                         </ui:Button.Style>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons" FontSize="13" VerticalAlignment="Center" />
+                                            <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding AiButtonText}" Margin="6,0,0,0" />
                                         </StackPanel>
                                     </ui:Button>
@@ -312,19 +311,28 @@
                                 <StackPanel x:Name="ContextPanel" Grid.Column="1" IsVisibleChanged="ContextPanel_IsVisibleChanged" Visibility="{Binding HasSecondaryContent, Converter={StaticResource BoolToVis}}">
                                     <Expander Header="理解与用法" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
                                         <StackPanel Margin="0,8,0,0">
-                                            <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" />
-                                            <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                            <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                            <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" />
+                                            <StackPanel Visibility="{Binding Analysis.KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
+                                                <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                                <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                            </StackPanel>
+                                            <StackPanel Visibility="{Binding Analysis.UsageNote, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
+                                                <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                                <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                            </StackPanel>
+                                            <StackPanel Visibility="{Binding Analysis.Example, Converter={StaticResource StringToVis}}">
+                                                <TextBlock Text="拓展例句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                                <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Analysis.ExampleTranslation, Converter={StaticResource StringToVis}}" />
+                                            </StackPanel>
                                         </StackPanel>
                                     </Expander>
                                     <Expander Header="编辑与笔记" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
                                         <StackPanel Margin="0,8,0,0">
-                                            <TextBlock Text="语境义" />
+                                            <TextBlock Text="语境释义" />
                                             <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
                                             <TextBlock Text="原句翻译" />
                                             <ui:TextBox Text="{Binding EditTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
-                                            <TextBlock Text="我的笔记" />
+                                            <TextBlock Text="个人笔记" />
                                             <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Expander>
@@ -341,7 +349,7 @@
                                             Padding="12,10" Margin="0,10,0,0" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                                         <StackPanel>
                                             <Grid>
-                                                <TextBlock Text="💡 记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
+                                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
                                                 <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" HorizontalAlignment="Right"
                                                               Background="Transparent" BorderThickness="0" Foreground="{StaticResource AmberHookLabelBrush}"
                                                               FontSize="{StaticResource CaptionFontSize}" Cursor="Hand" Padding="4,0">
@@ -361,8 +369,6 @@
                                     </Border>
                                 </StackPanel>
                             </Grid>
-
-
                         </Grid>
                     </Border>
                     <TextBlock Text="{Binding Lookup.SavedStatusText}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}"

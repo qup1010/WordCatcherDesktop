@@ -331,6 +331,30 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ApplyAiPreset(string? presetKey)
+    {
+        if (string.IsNullOrWhiteSpace(presetKey)) return;
+        var (name, url, model) = presetKey.ToLowerInvariant() switch
+        {
+            "openai" => ("OpenAI", "https://api.openai.com/v1", "gpt-4o-mini"),
+            "deepseek" => ("DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat"),
+            "kimi" => ("Kimi", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
+            "zhipu" => ("智谱 GLM", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
+            "siliconflow" => ("硅基流动", "https://api.siliconflow.cn/v1", "Qwen/Qwen2.5-7B-Instruct"),
+            "ollama" => ("本地 Ollama", "http://127.0.0.1:11434/v1", "qwen2.5"),
+            _ => ("", "", "")
+        };
+        if (string.IsNullOrEmpty(url)) return;
+        ApiBaseUrl = url;
+        ApiModel = model;
+        if (AiProfileName == "默认" || AiProfileName.StartsWith("配置 ", StringComparison.Ordinal))
+        {
+            AiProfileName = name;
+        }
+        StatusMessage = $"已填入 {name} 预设地址与推荐模型（{model}），填写 API Key 并保存后即可生效。";
+    }
+
+    [RelayCommand]
     private void AddAiProfile()
     {
         SaveEditorToProfile(_editingProfileId);

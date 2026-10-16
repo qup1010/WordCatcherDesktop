@@ -224,7 +224,7 @@ public sealed partial class LookupViewModel : ObservableObject
         OriginalSentence = capture.Sentence == capture.SelectedText ? string.Empty : capture.Sentence;
         CanSave = false;
         SavedStatusText = string.Empty;
-        StatusText = forceAi ? "正在获取 AI 详解…" : "正在查询词典与翻译...";
+        StatusText = forceAi ? "正在结合语境生成 AI 详解…" : "正在查询词典与翻译…";
 
         try
         {
@@ -301,7 +301,7 @@ public sealed partial class LookupViewModel : ObservableObject
                         LearningNote = saved.Edits.Note;
                     }
                 }
-                if (IsSaved) SavedStatusText = "已在生词库中，可保存这次的语境。";
+                if (IsSaved) SavedStatusText = "该词已在生词库中，可补充保存当前语境。";
             }
             catch (Exception) when (!currentLookup.IsCancellationRequested) { }
         }
@@ -372,8 +372,8 @@ public sealed partial class LookupViewModel : ObservableObject
 
             IsSaved = true;
             IsSaving = false;
-            SavedStatusText = HasSavedContext ? "✓ 已更新这条语境" : wasSaved ? "✓ 已新增语境" : "✓ 已存入生词库";
-            SyncStatusText = _settingsService.Current.Anki.Enabled ? "Anki 等待同步 · 已保存在本地" : string.Empty;
+            SavedStatusText = HasSavedContext ? "已更新当前语境" : wasSaved ? "已新增语境记录" : "已存入生词库";
+            SyncStatusText = _settingsService.Current.Anki.Enabled ? "已保存在本地，将在后台同步到 Anki" : string.Empty;
 
             if (_settingsService.Current.Ui.ClosePopupAfterSave)
             {
@@ -467,7 +467,7 @@ public sealed partial class LookupViewModel : ObservableObject
         try
         {
             Clipboard.SetText(string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line))));
-            _ = ShowActionStatusAsync("✓ 已复制");
+            _ = ShowActionStatusAsync("已复制到剪贴板");
         }
         catch (Exception ex)
         {

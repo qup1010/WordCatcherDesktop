@@ -10,6 +10,7 @@ using WordCatcher.App.ViewModels;
 
 namespace WordCatcher.App.Tests;
 
+[Collection("Application resource rendering")]
 public sealed class AiLearningLayoutTests
 {
     [Fact]

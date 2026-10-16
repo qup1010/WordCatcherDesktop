@@ -17,8 +17,12 @@ public partial class WordLookupView : System.Windows.Controls.UserControl
     private void View_Loaded(object sender, RoutedEventArgs e)
     {
         UpdateResultColumns();
-        if (DataContext is WordLookupViewModel)
+        if (DataContext is WordLookupViewModel vm)
         {
+            if (vm.Lookup.History.Count == 0 && vm.LoadHistoryCommand.CanExecute(null))
+            {
+                vm.LoadHistoryCommand.Execute(null);
+            }
             FocusQuery();
         }
     }

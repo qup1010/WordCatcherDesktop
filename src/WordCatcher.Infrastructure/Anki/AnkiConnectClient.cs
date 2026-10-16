@@ -56,6 +56,15 @@ public sealed class AnkiConnectClient : IAnkiClient
   font-weight: 500;
 }
 
+.wc-context-hint {
+  margin-top: 14px;
+  padding-left: 12px;
+  border-left: 2px solid #e8e3d9;
+  font-size: 16px;
+  color: #7c7569;
+  line-height: 1.65;
+}
+
 .wc-blank {
   color: #b45309;
   font-weight: 700;
@@ -139,6 +148,16 @@ public sealed class AnkiConnectClient : IAnkiClient
   line-height: 1.6;
 }
 
+.wc-note {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(14, 111, 99, 0.08);
+  color: #0e6f63;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .wc-source {
   margin-top: 16px;
   font-size: 13px;
@@ -173,6 +192,12 @@ hr#answer {
   color: #4fd1bb;
 }
 
+.nightMode .wc-context-hint,
+.night_mode .wc-context-hint {
+  border-left-color: #3a362e;
+  color: #a89f90;
+}
+
 .nightMode .wc-blank,
 .night_mode .wc-blank {
   color: #e8a94e;
@@ -196,6 +221,12 @@ hr#answer {
 .night_mode .wc-full {
   color: #a89f90;
   border-left-color: #4fd1bb;
+}
+
+.nightMode .wc-note,
+.night_mode .wc-note {
+  background: rgba(79, 209, 187, 0.12);
+  color: #4fd1bb;
 }
 
 .nightMode .wc-listen-hint,
@@ -467,6 +498,26 @@ hr#answer {
             ? $"<a href=\"{ClozeSentenceBuilder.EscapeHtml(occurrence.SourceUri)}\">{ClozeSentenceBuilder.EscapeHtml(!string.IsNullOrWhiteSpace(occurrence.SourceWindowTitle) ? occurrence.SourceWindowTitle : occurrence.SourceUri)}</a>"
             : ClozeSentenceBuilder.EscapeHtml(occurrence.SourceWindowTitle);
 
+        var extraBuilder = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(occurrence.KeyExplanation))
+        {
+            extraBuilder.Append("<div class=\"wc-trans\">语境解析：")
+                .Append(ClozeSentenceBuilder.EscapeHtml(occurrence.KeyExplanation))
+                .Append("</div>");
+        }
+        if (!string.IsNullOrWhiteSpace(occurrence.Example))
+        {
+            extraBuilder.Append("<div class=\"wc-trans\">拓展例句：")
+                .Append(ClozeSentenceBuilder.EscapeHtml(occurrence.Example))
+                .Append("</div>");
+        }
+        if (!string.IsNullOrWhiteSpace(occurrence.Note))
+        {
+            extraBuilder.Append("<div class=\"wc-note\">个人笔记：")
+                .Append(ClozeSentenceBuilder.EscapeHtml(occurrence.Note))
+                .Append("</div>");
+        }
+
         return new Dictionary<string, string>
         {
             ["Word"] = ClozeSentenceBuilder.EscapeHtml(occurrence.LearningResult == null ? word.DisplayWord : occurrence.Expression),
@@ -479,7 +530,7 @@ hr#answer {
                 ? ClozeSentenceBuilder.BuildClozeSentence(occurrence.Sentence, occurrence.SelectedText, occurrence.SelectionOffset)
                 : ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
             ["SentencePlain"] = ClozeSentenceBuilder.EscapeHtml(occurrence.Sentence),
-            ["SentenceTranslation"] = ClozeSentenceBuilder.EscapeHtml(occurrence.Translation),
+            ["SentenceTranslation"] = ClozeSentenceBuilder.EscapeHtml(occurrence.Translation) + extraBuilder.ToString(),
             ["Source"] = sourceHtml
         };
     }
@@ -497,35 +548,41 @@ hr#answer {
 <div class=""wc-word"">{{Word}}{{#Reading}} <span class=""wc-reading"">{{Reading}}</span>{{/Reading}}</div>
 <div class=""wc-tts"">{{tts " + ttsLang + @":Word}}</div>
 <div class=""wc-def"">{{Definition}}</div>
-{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">&#x1F4A1; 记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}
+{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}
 {{#SentencePlain}}<div class=""wc-full"">{{SentencePlain}}</div>{{/SentencePlain}}
 {{#SentenceTranslation}}<div class=""wc-trans"">{{SentenceTranslation}}</div>{{/SentenceTranslation}}
 {{#Source}}<div class=""wc-source"">{{Source}}</div>{{/Source}}"),
 
             new("Recognition",
-                "<div class=\"wc-word\">{{Word}}</div>",
+                "<div class=\"wc-word\">{{Word}}</div>\n{{#PartOfSpeech}}<div class=\"wc-pos\">{{PartOfSpeech}}</div>{{/PartOfSpeech}}\n{{#Sentence}}<div class=\"wc-context-hint\">{{Sentence}}</div>{{/Sentence}}",
                 @"{{FrontSide}}
 <hr id=answer>
 <div class=""wc-def"">{{Definition}}</div>
-{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">&#x1F4A1; 记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}
+{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}
+{{#SentencePlain}}<div class=""wc-full"">{{SentencePlain}}</div>{{/SentencePlain}}
+{{#SentenceTranslation}}<div class=""wc-trans"">{{SentenceTranslation}}</div>{{/SentenceTranslation}}
 <div class=""wc-tts"">{{tts " + ttsLang + @":Word}}</div>"),
 
             new("Production",
-                "<div class=\"wc-def\">{{Definition}}</div>",
+                "<div class=\"wc-def\">{{Definition}}</div>\n{{#PartOfSpeech}}<div class=\"wc-pos\">{{PartOfSpeech}}</div>{{/PartOfSpeech}}",
                 @"{{FrontSide}}
 <hr id=answer>
 <div class=""wc-word"">{{Word}}{{#Reading}} <span class=""wc-reading"">{{Reading}}</span>{{/Reading}}</div>
 <div class=""wc-tts"">{{tts " + ttsLang + @":Word}}</div>
-{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">&#x1F4A1; 记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}"),
+{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}
+{{#SentencePlain}}<div class=""wc-full"">{{SentencePlain}}</div>{{/SentencePlain}}
+{{#SentenceTranslation}}<div class=""wc-trans"">{{SentenceTranslation}}</div>{{/SentenceTranslation}}"),
 
             new("Listening",
-                "<div class=\"wc-tts\">{{tts " + ttsLang + ":Word}}</div>\n<div class=\"wc-listen-hint\">听音</div>",
+                "<div class=\"wc-tts\">{{tts " + ttsLang + ":Word}}</div>\n<div class=\"wc-listen-hint\">听音辨词</div>\n{{#Sentence}}<div class=\"wc-context-hint\">{{Sentence}}</div>{{/Sentence}}",
                 @"{{FrontSide}}
 <hr id=answer>
 <div class=""wc-word"">{{Word}}{{#Reading}} <span class=""wc-reading"">{{Reading}}</span>{{/Reading}}</div>
 <div class=""wc-tts"">{{tts " + ttsLang + @":Word}}</div>
 <div class=""wc-def"">{{Definition}}</div>
-{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">&#x1F4A1; 记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}")
+{{#MemoryHook}}<div class=""wc-hook""><span class=""wc-hook-label"">记忆线索</span> {{MemoryHook}}</div>{{/MemoryHook}}
+{{#SentencePlain}}<div class=""wc-full"">{{SentencePlain}}</div>{{/SentencePlain}}
+{{#SentenceTranslation}}<div class=""wc-trans"">{{SentenceTranslation}}</div>{{/SentenceTranslation}}")
         };
     }
 
@@ -557,11 +614,11 @@ hr#answer {
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new AnkiException("AnkiConnect 超时（超过 8 秒未响应），请检查 Anki 是否有阻塞对话框。");
+            throw new AnkiException("AnkiConnect 超过 8 秒未响应。请切换到 Anki 窗口检查是否有待确认的对话框。");
         }
         catch (HttpRequestException ex)
         {
-            throw new AnkiException($"无法连接到 Anki: {ex.Message}", ex);
+            throw new AnkiException($"无法连接 Anki：{ex.Message}", ex);
         }
 
         if (!res.IsSuccessStatusCode)

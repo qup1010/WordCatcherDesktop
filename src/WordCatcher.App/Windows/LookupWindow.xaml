@@ -202,12 +202,12 @@
                     </StackPanel>
                 </Border>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                    <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读当前单词" AutomationProperties.Name="朗读">
+                    <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读" AutomationProperties.Name="朗读">
                         <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
                             <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M3,9 L7,9 L12,5 L12,19 L7,15 L3,15 Z M16,8 C19,10 19,14 16,16 M19,5 C24,9 24,15 19,19" />
                         </Canvas></Viewbox>
                     </ui:Button>
-                    <ToggleButton x:Name="PinToggle" AutomationProperties.Name="钉住查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="钉住卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
+                    <ToggleButton x:Name="PinToggle" AutomationProperties.Name="固定查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="固定卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
                         <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
                             <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M8,3 L16,3 M9,3 L9,10 L6,14 L6,16 L18,16 L18,14 L15,10 L15,3 M12,16 L12,22" />
                         </Canvas></Viewbox>
@@ -228,7 +228,7 @@
                 <StackPanel Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
                     <Border Background="{StaticResource DangerSurfaceBrush}" CornerRadius="8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="暂时无法完成查询" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+                            <TextBlock Text="查询未完成" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
                             <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,5,0,0" />
                         </StackPanel>
                     </Border>
@@ -253,7 +253,7 @@
                                     BorderBrush="{StaticResource ControlBorderBrush}"
                                     BorderThickness="1"
                                     Margin="0,0,0,8"
-                                    ToolTip="保存前可直接微调释义内容" />
+                                    ToolTip="保存前可直接修改释义内容" />
                         <!-- One compact row for EVERY part of speech, never a global Take(3). -->
                         <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Margin="0,0,0,6">
                             <ItemsControl.ItemTemplate>
@@ -326,19 +326,28 @@
                         <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}" />
                         <Expander Header="理解与用法" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
-                                <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <StackPanel Visibility="{Binding Analysis.KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
+                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding Analysis.UsageNote, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
+                                    <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding Analysis.Example, Converter={StaticResource StringToVis}}">
+                                    <TextBlock Text="拓展例句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Analysis.ExampleTranslation, Converter={StaticResource StringToVis}}" />
+                                </StackPanel>
                             </StackPanel>
                         </Expander>
                         <Expander Header="编辑与笔记" Margin="0,4,0,10" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
-                                <TextBlock Text="语境义" />
+                                <TextBlock Text="语境释义" />
                                 <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
                                 <TextBlock Text="原句翻译" />
                                 <ui:TextBox Text="{Binding EditTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
-                                <TextBlock Text="我的笔记" />
+                                <TextBlock Text="个人笔记" />
                                 <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
                             </StackPanel>
                         </Expander>
@@ -351,7 +360,7 @@
 <Border Background="{StaticResource AmberHookSurfaceBrush}" BorderBrush="{StaticResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,6">
-                                <TextBlock Text="💡 记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
+                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
                                 <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource DisclosureToggleButton}" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}" AutomationProperties.Name="展开或收起记忆线索">
                                         <TextBlock>
                                             <TextBlock.Style>
@@ -375,10 +384,10 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
-                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境重新解释 (Ctrl+Enter)">
+                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)">
                             <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}" /></ui:Button.Style>
                         </ui:Button>
-                        <ui:Button Grid.Column="2" Content="编辑" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前微调释义" />
+                        <ui:Button Grid.Column="2" Content="编辑" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前修改释义" />
                         <ui:Button Grid.Column="3" Content="复制" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
                     </Grid>
                     <TextBlock Text="{Binding SavedStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}" />

@@ -23,20 +23,23 @@ public sealed class UpdateCheckServiceTests
     [Fact]
     public async Task CheckReadsLatestReleaseAndSendsUserAgent()
     {
-        var handler = new ReleaseHandler();
+        var current = Version.Parse(UpdateCheckService.CurrentVersion);
+        var latestVersion = new Version(current.Major, current.Minor, current.Build + 1).ToString();
+        var latestTag = $"v{latestVersion}";
+        var handler = new ReleaseHandler(latestTag);
         using var client = new HttpClient(handler);
         var service = new UpdateCheckService(client);
 
         var result = await service.CheckAsync();
 
         Assert.Equal(typeof(UpdateCheckService).Assembly.GetName().Version!.ToString(3), result.CurrentVersion);
-        Assert.Equal("0.3.0", result.LatestVersion);
-        Assert.Equal("https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.3.0", result.ReleaseUrl);
+        Assert.Equal(latestVersion, result.LatestVersion);
+        Assert.Equal($"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}", result.ReleaseUrl);
         Assert.True(result.IsUpdateAvailable);
         Assert.Equal("WordCatcherDesktop", handler.Request!.Headers.UserAgent.First().Product!.Name);
     }
 
-    private sealed class ReleaseHandler : HttpMessageHandler
+    private sealed class ReleaseHandler(string latestTag) : HttpMessageHandler
     {
         public HttpRequestMessage? Request { get; private set; }
 
@@ -46,7 +49,7 @@ public sealed class UpdateCheckServiceTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(
-                    "{\"tag_name\":\"v0.3.0\",\"html_url\":\"https://github.com/qup1010/WordCatcherDesktop/releases/tag/v0.3.0\"}")
+                    $"{{\"tag_name\":\"{latestTag}\",\"html_url\":\"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}\"}}")
             });
         }
     }

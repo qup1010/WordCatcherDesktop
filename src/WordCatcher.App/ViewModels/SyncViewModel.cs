@@ -58,7 +58,7 @@ public sealed partial class SyncViewModel : ObservableObject
     };
     public string StateTitle => PageState switch
     {
-        SyncPageState.Disabled => "Anki 同步未启用",
+        SyncPageState.Disabled => "仅使用本地生词库（Anki 拓展未启用）",
         SyncPageState.Attention => $"{IssueCount} 项同步需要处理",
         SyncPageState.Waiting => "正在等待同步",
         SyncPageState.Complete => "已同步到 Anki",
@@ -66,7 +66,7 @@ public sealed partial class SyncViewModel : ObservableObject
     };
     public string StateDescription => PageState switch
     {
-        SyncPageState.Disabled => "收藏的单词仍保存在本地。可在设置中开启 Anki 同步。",
+        SyncPageState.Disabled => "收藏的词条与语境均保存在本地生词库，可直接在「生词库」中进行卡片复习。如需同步至 Anki，可在设置中开启。",
         SyncPageState.Attention => "收藏已保存在本地。请检查 Anki 连接或同步设置后重试。",
         SyncPageState.Waiting => "收藏已保存在本地，Anki 会在后台继续同步。",
         SyncPageState.Complete => "当前记录均已同步，无需其他操作。",

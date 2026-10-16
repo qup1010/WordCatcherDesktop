@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.Diagnostics;
 using WordCatcher.Core.Enums;
 using System.IO;
 using System.Linq;
@@ -19,11 +20,13 @@ namespace WordCatcher.App.ViewModels;
 public sealed partial class LibraryViewModel : ObservableObject
 {
     private readonly IWordRepository _wordRepository;
+    private readonly ISpeechService? _speechService;
     private const int PageSize = 100;
     private int _loadVersion;
     private int _occurrenceVersion;
     private CancellationTokenSource? _searchDelay;
     private bool _refreshPending;
+
     [ObservableProperty] private Occurrence? _editingOccurrence;
     [ObservableProperty] private string _contextDefinition = string.Empty;
     [ObservableProperty] private string _contextTranslation = string.Empty;
@@ -31,6 +34,200 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private bool _isSavingContext;
     public bool IsEditingContext => EditingOccurrence != null;
     partial void OnEditingOccurrenceChanged(Occurrence? value) => OnPropertyChanged(nameof(IsEditingContext));
+
+    // ── 遮挡释义 & 卡片自测复习模式 ──────────────────────────────────────────
+    private readonly List<(Word Word, Occurrence? Occurrence)> _reviewItems = new();
+    [ObservableProperty] private bool _isDefinitionMasked;
+    [ObservableProperty] private bool _isReviewMode;
+    [ObservableProperty] private bool _isAnswerRevealed;
+    [ObservableProperty] private int _reviewIndex;
+
+    public int ReviewTotal => _reviewItems.Count;
+    public Word? CurrentReviewWord => _reviewItems.Count > 0 && ReviewIndex >= 0 && ReviewIndex < _reviewItems.Count ? _reviewItems[ReviewIndex].Word : null;
+    public Occurrence? CurrentReviewOccurrence => _reviewItems.Count > 0 && ReviewIndex >= 0 && ReviewIndex < _reviewItems.Count ? _reviewItems[ReviewIndex].Occurrence : null;
+    public string ReviewProgressText => ReviewTotal > 0 ? $"{ReviewIndex + 1} / {ReviewTotal}" : "0 / 0";
+    public string ReviewPromptSentence => !string.IsNullOrWhiteSpace(CurrentReviewOccurrence?.Sentence)
+        ? CurrentReviewOccurrence!.Sentence
+        : CurrentReviewWord?.DisplayWord ?? string.Empty;
+    public string ReviewEffectiveExpression => !string.IsNullOrWhiteSpace(CurrentReviewOccurrence?.Expression)
+        ? CurrentReviewOccurrence!.Expression
+        : CurrentReviewWord?.DisplayWord ?? string.Empty;
+    public string ReviewEffectiveDefinition => !string.IsNullOrWhiteSpace(CurrentReviewOccurrence?.Definition)
+        ? CurrentReviewOccurrence!.Definition
+        : CurrentReviewWord?.Definition ?? string.Empty;
+    public string ReviewEffectiveTranslation => CurrentReviewOccurrence?.Translation ?? string.Empty;
+    public string ReviewEffectiveNote => CurrentReviewOccurrence?.Note ?? string.Empty;
+    public string ReviewEffectiveKeyExplanation => CurrentReviewOccurrence?.KeyExplanation ?? string.Empty;
+    public string ReviewEffectiveUsageNote => CurrentReviewOccurrence?.UsageNote ?? string.Empty;
+    public string ReviewEffectiveExample => CurrentReviewOccurrence?.Example ?? string.Empty;
+    public string ReviewEffectiveExampleTranslation => CurrentReviewOccurrence?.ExampleTranslation ?? string.Empty;
+    public string ReviewSourceSummary
+    {
+        get
+        {
+            if (CurrentReviewOccurrence == null) return string.Empty;
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(CurrentReviewOccurrence.SourceProcess)) parts.Add(CurrentReviewOccurrence.SourceProcess);
+            if (!string.IsNullOrWhiteSpace(CurrentReviewOccurrence.SourceWindowTitle)) parts.Add(CurrentReviewOccurrence.SourceWindowTitle);
+            return string.Join(" · ", parts);
+        }
+    }
+
+    private void NotifyReviewPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(ReviewTotal));
+        OnPropertyChanged(nameof(CurrentReviewWord));
+        OnPropertyChanged(nameof(CurrentReviewOccurrence));
+        OnPropertyChanged(nameof(ReviewProgressText));
+        OnPropertyChanged(nameof(ReviewPromptSentence));
+        OnPropertyChanged(nameof(ReviewEffectiveExpression));
+        OnPropertyChanged(nameof(ReviewEffectiveDefinition));
+        OnPropertyChanged(nameof(ReviewEffectiveTranslation));
+        OnPropertyChanged(nameof(ReviewEffectiveNote));
+        OnPropertyChanged(nameof(ReviewEffectiveKeyExplanation));
+        OnPropertyChanged(nameof(ReviewEffectiveUsageNote));
+        OnPropertyChanged(nameof(ReviewEffectiveExample));
+        OnPropertyChanged(nameof(ReviewEffectiveExampleTranslation));
+        OnPropertyChanged(nameof(ReviewSourceSummary));
+    }
+
+    partial void OnReviewIndexChanged(int value) => NotifyReviewPropertiesChanged();
+
+    [RelayCommand]
+    private async Task StartReviewAsync()
+    {
+        if (Words.Count == 0)
+        {
+            StatusMessage = "当前列表没有可复习的词条。";
+            return;
+        }
+
+        _reviewItems.Clear();
+        foreach (var word in Words)
+        {
+            IReadOnlyList<Occurrence> contexts = Array.Empty<Occurrence>();
+            try
+            {
+                contexts = await _wordRepository.GetOccurrencesByWordIdAsync(word.Id).ConfigureAwait(true);
+            }
+            catch
+            {
+                // Ignore individual occurrence read errors and fall back to word summary
+            }
+
+            if (contexts.Count > 0)
+            {
+                foreach (var occ in contexts)
+                {
+                    _reviewItems.Add((word, occ));
+                }
+            }
+            else
+            {
+                _reviewItems.Add((word, null));
+            }
+        }
+
+        if (_reviewItems.Count == 0) return;
+
+        var startIndex = SelectedWord != null
+            ? Math.Max(0, _reviewItems.FindIndex(item => item.Word.Id == SelectedWord.Id))
+            : 0;
+        ReviewIndex = startIndex;
+        IsAnswerRevealed = false;
+        IsReviewMode = true;
+        NotifyReviewPropertiesChanged();
+        StatusMessage = $"已进入卡片复习（共 {ReviewTotal} 张），按 Space 显示答案，← / → 切换卡片。";
+    }
+
+    [RelayCommand]
+    private void ExitReview()
+    {
+        if (!IsReviewMode) return;
+        IsReviewMode = false;
+        IsAnswerRevealed = false;
+        StatusMessage = $"{Words.Count} 个词条 · 按最近更新排序";
+    }
+
+    [RelayCommand]
+    private void ToggleAnswer()
+    {
+        if (!IsReviewMode) return;
+        IsAnswerRevealed = !IsAnswerRevealed;
+    }
+
+    [RelayCommand]
+    private void NextReviewCard()
+    {
+        if (!IsReviewMode || _reviewItems.Count == 0) return;
+        IsAnswerRevealed = false;
+        ReviewIndex = (ReviewIndex + 1) % _reviewItems.Count;
+        SelectedWord = CurrentReviewWord;
+    }
+
+    [RelayCommand]
+    private void PrevReviewCard()
+    {
+        if (!IsReviewMode || _reviewItems.Count == 0) return;
+        IsAnswerRevealed = false;
+        ReviewIndex = (ReviewIndex - 1 + _reviewItems.Count) % _reviewItems.Count;
+        SelectedWord = CurrentReviewWord;
+    }
+
+    [RelayCommand]
+    private void ShuffleReview()
+    {
+        if (!IsReviewMode || _reviewItems.Count <= 1) return;
+        var rng = Random.Shared;
+        for (var i = _reviewItems.Count - 1; i > 0; i--)
+        {
+            var j = rng.Next(i + 1);
+            (_reviewItems[i], _reviewItems[j]) = (_reviewItems[j], _reviewItems[i]);
+        }
+        IsAnswerRevealed = false;
+        ReviewIndex = 0;
+        NotifyReviewPropertiesChanged();
+        SelectedWord = CurrentReviewWord;
+        StatusMessage = "已打乱复习卡片顺序。";
+    }
+
+    [RelayCommand]
+    private void SpeakWord(string? text = null)
+    {
+        var target = !string.IsNullOrWhiteSpace(text)
+            ? text
+            : IsReviewMode
+                ? (CurrentReviewWord?.DisplayWord ?? string.Empty)
+                : (SelectedWord?.DisplayWord ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(target)) return;
+        try
+        {
+            (_speechService ?? new SpeechService()).Speak(target);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"朗读未完成：{ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void OpenSourceUri(string? uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri)) return;
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed) ||
+            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+        {
+            return;
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo(parsed.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch (Exception)
+        {
+            StatusMessage = "无法在默认浏览器中打开来源链接。";
+        }
+    }
 
     [RelayCommand]
     private void EditContext(Occurrence occurrence)
@@ -48,7 +245,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     private async Task SaveContextEditAsync()
     {
         if (EditingOccurrence == null || IsSavingContext) return;
-        if (string.IsNullOrWhiteSpace(ContextDefinition)) { StatusMessage = "语境义不能为空。"; return; }
+        if (string.IsNullOrWhiteSpace(ContextDefinition)) { StatusMessage = "语境释义不能为空，请填写后保存。"; return; }
         IsSavingContext = true;
         var occurrence = EditingOccurrence;
         try
@@ -58,11 +255,12 @@ public sealed partial class LibraryViewModel : ObservableObject
             if (EditingOccurrence != occurrence) return;
             EditingOccurrence = null;
             if (SelectedWord?.Id == occurrence.WordId) await LoadOccurrencesForWordAsync(occurrence.WordId);
-            StatusMessage = "已保存这条语境，Anki 等待同步。";
+            StatusMessage = "语境修改已保存。";
         }
         catch (Exception ex) { StatusMessage = "保存语境失败：" + ex.Message; }
         finally { IsSavingContext = false; }
     }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteWordCommand))]
     [NotifyCanExecuteChangedFor(nameof(UndoDeleteCommand))]
@@ -86,7 +284,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private bool _isCompact;
     [ObservableProperty] private bool _isDefinitionExpanded;
     [ObservableProperty] private string _statusMessage = string.Empty;
-    [ObservableProperty] private string _emptyMessage = "还没有收藏的单词";
+    [ObservableProperty] private string _emptyMessage = "还没有收藏的词条";
     public string DefinitionPreview => string.Join(" ", (SelectedWord?.Definition ?? string.Empty)
         .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
@@ -149,9 +347,13 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private string _editMemoryHook = string.Empty;
 
-    public LibraryViewModel(IWordRepository wordRepository, WordCollectionEvents wordCollectionEvents)
+    public LibraryViewModel(
+        IWordRepository wordRepository,
+        WordCollectionEvents wordCollectionEvents,
+        ISpeechService? speechService = null)
     {
         _wordRepository = wordRepository;
+        _speechService = speechService;
         wordCollectionEvents.WordSaved += OnWordSaved;
     }
 
@@ -220,7 +422,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             }
             HasMore = list.Count > PageSize;
             EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 ? "还没有收藏的词条" : "没有匹配的词条";
-            StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · 最近更新优先";
+            StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · 按最近更新排序";
         }
         catch (Exception)
         {
@@ -285,7 +487,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         EditDefinition = SelectedWord.Definition;
         EditMemoryHook = SelectedWord.MemoryHook;
         IsEditing = true;
-        StatusMessage = "正在编辑，保存或取消后可继续搜索和切换词条。";
+        StatusMessage = "正在编辑词条，保存或取消后可继续搜索和切换。";
     }
 
     [RelayCommand]
@@ -310,7 +512,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             await _wordRepository.UpdateWordAsync(word).ConfigureAwait(true);
             IsEditing = false;
             await LoadWordsAsync().ConfigureAwait(true);
-            if (!HasLoadError) StatusMessage = "修改已保存。";
+            if (!HasLoadError) StatusMessage = "词条修改已保存。";
         }
         catch (Exception) { StatusMessage = "保存失败，修改内容已保留，请重试。"; }
         finally { IsSavingEdit = false; }
@@ -338,7 +540,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             await _wordRepository.MoveWordToTrashAsync(word.Id).ConfigureAwait(true);
             _deletedWords.Push((word.Id, word.DisplayWord));
             CanUndoDelete = true;
-            DeleteStatusText = $"已删除「{word.DisplayWord}」及其语境，可撤销。";
+            DeleteStatusText = $"已删除「{word.DisplayWord}」及其语境记录，可撤销。";
             if (SelectedWord?.Id == word.Id) SelectedWord = null;
             await LoadWordsAsync().ConfigureAwait(true);
         }
@@ -396,7 +598,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             {
                 var json = await _wordRepository.ExportWordsJsonAsync().ConfigureAwait(true);
                 await File.WriteAllTextAsync(sfd.FileName, json).ConfigureAwait(true);
-                StatusMessage = "词库备份导出成功。";
+                StatusMessage = "词库备份已导出。";
             }
             catch (Exception) { StatusMessage = "导出失败，请检查目标文件是否可写后重试。"; }
             finally { IsExporting = false; }
@@ -422,7 +624,7 @@ public sealed partial class LibraryViewModel : ObservableObject
                 var count = await _wordRepository.ImportWordsJsonAsync(json).ConfigureAwait(true);
                 await LoadWordsAsync().ConfigureAwait(true);
                 StatusMessage = count > 0
-                    ? $"成功导入 {count} 条词条/语境记录。"
+                    ? $"已导入 {count} 条词条或语境记录。"
                     : "备份文件已解析，未发现新的词条或语境。";
             }
             catch (Exception)
