@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace WordCatcher.App.Windows;
 

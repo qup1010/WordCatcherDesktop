@@ -272,6 +272,67 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="SettingsSwitchCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid x:Name="SwitchRoot" MinHeight="26" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="48" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="SwitchTrack" Width="48" Height="24"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    Background="{StaticResource SubtleSurfaceBrush}"
+                                    BorderBrush="{StaticResource ControlBorderBrush}"
+                                    BorderThickness="1" CornerRadius="12">
+                                <Ellipse x:Name="SwitchThumb" Width="16" Height="16" Margin="3"
+                                         HorizontalAlignment="Left" VerticalAlignment="Center"
+                                         Fill="{StaticResource TextSecondaryBrush}" />
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="10,0,0,0"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="SwitchThumb" Property="Fill" Value="{StaticResource OnAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="{StaticResource SelectedSurfaceBrush}" />
+                                <Setter TargetName="SwitchThumb" Property="Fill" Value="{StaticResource TextPrimaryBrush}" />
+                            </MultiTrigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="SwitchRoot" Property="Opacity" Value="0.45" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -1452,8 +1513,8 @@
                         <!-- 5. 交互行为 -->
                         <GroupBox Header="交互行为" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
-                                <ui:ToggleSwitch Content="收藏后自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupAfterSave}" Margin="0,0,0,8" />
-                                <ui:ToggleSwitch Content="点击浮窗外部时自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupOnDeactivate}" />
+                                <CheckBox Content="收藏后自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupAfterSave}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" Margin="0,0,0,8" />
+                                <CheckBox Content="点击浮窗外部时自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupOnDeactivate}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" />
                             </StackPanel>
                         </GroupBox>
 
