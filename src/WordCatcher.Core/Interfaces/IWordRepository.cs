@@ -23,6 +23,10 @@ public interface IWordRepository
     Task DeleteWordAsync(string wordId, CancellationToken ct = default);
     Task<string> ExportWordsJsonAsync(CancellationToken ct = default);
     Task<int> ImportWordsJsonAsync(string json, CancellationToken ct = default);
+    Task<string> ExportSyncJsonAsync(CancellationToken ct = default)
+        => ExportWordsJsonAsync(ct);
+    Task<(int Added, int Updated, int Removed, int Total, bool NeedsPush)> MergeSyncJsonAsync(string json, CancellationToken ct = default)
+        => throw new System.NotSupportedException();
     Task<IReadOnlyList<SyncJob>> GetSyncJobsAsync(CancellationToken ct = default);
     Task<SyncJob?> GetSyncJobByIdAsync(string id, CancellationToken ct = default);
     Task UpdateSyncJobAsync(SyncJob job, CancellationToken ct = default);

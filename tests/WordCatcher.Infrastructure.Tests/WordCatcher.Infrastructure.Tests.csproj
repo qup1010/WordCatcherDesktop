@@ -25,5 +25,6 @@
 
   <ItemGroup>
     <None Include="..\Fixtures\digital.v5.json" Link="Fixtures\digital.v5.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Fixtures\webdav-v3.json" Link="Fixtures\webdav-v3.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

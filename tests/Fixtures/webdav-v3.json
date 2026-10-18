@@ -1,0 +1,49 @@
+{
+  "format": "word-catcher-learning",
+  "version": 3,
+  "records": [
+    {
+      "id": "context-one",
+      "revision": 1,
+      "versionVector": { "fixture-device": 1 },
+      "savedAt": 1729000000000,
+      "updatedAt": 1729000000000,
+      "card": {
+        "entry": {
+          "word": "bank", "reading": "", "partOfSpeech": "n.", "definition": "河岸", "contextTranslation": "我们坐在河岸边。",
+          "inputKind": "word", "expression": "bank", "keyExplanation": "指水边的地理位置。",
+          "generation": { "model": "test-model", "promptVersion": "learning-v1", "generatedAt": "2024-10-15T12:00:00Z" }
+        },
+        "selection": "bank", "sentence": "We sat on the bank.", "sentenceOffset": 14,
+        "pageUrl": "https://example.test/book", "pageTitle": "Book", "createdAt": 1729000000000
+      },
+      "edits": { "definition": "自定义河岸释义" }
+    },
+    {
+      "id": "context-two",
+      "revision": 1,
+      "versionVector": { "fixture-device": 1 },
+      "savedAt": 1729000000000,
+      "updatedAt": 1729000000000,
+      "card": {
+        "entry": { "word": "bank", "reading": "", "partOfSpeech": "n.", "definition": "河岸", "contextTranslation": "我们坐在河岸边。" },
+        "selection": "bank", "sentence": "We sat on the bank.", "sentenceOffset": 14,
+        "pageUrl": "https://example.test/book", "pageTitle": "Book", "createdAt": 1729000000000
+      },
+      "edits": { "definition": "独立保存的另一条记录", "contextTranslation": "", "note": "保留独立身份" }
+    },
+    {
+      "id": "context-deleted",
+      "revision": 2,
+      "versionVector": { "fixture-device": 2 },
+      "savedAt": 1729000000000,
+      "updatedAt": 1729000050000,
+      "deletedAt": 1729000050000,
+      "card": {
+        "entry": { "word": "bank", "reading": "", "partOfSpeech": "n.", "definition": "银行", "contextTranslation": "我去了银行。" },
+        "selection": "bank", "sentence": "I went to the bank.", "sentenceOffset": 14,
+        "pageUrl": "https://example.test/book", "pageTitle": "Book", "createdAt": 1729000000000
+      }
+    }
+  ]
+}

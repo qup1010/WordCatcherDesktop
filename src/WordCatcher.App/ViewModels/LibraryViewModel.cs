@@ -21,6 +21,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 {
     private readonly IWordRepository _wordRepository;
     private readonly ISpeechService? _speechService;
+    private readonly IWebDavSyncService? _webDavSyncService;
     private const int PageSize = 100;
     private int _loadVersion;
     private int _occurrenceVersion;
@@ -256,6 +257,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             EditingOccurrence = null;
             if (SelectedWord?.Id == occurrence.WordId) await LoadOccurrencesForWordAsync(occurrence.WordId);
             StatusMessage = "语境修改已保存。";
+            _webDavSyncService?.ScheduleAutoSync();
         }
         catch (Exception ex) { StatusMessage = "保存语境失败：" + ex.Message; }
         finally { IsSavingContext = false; }
@@ -280,6 +282,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(CancelEditCommand))]
     private bool _isSavingEdit;
     [ObservableProperty] private bool _isExporting;
+    [ObservableProperty] private bool _isSyncingWebDav;
     [ObservableProperty] private bool _hasMore;
     [ObservableProperty] private bool _isCompact;
     [ObservableProperty] private bool _isDefinitionExpanded;
@@ -350,16 +353,18 @@ public sealed partial class LibraryViewModel : ObservableObject
     public LibraryViewModel(
         IWordRepository wordRepository,
         WordCollectionEvents wordCollectionEvents,
-        ISpeechService? speechService = null)
+        ISpeechService? speechService = null,
+        IWebDavSyncService? webDavSyncService = null)
     {
         _wordRepository = wordRepository;
         _speechService = speechService;
-        wordCollectionEvents.WordSaved += OnWordSaved;
+        _webDavSyncService = webDavSyncService;
+        wordCollectionEvents.CollectionChanged += OnWordSaved;
     }
 
     private void OnWordSaved()
     {
-        if (IsEditing)
+        if (IsEditing || IsEditingContext || IsSavingContext)
         {
             _refreshPending = true;
             return;
@@ -373,11 +378,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         StartEditCommand.NotifyCanExecuteChanged();
         DeleteWordCommand.NotifyCanExecuteChanged();
         UndoDeleteCommand.NotifyCanExecuteChanged();
-        if (!value && _refreshPending)
-        {
-            _refreshPending = false;
-            _ = LoadWordsAsync();
-        }
+        RefreshAfterEditing();
     }
 
     public async Task InitializeAsync()
@@ -394,7 +395,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     private async Task LoadWordsAsync(bool append = false)
     {
-        if (IsEditing)
+        if (IsEditing || IsEditingContext || IsSavingContext)
         {
             IsLoading = false;
             return;
@@ -513,6 +514,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             IsEditing = false;
             await LoadWordsAsync().ConfigureAwait(true);
             if (!HasLoadError) StatusMessage = "词条修改已保存。";
+            _webDavSyncService?.ScheduleAutoSync();
         }
         catch (Exception) { StatusMessage = "保存失败，修改内容已保留，请重试。"; }
         finally { IsSavingEdit = false; }
@@ -543,6 +545,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             DeleteStatusText = $"已删除「{word.DisplayWord}」及其语境记录，可撤销。";
             if (SelectedWord?.Id == word.Id) SelectedWord = null;
             await LoadWordsAsync().ConfigureAwait(true);
+            _webDavSyncService?.ScheduleAutoSync();
         }
         catch (Exception) { StatusMessage = "删除失败，请重试。"; }
         finally { IsChangingCollection = false; }
@@ -561,6 +564,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             DeleteStatusText = $"已恢复「{deleted.Name}」及全部语境记录。";
             await LoadWordsAsync().ConfigureAwait(true);
             SelectedWord = Words.FirstOrDefault(word => word.Id == deleted.Id) ?? SelectedWord;
+            _webDavSyncService?.ScheduleAutoSync();
         }
         catch (Exception) { DeleteStatusText = "恢复失败，请重试；记录仍保留。"; }
         finally { IsChangingCollection = false; }
@@ -578,6 +582,39 @@ public sealed partial class LibraryViewModel : ObservableObject
             StatusMessage = "已复制单词与释义。";
         }
         catch (Exception) { StatusMessage = "复制失败，请稍后重试。"; }
+    }
+
+    [RelayCommand]
+    private async Task SyncWebDavAsync()
+    {
+        if (IsSyncingWebDav || IsExporting) return;
+        if (_webDavSyncService == null)
+        {
+            StatusMessage = "请先在「设置」页面配置并启用 WebDAV 同步。";
+            return;
+        }
+
+        IsSyncingWebDav = true;
+        StatusMessage = "正在与 WebDAV 云端同步词库…";
+        try
+        {
+            var res = await _webDavSyncService.SyncAsync(forcePush: true).ConfigureAwait(true);
+            await LoadWordsAsync().ConfigureAwait(true);
+            var parts = new List<string>();
+            if (res.Added > 0) parts.Add($"新增 {res.Added} 条");
+            if (res.Updated > 0) parts.Add($"更新 {res.Updated} 条");
+            if (res.Removed > 0) parts.Add($"删除 {res.Removed} 条");
+            var summary = parts.Count > 0 ? string.Join("，", parts) : "数据已是最新";
+            StatusMessage = $"WebDAV 同步完成：{summary}（共 {res.Total} 个词条）。";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"WebDAV 同步失败：{ex.Message}";
+        }
+        finally
+        {
+            IsSyncingWebDav = false;
+        }
     }
 
     [RelayCommand]
@@ -623,6 +660,7 @@ public sealed partial class LibraryViewModel : ObservableObject
                 var json = await File.ReadAllTextAsync(ofd.FileName).ConfigureAwait(true);
                 var count = await _wordRepository.ImportWordsJsonAsync(json).ConfigureAwait(true);
                 await LoadWordsAsync().ConfigureAwait(true);
+                if (count > 0) _webDavSyncService?.ScheduleAutoSync();
                 StatusMessage = count > 0
                     ? $"已导入 {count} 条词条或语境记录。"
                     : "备份文件已解析，未发现新的词条或语境。";

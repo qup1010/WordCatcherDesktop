@@ -6,6 +6,7 @@ using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 using WordCatcher.Infrastructure.Anki;
 using WordCatcher.Infrastructure.Database;
+using WordCatcher.Infrastructure.Sync;
 using WordCatcher.Infrastructure.Translation;
 
 namespace WordCatcher.Infrastructure.Tests;
@@ -73,6 +74,180 @@ public sealed class LearningRecordTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportWordsJsonAsyncSupportsBrowserExtensionLearningRecordsEnvelope()
+    {
+        await Init();
+        var recordId = Guid.NewGuid().ToString();
+        var extensionLearningJson = JsonSerializer.Serialize(new
+        {
+            format = "word-catcher-learning",
+            version = 2,
+            exportedAt = DateTimeOffset.UtcNow.ToString("o"),
+            records = new[]
+            {
+                new
+                {
+                    id = recordId,
+                    revision = 2,
+                    savedAt = 1729000000000L,
+                    updatedAt = 1729000050000L,
+                    card = new
+                    {
+                        recordId,
+                        recordRevision = 2,
+                        selection = "stride",
+                        sentence = "He took it in stride.",
+                        sentenceOffset = 14,
+                        pageUrl = "https://example.test/stride",
+                        pageTitle = "Article",
+                        createdAt = 1729000000000L,
+                        entry = new
+                        {
+                            word = "stride",
+                            reading = "straɪd",
+                            partOfSpeech = "phr.",
+                            definition = "从容面对",
+                            contextTranslation = "他从容应对了这件事。",
+                            inputKind = "phrase",
+                            expression = "take something in stride",
+                            keyExplanation = "固定搭配，表示镇定处理。",
+                            usageNote = "常用于口语和书面语",
+                            example = "She takes criticism in stride.",
+                            exampleTranslation = "她泰然接受批评。"
+                        }
+                    },
+                    edits = new
+                    {
+                        definition = "我的语境义",
+                        note = "插件同步过来的笔记"
+                    }
+                }
+            }
+        });
+
+        Assert.Equal(1, await _repo.ImportWordsJsonAsync(extensionLearningJson));
+        Assert.Equal(0, await _repo.ImportWordsJsonAsync(extensionLearningJson));
+
+        var occ = await _repo.GetOccurrenceByIdAsync(recordId);
+        Assert.NotNull(occ);
+        Assert.Equal("我的语境义", occ!.Definition);
+        Assert.Equal("插件同步过来的笔记", occ.Note);
+        Assert.Equal("take something in stride", occ.Expression);
+        Assert.Equal("固定搭配，表示镇定处理。", occ.KeyExplanation);
+    }
+
+    [Fact]
+    public async Task WebDavSyncServiceMergesRemoteRecordsAndPropagatesDeletions()
+    {
+        await Init();
+        var (riverWord, riverOcc, _) = await _repo.SaveAsync(new(Capture("We sat on the bank."), Result("河岸")));
+        using var initial = JsonDocument.Parse(await _repo.ExportSyncJsonAsync());
+        var initialVector = JsonSerializer.Deserialize<Dictionary<string, long>>(
+            initial.RootElement.GetProperty("records")[0].GetProperty("versionVector").GetRawText())!;
+        await _repo.MoveWordToTrashAsync(riverWord.Id);
+
+        var remoteOccId = Guid.NewGuid().ToString();
+        var remotePayload = JsonSerializer.Serialize(new
+        {
+            format = "word-catcher-learning",
+            version = 3,
+            exportedAt = DateTimeOffset.UtcNow.ToString("o"),
+            records = new object[]
+            {
+                new
+                {
+                    id = riverOcc.Id,
+                    revision = 1,
+                    versionVector = initialVector,
+                    savedAt = riverOcc.CapturedAtUtc.ToUnixTimeMilliseconds(),
+                    updatedAt = riverOcc.CapturedAtUtc.ToUnixTimeMilliseconds(),
+                    card = new
+                    {
+                        recordId = riverOcc.Id,
+                        selection = "bank",
+                        sentence = "We sat on the bank.",
+                        sentenceOffset = 14,
+                        pageUrl = "https://example.test",
+                        pageTitle = "Book",
+                        createdAt = riverOcc.CapturedAtUtc.ToUnixTimeMilliseconds(),
+                        entry = new
+                        {
+                            word = "bank",
+                            reading = "/bæŋk/",
+                            partOfSpeech = "n.",
+                            definition = "河岸",
+                            contextTranslation = "我们坐在河岸边。"
+                        }
+                    }
+                },
+                new
+                {
+                    id = remoteOccId,
+                    revision = 1,
+                    versionVector = new Dictionary<string, long> { ["remote-device"] = 1 },
+                    savedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    updatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    card = new
+                    {
+                        recordId = remoteOccId,
+                        selection = "resilient",
+                        sentence = "Systems must be resilient.",
+                        sentenceOffset = 16,
+                        pageUrl = "https://example.test/iot",
+                        pageTitle = "IoT Paper",
+                        createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        entry = new
+                        {
+                            word = "resilient",
+                            reading = "rɪˈzɪliənt",
+                            partOfSpeech = "adj.",
+                            definition = "有弹性的；能快速恢复的",
+                            contextTranslation = "系统必须具备韧性。"
+                        }
+                    }
+                }
+            }
+        });
+
+        string? uploadedPayload = null;
+        var settings = new Settings();
+        settings.Current.WebDav.Enabled = true;
+        settings.Current.WebDav.Url = "https://dav.example.com/dav";
+        settings.Current.WebDav.RemotePath = "WordCatcher/vocabulary-sync.json";
+        settings.Current.WebDav.Username = "user";
+
+        var handler = new Handler(async (req, ct) =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(remotePayload, Encoding.UTF8, "application/json"),
+                    Headers = { ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"version-1\"") }
+                };
+            }
+            if (req.Method == HttpMethod.Put)
+            {
+                uploadedPayload = await req.Content!.ReadAsStringAsync(ct);
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var syncService = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
+        var syncResult = await syncService.SyncAsync();
+
+        Assert.Equal(1, syncResult.Added);
+        Assert.Equal(1, syncResult.Total);
+        Assert.True(syncResult.Pushed);
+        Assert.Null(await _repo.FindWordAsync("bank"));
+        Assert.NotNull(await _repo.FindWordAsync("resilient"));
+        Assert.False(string.IsNullOrWhiteSpace(uploadedPayload));
+        using var uploadedDoc = JsonDocument.Parse(uploadedPayload!);
+        Assert.Equal("word-catcher-learning", uploadedDoc.RootElement.GetProperty("format").GetString());
+    }
+
+    [Fact]
     public async Task DifferentSensesRemainIndependentAndUserWordEditsArePreserved()
     {
         await Init();
@@ -133,6 +308,7 @@ public sealed class LearningRecordTests : IDisposable
             await using var cmd = connection.CreateCommand();
             cmd.CommandText = @"DROP TABLE lookup_history; ALTER TABLE occurrences DROP COLUMN learning_json;
 ALTER TABLE occurrences DROP COLUMN user_edits_json; ALTER TABLE sync_jobs DROP COLUMN revision;
+DROP TABLE sync_records_meta;
 UPDATE app_meta SET value = '3' WHERE key = 'schema_version';";
             await cmd.ExecuteNonQueryAsync();
         }
@@ -199,6 +375,78 @@ UPDATE app_meta SET value = '3' WHERE key = 'schema_version';";
         Assert.Equal(riverId, await client.AddNoteAsync(word, river));
         Assert.Equal(2, creates); Assert.Equal(1, updates);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WebDavDoesNotOverwriteAConcurrentRemoteChange(bool remoteMissing)
+    {
+        await Init();
+        await _repo.SaveAsync(new(Capture(), Result()));
+        var remotePayload = await _repo.ExportSyncJsonAsync();
+        var settings = new Settings();
+        settings.Current.WebDav.Url = "https://dav.example.test/dav";
+        var uploads = 0;
+        var handler = new Handler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                var response = new HttpResponseMessage(remoteMissing ? HttpStatusCode.NotFound : HttpStatusCode.OK)
+                {
+                    Content = new StringContent(remotePayload)
+                };
+                response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"version-1\"");
+                return Task.FromResult(response);
+            }
+            if (request.Method == HttpMethod.Put)
+            {
+                uploads++;
+                if (remoteMissing) Assert.Equal("*", Assert.Single(request.Headers.IfNoneMatch).Tag);
+                else Assert.Equal("\"version-1\"", Assert.Single(request.Headers.IfMatch).Tag);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.PreconditionFailed));
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        using var service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SyncAsync(forcePush: true));
+        Assert.Contains("其他设备", error.Message);
+        Assert.Equal(1, uploads);
+        Assert.Null(service.LastSyncedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("W/\"weak\"")]
+    public async Task WebDavRefusesToWriteAnExistingFileWithoutStrongEtag(string? etag)
+    {
+        await Init();
+        var payload = await _repo.ExportSyncJsonAsync();
+        var uploads = 0;
+        var handler = new Handler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Put) uploads++;
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(payload) };
+            if (etag != null) response.Headers.ETag = System.Net.Http.Headers.EntityTagHeaderValue.Parse(etag);
+            return Task.FromResult(response);
+        });
+        var settings = new Settings();
+        settings.Current.WebDav.Url = "https://dav.example.test/dav";
+        using var service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SyncAsync(forcePush: true));
+        Assert.Contains("ETag", error.Message);
+        Assert.Equal(0, uploads);
+    }
+
+    [Fact]
+    public async Task WebDavDirectoryCreationFailureDoesNotReportConnectionSuccess()
+    {
+        var handler = new Handler((request, _) => Task.FromResult(new HttpResponseMessage(
+            request.Method.Method == "MKCOL" ? HttpStatusCode.InternalServerError : HttpStatusCode.NotFound)));
+        using var service = new WebDavSyncService(new HttpClient(handler), _repo, new Settings(), new Secret());
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.TestConnectionAsync(
+            "https://dav.example.test/dav", "WordCatcher/vocabulary-sync.json", "", ""));
+        Assert.Contains("500", error.Message);
+    }
+
     private sealed class Secret : ISecretStore
     {
         public Task<string> GetApiKeyAsync(CancellationToken ct = default) => Task.FromResult("test");

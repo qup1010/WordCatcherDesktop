@@ -110,6 +110,46 @@ CREATE TABLE IF NOT EXISTS lookup_history (
  id TEXT PRIMARY KEY, capture_json TEXT NOT NULL, result_json TEXT NOT NULL, queried_at_utc TEXT NOT NULL
 );
 "
+        ),
+        (
+            5,
+            "Create sync_records_meta table for cross-device WebDAV synchronization",
+            @"
+CREATE TABLE IF NOT EXISTS sync_records_meta (
+  occurrence_id    TEXT PRIMARY KEY,
+  word_id          TEXT NOT NULL,
+  normalized_word  TEXT NOT NULL DEFAULT '',
+  display_word     TEXT NOT NULL DEFAULT '',
+  selection        TEXT NOT NULL DEFAULT '',
+  sentence         TEXT NOT NULL DEFAULT '',
+  selection_offset INTEGER NOT NULL DEFAULT -1,
+  source_uri       TEXT NOT NULL DEFAULT '',
+  revision         INTEGER NOT NULL DEFAULT 1,
+  saved_at_utc     TEXT NOT NULL,
+  updated_at_utc   TEXT NOT NULL,
+  deleted_at_utc   TEXT NULL,
+  snapshot_json    TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS ix_sync_records_meta_word ON sync_records_meta(word_id);
+CREATE INDEX IF NOT EXISTS ix_sync_records_meta_context ON sync_records_meta(selection, sentence, selection_offset, source_uri);
+INSERT OR IGNORE INTO sync_records_meta (
+  occurrence_id, word_id, normalized_word, display_word, selection, sentence, selection_offset, source_uri,
+  revision, saved_at_utc, updated_at_utc, deleted_at_utc, snapshot_json
+)
+SELECT
+  o.id, o.word_id, w.normalized_word, w.display_word, o.selected_text, o.sentence, o.selection_offset, o.source_uri,
+  MAX(1, COALESCE((SELECT j.revision FROM sync_jobs j WHERE j.occurrence_id = o.id LIMIT 1), 1)),
+  o.captured_at_utc, w.updated_at_utc, w.deleted_at_utc, ''
+FROM occurrences o
+INNER JOIN words w ON w.id = o.word_id;
+"
+        ),
+        (
+            6,
+            "Track causal WebDAV revisions per device",
+            @"
+ALTER TABLE sync_records_meta ADD COLUMN version_vector_json TEXT NOT NULL DEFAULT '{}';
+"
         )
     };
 

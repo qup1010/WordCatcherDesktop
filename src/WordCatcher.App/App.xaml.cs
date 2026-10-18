@@ -17,6 +17,7 @@ using WordCatcher.Infrastructure.Dictionary;
 using WordCatcher.Infrastructure.Logging;
 using WordCatcher.Infrastructure.Security;
 using WordCatcher.Infrastructure.Settings;
+using WordCatcher.Infrastructure.Sync;
 using WordCatcher.Infrastructure.Translation;
 using Wpf.Ui.Appearance;
 
@@ -33,7 +34,7 @@ public partial class App : System.Windows.Application
     private HotkeyManager? _hotkeyManager;
     private TrayIconManager? _trayManager;
     private AnkiSyncWorker? _syncWorker;
-    private LocalBridgeServer? _bridgeServer;
+    private WebDavSyncService? _webDavSync;
     private LibraryWindow? _libraryWindow;
     private LookupWindow? _activeLookupWindow;
 
@@ -75,12 +76,23 @@ public partial class App : System.Windows.Application
             await migrator.MigrateAsync().ConfigureAwait(true);
             _logger.LogInformation("Database migration completed");
 
-            // 4. Start Anki Background Sync Worker & Browser Extension Local Bridge
+            // 4. Start Anki Background Sync Worker & WebDAV Sync
             _syncWorker = _serviceProvider.GetRequiredService<AnkiSyncWorker>();
             _syncWorker.Start();
 
-            _bridgeServer = _serviceProvider.GetRequiredService<LocalBridgeServer>();
-            _bridgeServer.Start();
+            _webDavSync = _serviceProvider.GetRequiredService<WebDavSyncService>();
+            var wordEvents = _serviceProvider.GetRequiredService<WordCollectionEvents>();
+            wordEvents.WordSaved += () => _webDavSync.ScheduleAutoSync();
+            _webDavSync.SyncCompleted += () =>
+            {
+                if (Current?.Dispatcher is { } dispatcher)
+                    _ = dispatcher.InvokeAsync(() => wordEvents.NotifyCollectionChanged());
+            };
+            _webDavSync.SyncFailed += message =>
+            {
+                if (Current?.Dispatcher is { } dispatcher && _libraryWindow is { } window)
+                    _ = dispatcher.InvokeAsync(() => window.ShowBackgroundWebDavFailure(message));
+            };
 
             // 5. Initialize Services & Tray
             _hotkeyManager = _serviceProvider.GetRequiredService<HotkeyManager>();
@@ -103,6 +115,13 @@ public partial class App : System.Windows.Application
             _trayManager.CaptureNowRequested += () => OnHotkeyTriggered();
 
             _libraryWindow = _serviceProvider.GetRequiredService<LibraryWindow>();
+
+            if (settingsService.Current.WebDav.Enabled
+                && settingsService.Current.WebDav.AutoSync
+                && !string.IsNullOrWhiteSpace(settingsService.Current.WebDav.Url))
+            {
+                _webDavSync.ScheduleAutoSync();
+            }
 
             _logger.LogInformation("Word Catcher initialized and resident in system tray");
         }
@@ -158,11 +177,12 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IMachineTranslationService, MachineTranslationService>();
         services.AddSingleton<ILookupService, LookupService>();
 
-        // Anki Sync & Browser Bridge
+        // Anki Sync & WebDAV Sync
         services.AddSingleton<IAnkiClient, AnkiConnectClient>();
         services.AddSingleton<AnkiSyncWorker>();
         services.AddSingleton<IAnkiSyncQueue>(sp => sp.GetRequiredService<AnkiSyncWorker>());
-        services.AddSingleton<LocalBridgeServer>();
+        services.AddSingleton<WebDavSyncService>();
+        services.AddSingleton<IWebDavSyncService>(sp => sp.GetRequiredService<WebDavSyncService>());
 
         // Win32 Capture & Hotkey & Tray
         services.AddSingleton<ISelectionCaptureService, SelectionCaptureService>();
@@ -254,7 +274,7 @@ public partial class App : System.Windows.Application
 
         _hotkeyManager?.Dispose();
         _trayManager?.Dispose();
-        _bridgeServer?.Dispose();
+        _webDavSync?.Dispose();
         _syncWorker?.Dispose();
 
         if (_ownsSingleInstanceMutex && _singleInstanceMutex != null)

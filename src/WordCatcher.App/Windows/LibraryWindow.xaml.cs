@@ -84,6 +84,8 @@ public partial class LibraryWindow : Window
         {
             if (e.PropertyName == nameof(SettingsViewModel.ApiKey) && ApiKeyBox.Password != _settingsVm.ApiKey)
                 ApiKeyBox.Password = _settingsVm.ApiKey;
+            if (e.PropertyName == nameof(SettingsViewModel.WebDavPassword) && WebDavPasswordBox.Password != _settingsVm.WebDavPassword)
+                WebDavPasswordBox.Password = _settingsVm.WebDavPassword;
         };
         _libraryVm.PropertyChanged += (_, e) =>
         {
@@ -219,6 +221,11 @@ public partial class LibraryWindow : Window
                 e.Handled = true;
             }
         };
+    }
+
+    public void ShowBackgroundWebDavFailure(string message)
+    {
+        _libraryVm.StatusMessage = $"自动 WebDAV 同步失败：{message}";
     }
 
     private void UpdateWindowStateVisuals()
@@ -394,6 +401,12 @@ public partial class LibraryWindow : Window
     {
         if (_settingsVm != null && _settingsVm.ApiKey != ApiKeyBox.Password)
             _settingsVm.ApiKey = ApiKeyBox.Password;
+    }
+
+    private void WebDavPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (_settingsVm != null && _settingsVm.WebDavPassword != WebDavPasswordBox.Password)
+            _settingsVm.WebDavPassword = WebDavPasswordBox.Password;
     }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)

@@ -472,6 +472,37 @@
                                     <TextBlock Text="卡片复习" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 </StackPanel>
                             </ui:Button>
+                            <ui:Button x:Name="SyncWebDavButton" Command="{Binding SyncWebDavCommand}" ToolTip="与 WebDAV 云端合并同步词库"
+                                    Margin="0,0,8,0"
+                                    Padding="12,6"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Foreground="{StaticResource TextSecondaryBrush}"
+                                    FontSize="{StaticResource CaptionFontSize}"
+                                    Cursor="Hand">
+                                <ui:Button.Style>
+                                    <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
+                                        <Setter Property="MinHeight" Value="36" />
+                                        <Setter Property="IsEnabled" Value="{Binding IsSyncingWebDav, Converter={StaticResource InverseBool}}" />
+                                    </Style>
+                                </ui:Button.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE895;" FontFamily="Segoe Fluent Icons" FontSize="13" Margin="0,0,7,0" />
+                                    <TextBlock>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="云端同步" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSyncingWebDav}" Value="True">
+                                                        <Setter Property="Text" Value="同步中…" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Button>
                             <ui:Button x:Name="ImportBackupButton" Command="{Binding ImportJsonCommand}" ToolTip="导入桌面端或浏览器插件导出的 JSON 词库备份"
                                     Margin="0,0,8,0"
                                     Padding="12,6"
@@ -1695,6 +1726,121 @@
                                         BorderThickness="0"
                                         Margin="160,4,0,0"
                                         Cursor="Hand" ><TextBlock><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="测试 AI 连接" /><Style.Triggers><DataTrigger Binding="{Binding IsTestingAi}" Value="True"><Setter Property="Text" Value="正在测试…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></ui:Button></StackPanel></Expander></StackPanel>
+                        </GroupBox>
+
+                        <!-- 4. WebDAV 多端词库同步 -->
+                        <GroupBox x:Name="WebDavSettingsGroup" Header="WebDAV 多端词库同步（可选）" Style="{StaticResource SettingsSectionStyle}">
+                            <StackPanel>
+                                <TextBlock Text="各端配置相同的 HTTPS WebDAV 地址与文件路径，即可同步词条、语境、编辑和删除。服务器需支持强 ETag 条件写入；遇到并发写入或同版本编辑冲突时会停止上传，保留两端内容。"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="{StaticResource CaptionFontSize}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,10" />
+                                <ui:ToggleSwitch Content="启用 WebDAV 多端生词库同步" IsChecked="{Binding WebDavEnabled}" Margin="0,0,0,10" />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="WebDAV 地址" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavUrl, UpdateSourceTrigger=PropertyChanged}"
+                                             MinHeight="36" Padding="10,6" FontSize="13"
+                                             Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                             BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                             VerticalContentAlignment="Center"
+                                             ToolTip="例如 https://dav.jianguoyun.com/dav/" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="同步文件路径" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavRemotePath, UpdateSourceTrigger=PropertyChanged}"
+                                             MinHeight="36" Padding="10,6" FontSize="13"
+                                             Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                             BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                             VerticalContentAlignment="Center" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="用户名 / 账号" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavUsername, UpdateSourceTrigger=PropertyChanged}"
+                                             MinHeight="36" Padding="10,6" FontSize="13"
+                                             Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                             BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                             VerticalContentAlignment="Center" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="密码 / 应用密码" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <ui:PasswordBox x:Name="WebDavPasswordBox" Grid.Column="1"
+                                                    PasswordChanged="WebDavPasswordBox_PasswordChanged"
+                                                    MinHeight="36" Padding="10,6" FontSize="13"
+                                                    Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                                    BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                                    VerticalContentAlignment="Center"
+                                                    ToolTip="WebDAV 密码使用系统 DPAPI 在本地加密保存" AutomationProperties.Name="WebDAV 密码" />
+                                </Grid>
+
+                                <ui:ToggleSwitch Content="新增、编辑或删除词条后自动与云端合并同步" IsChecked="{Binding WebDavAutoSync}" Margin="160,2,0,10" />
+
+                                <WrapPanel Margin="160,4,0,0">
+                                    <ui:Button Style="{StaticResource SecondaryActionButton}"
+                                            IsEnabled="{Binding IsTestingWebDav, Converter={StaticResource InverseBool}}"
+                                            Command="{Binding TestWebDavConnectionCommand}"
+                                            Padding="12,5"
+                                            Margin="0,0,8,0"
+                                            Background="{StaticResource SubtleSurfaceBrush}"
+                                            Foreground="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="0"
+                                            Cursor="Hand">
+                                        <TextBlock>
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="测试 WebDAV 连接" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsTestingWebDav}" Value="True">
+                                                            <Setter Property="Text" Value="正在测试…" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </ui:Button>
+                                    <ui:Button Style="{StaticResource SecondaryActionButton}"
+                                            IsEnabled="{Binding IsSyncingWebDav, Converter={StaticResource InverseBool}}"
+                                            Command="{Binding SyncWebDavNowCommand}"
+                                            Padding="12,5"
+                                            Background="{StaticResource SubtleSurfaceBrush}"
+                                            Foreground="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="0"
+                                            Cursor="Hand">
+                                        <TextBlock>
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="立即同步词库" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSyncingWebDav}" Value="True">
+                                                            <Setter Property="Text" Value="正在同步…" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </ui:Button>
+                                </WrapPanel>
+                            </StackPanel>
                         </GroupBox>
 
                         <!-- 4. Anki 同步 -->

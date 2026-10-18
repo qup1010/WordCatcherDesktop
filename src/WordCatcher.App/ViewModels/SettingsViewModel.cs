@@ -16,6 +16,7 @@ using Microsoft.Win32;
 using WordCatcher.App.Services;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
+using WordCatcher.Infrastructure.Sync;
 using WordCatcher.Infrastructure.Translation;
 
 namespace WordCatcher.App.ViewModels;
@@ -30,6 +31,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly OpenAiTranslationService _translationService;
     private readonly HotkeyManager _hotkeyManager;
     private readonly UpdateCheckService? _updateCheckService;
+    private readonly IWebDavSyncService? _webDavSyncService;
 
     [ObservableProperty]
     private string _hotkey = "Alt+Q";
@@ -101,6 +103,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _ankiTtsLang = "en_US";
 
     [ObservableProperty]
+    private bool _webDavEnabled;
+
+    [ObservableProperty]
+    private string _webDavUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _webDavUsername = string.Empty;
+
+    [ObservableProperty]
+    private string _webDavPassword = string.Empty;
+
+    [ObservableProperty]
+    private string _webDavRemotePath = WebDavSyncService.DefaultRemotePath;
+
+    [ObservableProperty]
+    private bool _webDavAutoSync = true;
+
+    [ObservableProperty]
     private bool _closePopupAfterSave = true;
 
     [ObservableProperty]
@@ -118,6 +138,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
         nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
+        nameof(WebDavEnabled), nameof(WebDavUrl), nameof(WebDavUsername), nameof(WebDavPassword),
+        nameof(WebDavRemotePath), nameof(WebDavAutoSync),
         nameof(ClosePopupAfterSave), nameof(ClosePopupOnDeactivate)
     };
 
@@ -125,8 +147,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         Hotkey, ExplainLanguage, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
         ActiveAiProfileId, AiProfileName, MachineTranslationProvider, ApiKey, AnkiEnabled,
-        AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang, ClosePopupAfterSave,
-        ClosePopupOnDeactivate, Profiles = AiProfiles, Keys = _profileApiKeys
+        AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
+        WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
+        ClosePopupAfterSave, ClosePopupOnDeactivate, Profiles = AiProfiles, Keys = _profileApiKeys
     });
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -139,6 +162,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _isSaving;
     [ObservableProperty] private bool _isTestingAi;
     [ObservableProperty] private bool _isTestingAnki;
+    [ObservableProperty] private bool _isTestingWebDav;
+    [ObservableProperty] private bool _isSyncingWebDav;
     [ObservableProperty] private string _dictFeedback = string.Empty;
     [ObservableProperty] private bool _isDictProgressIndeterminate;
     private CancellationTokenSource? _dictionaryInstallCancellation;
@@ -227,6 +252,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _profileEditorReady;
     private string _editingProfileId = string.Empty;
     private readonly Dictionary<string, string> _profileApiKeys = new(StringComparer.Ordinal);
+    private string _webDavPasswordFallback = string.Empty;
 
     public SettingsViewModel(
         ISettingsService settingsService,
@@ -236,7 +262,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         IAnkiClient ankiClient,
         OpenAiTranslationService translationService,
         HotkeyManager hotkeyManager,
-        UpdateCheckService? updateCheckService = null)
+        UpdateCheckService? updateCheckService = null,
+        IWebDavSyncService? webDavSyncService = null)
     {
         _settingsService = settingsService;
         _secretStore = secretStore;
@@ -246,6 +273,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _translationService = translationService;
         _hotkeyManager = hotkeyManager;
         _updateCheckService = updateCheckService;
+        _webDavSyncService = webDavSyncService;
     }
 
     public async Task InitializeAsync()
@@ -287,6 +315,18 @@ public sealed partial class SettingsViewModel : ObservableObject
             AnkiClozeContext = s.Anki.ClozeContext;
             AnkiTtsLang = s.Anki.TtsLang;
 
+            var webDav = s.WebDav ?? new WebDavSettings();
+            WebDavEnabled = webDav.Enabled;
+            WebDavUrl = webDav.Url;
+            WebDavUsername = webDav.Username;
+            WebDavRemotePath = string.IsNullOrWhiteSpace(webDav.RemotePath)
+                ? WebDavSyncService.DefaultRemotePath
+                : webDav.RemotePath;
+            WebDavAutoSync = webDav.AutoSync;
+            WebDavPassword = _secretStore is IProfileSecretStore profileSecrets
+                ? await profileSecrets.GetApiKeyAsync(WebDavSyncService.SecretStoreKey).ConfigureAwait(true)
+                : _webDavPasswordFallback;
+
             ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
             ClosePopupOnDeactivate = s.Ui.ClosePopupOnDeactivate;
 
@@ -301,7 +341,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task DiscardChangesAsync()
     {
-        if (IsSaving || IsTestingAi || IsTestingAnki || _initializing) return;
+        if (IsSaving || IsTestingAi || IsTestingAnki || IsTestingWebDav || IsSyncingWebDav || _initializing) return;
         CancelHotkeyRecording();
         HasUnsavedChanges = false;
         try
@@ -462,10 +502,20 @@ public sealed partial class SettingsViewModel : ObservableObject
             s.Anki.ClozeContext = AnkiClozeContext;
             s.Anki.TtsLang = AnkiTtsLang.Trim();
 
+            s.WebDav ??= new WebDavSettings();
+            s.WebDav.Enabled = WebDavEnabled;
+            s.WebDav.Url = WebDavUrl.Trim();
+            s.WebDav.Username = WebDavUsername.Trim();
+            s.WebDav.RemotePath = string.IsNullOrWhiteSpace(WebDavRemotePath)
+                ? WebDavSyncService.DefaultRemotePath
+                : WebDavRemotePath.Trim();
+            s.WebDav.AutoSync = WebDavAutoSync;
+
             s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
             s.Ui.ClosePopupOnDeactivate = ClosePopupOnDeactivate;
 
             _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();
+            _webDavPasswordFallback = WebDavPassword;
             if (_secretStore is IProfileSecretStore profileSecrets)
             {
                 foreach (var profile in s.TranslationProfiles)
@@ -473,6 +523,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                     _profileApiKeys.TryGetValue(profile.Id, out var key);
                     await profileSecrets.SetApiKeyAsync(profile.Id, key ?? string.Empty).ConfigureAwait(true);
                 }
+                await profileSecrets.SetApiKeyAsync(WebDavSyncService.SecretStoreKey, WebDavPassword).ConfigureAwait(true);
             }
             else
             {
@@ -503,6 +554,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (ApiTimeoutSeconds <= 0) return "请求超时必须大于 0 秒。";
         if (AnkiEnabled && (!IsWebUrl(AnkiUrl) || string.IsNullOrWhiteSpace(AnkiDeckName) || string.IsNullOrWhiteSpace(AnkiNoteTypeName)))
             return "请填写有效的 Anki 地址、牌组名称和笔记类型。";
+        if (WebDavEnabled && (!IsWebUrl(WebDavUrl) || string.IsNullOrWhiteSpace(WebDavRemotePath)))
+            return "启用 WebDAV 同步时，请填写有效的服务器地址和同步文件路径。";
         return null;
     }
 
@@ -728,6 +781,77 @@ public sealed partial class SettingsViewModel : ObservableObject
             StatusMessage = $"连接 Anki 失败：{ex.Message} 请确认 Anki 与 AnkiConnect 已启动。";
         }
         finally { IsTestingAnki = false; }
+    }
+
+    [RelayCommand]
+    private async Task TestWebDavConnectionAsync()
+    {
+        if (IsTestingWebDav || IsSyncingWebDav) return;
+        if (_webDavSyncService == null)
+        {
+            StatusMessage = "WebDAV 同步服务未初始化。";
+            return;
+        }
+
+        IsTestingWebDav = true;
+        StatusMessage = "正在测试 WebDAV 连接…";
+        try
+        {
+            var (exists, fileUrl) = await _webDavSyncService.TestConnectionAsync(
+                WebDavUrl,
+                WebDavRemotePath,
+                WebDavUsername,
+                WebDavPassword).ConfigureAwait(true);
+
+            StatusMessage = exists
+                ? $"WebDAV 连接成功，已检测到远端同步文件（{fileUrl}）。"
+                : $"WebDAV 连接成功，远端目录就绪，首次同步将创建 {fileUrl}。";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"WebDAV 连接测试失败：{ex.Message}";
+        }
+        finally
+        {
+            IsTestingWebDav = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SyncWebDavNowAsync()
+    {
+        if (IsSyncingWebDav || IsTestingWebDav) return;
+        if (_webDavSyncService == null)
+        {
+            StatusMessage = "WebDAV 同步服务未初始化。";
+            return;
+        }
+        if (HasUnsavedChanges)
+        {
+            await SaveSettingsAsync().ConfigureAwait(true);
+            if (HasUnsavedChanges) return;
+        }
+
+        IsSyncingWebDav = true;
+        StatusMessage = "正在与 WebDAV 云端同步生词库…";
+        try
+        {
+            var res = await _webDavSyncService.SyncAsync(forcePush: true).ConfigureAwait(true);
+            var parts = new List<string>();
+            if (res.Added > 0) parts.Add($"新增 {res.Added} 条");
+            if (res.Updated > 0) parts.Add($"更新 {res.Updated} 条");
+            if (res.Removed > 0) parts.Add($"删除 {res.Removed} 条");
+            var summary = parts.Count > 0 ? string.Join("，", parts) : "云端与本地数据已一致";
+            StatusMessage = $"WebDAV 同步完成：{summary}（当前共 {res.Total} 个词条）。";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"WebDAV 同步失败：{ex.Message}";
+        }
+        finally
+        {
+            IsSyncingWebDav = false;
+        }
     }
 
     [RelayCommand]

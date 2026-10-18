@@ -113,6 +113,26 @@ public class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task SyncRefreshWaitsUntilContextEditingEnds()
+    {
+        var events = new WordCollectionEvents();
+        var (vm, repo) = Create(events);
+        var stored = new List<Word> { new() { Id = "one", DisplayWord = "one" } };
+        repo.ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>(stored.ToArray());
+        await vm.InitializeAsync();
+        vm.EditContextCommand.Execute(new Occurrence { WordId = "one", SelectedText = "one" });
+        vm.ContextNote = "未保存的备注";
+        stored.Add(new Word { Id = "two", DisplayWord = "two" });
+
+        events.NotifyCollectionChanged();
+        Assert.Single(vm.Words);
+        Assert.Equal("未保存的备注", vm.ContextNote);
+        Assert.True(vm.IsEditingContext);
+        vm.CancelContextEditCommand.Execute(null);
+        Assert.Equal(2, vm.Words.Count);
+    }
+
+    [Fact]
     public async Task PagingUsesLookAheadWithoutSkippingWord()
     {
         var (vm, repo) = Create();

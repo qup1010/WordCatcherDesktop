@@ -13,6 +13,7 @@ public sealed class AppSettings
     public string ActiveTranslationProfileId { get; set; } = "default";
     public DictionarySettings Dictionary { get; set; } = new();
     public AnkiSettings Anki { get; set; } = new();
+    public WebDavSettings WebDav { get; set; } = new();
     public UiSettings Ui { get; set; } = new();
 
     [JsonIgnore]
@@ -49,6 +50,15 @@ public sealed class AnkiSettings
     public string NoteTypeName { get; set; } = "Word Catcher";
     public bool ClozeContext { get; set; } = true;
     public string TtsLang { get; set; } = "en_US";
+}
+
+public sealed class WebDavSettings
+{
+    public bool Enabled { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string RemotePath { get; set; } = "WordCatcher/vocabulary-sync.json";
+    public bool AutoSync { get; set; } = true;
 }
 
 public sealed class UiSettings
