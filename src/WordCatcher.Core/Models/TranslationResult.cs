@@ -22,4 +22,5 @@ public sealed record SaveCardCommand(
     TranslationResult Translation,
     LearningEdits? Edits = null,
     bool UpdateExisting = false,
-    string? OccurrenceId = null);
+    string? OccurrenceId = null,
+    bool ReplaceEdits = false);

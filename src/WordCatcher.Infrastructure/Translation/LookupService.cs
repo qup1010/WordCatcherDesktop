@@ -14,6 +14,7 @@ namespace WordCatcher.Infrastructure.Translation;
 public sealed class LookupService : IStreamingLookupService
 {
     private const int MaxAiCacheSize = 50;
+    private const int MaxSentenceCacheSize = 100;
 
     private readonly IOfflineDictionaryService _offlineDict;
     private readonly ITranslationService _aiTranslation;
@@ -24,6 +25,11 @@ public sealed class LookupService : IStreamingLookupService
     private readonly object _aiCacheLock = new();
     private readonly Dictionary<string, TranslationResult> _aiCache = new(StringComparer.Ordinal);
     private readonly LinkedList<string> _aiCacheOrder = new();
+
+    private readonly object _sentenceCacheLock = new();
+    private readonly Dictionary<string, string> _sentenceCache = new(StringComparer.Ordinal);
+    private readonly LinkedList<string> _sentenceCacheOrder = new();
+    private long _sentenceCacheSettingsVersion;
 
     public LookupService(
         IOfflineDictionaryService offlineDict,
@@ -37,10 +43,101 @@ public sealed class LookupService : IStreamingLookupService
         _logger = logger;
         _settingsService = settingsService;
         _machineTranslation = machineTranslation;
+        if (_settingsService != null)
+        {
+            _settingsService.SettingsChanged += OnSettingsChanged;
+        }
+    }
+
+    private void OnSettingsChanged(AppSettings _)
+    {
+        lock (_sentenceCacheLock)
+        {
+            _sentenceCacheSettingsVersion++;
+            _sentenceCache.Clear();
+            _sentenceCacheOrder.Clear();
+        }
     }
 
     public Task<TranslationResult> LookupAsync(CaptureResult capture, bool forceAi, CancellationToken ct = default)
         => LookupCoreAsync(capture, forceAi, null, false, ct);
+
+    public async Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
+    {
+        var trimmedSentence = sentence?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(trimmedSentence))
+            throw new ArgumentException("原句内容为空，无法翻译。", nameof(sentence));
+
+        long cacheSettingsVersion;
+        lock (_sentenceCacheLock)
+        {
+            cacheSettingsVersion = _sentenceCacheSettingsVersion;
+        }
+
+        var settings = _settingsService?.Current;
+        var mode = string.Equals(settings?.SentenceTranslateMode, "ai", StringComparison.OrdinalIgnoreCase)
+            ? "ai"
+            : "mt";
+        var explainLanguage = settings?.ExplainLanguage ?? "简体中文";
+        var provider = settings?.ActiveTranslation.MachineTranslationProvider ?? "microsoft";
+        var cacheKey = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            mode,
+            explainLanguage,
+            provider = mode == "mt" ? provider : settings?.ActiveTranslationProfileId,
+            sentence = trimmedSentence,
+            selection = selection?.Trim() ?? string.Empty
+        });
+
+        lock (_sentenceCacheLock)
+        {
+            if (_sentenceCacheSettingsVersion == cacheSettingsVersion
+                && _sentenceCache.TryGetValue(cacheKey, out var cached))
+            {
+                _sentenceCacheOrder.Remove(cacheKey);
+                _sentenceCacheOrder.AddLast(cacheKey);
+                return cached;
+            }
+        }
+
+        string translated;
+        if (mode == "ai")
+        {
+            translated = await _aiTranslation.TranslateSentenceAsync(trimmedSentence, selection, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            if (_machineTranslation == null)
+                throw new InvalidOperationException("在线翻译服务未初始化。");
+            translated = await _machineTranslation.TranslateAsync(trimmedSentence, explainLanguage, provider, ct).ConfigureAwait(false);
+        }
+
+        if (!string.IsNullOrWhiteSpace(translated))
+        {
+            lock (_sentenceCacheLock)
+            {
+                if (_sentenceCacheSettingsVersion != cacheSettingsVersion)
+                {
+                    return translated;
+                }
+
+                if (_sentenceCache.ContainsKey(cacheKey))
+                {
+                    _sentenceCacheOrder.Remove(cacheKey);
+                }
+                else if (_sentenceCache.Count >= MaxSentenceCacheSize && _sentenceCacheOrder.First is { } oldest)
+                {
+                    _sentenceCache.Remove(oldest.Value);
+                    _sentenceCacheOrder.RemoveFirst();
+                }
+
+                _sentenceCache[cacheKey] = translated;
+                _sentenceCacheOrder.AddLast(cacheKey);
+            }
+        }
+
+        return translated;
+    }
 
     private async Task<TranslationResult> LookupCoreAsync(
         CaptureResult capture,
@@ -103,7 +200,7 @@ public sealed class LookupService : IStreamingLookupService
                         Reading: string.Empty,
                         PartOfSpeech: string.Empty,
                         Definition: translated,
-                        ContextTranslation: translated,
+                        ContextTranslation: string.Empty,
                         MemoryHook: null,
                         Source: LookupSource.MachineTranslation,
                         SourceEntryId: null,

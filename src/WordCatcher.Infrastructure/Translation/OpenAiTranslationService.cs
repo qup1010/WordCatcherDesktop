@@ -43,6 +43,84 @@ public sealed class OpenAiTranslationService : IStreamingTranslationService
         string model, int timeoutSeconds, string explainLanguage, string apiKey, CancellationToken ct = default)
         => TranslateCoreAsync(capture, baseUrl, model, timeoutSeconds, explainLanguage, apiKey, ct, null, true);
 
+    public async Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(sentence))
+            throw new ArgumentException("原句内容为空，无法翻译。", nameof(sentence));
+
+        var settings = _settingsService.Current;
+        var apiKey = _secretStore is IProfileSecretStore profiles
+            ? await profiles.GetApiKeyAsync(settings.ActiveTranslationProfileId, ct).ConfigureAwait(false)
+            : await _secretStore.GetApiKeyAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new InvalidOperationException("未配置翻译 API Key，请在设置页中输入，或将原句翻译切换为在线快译。");
+
+        var config = settings.ActiveTranslation;
+        var baseUrl = config.BaseUrl.Trim().TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new InvalidOperationException("未配置翻译 Base URL，请在设置页中检查。");
+
+        var model = string.IsNullOrWhiteSpace(config.Model) ? "gpt-4o-mini" : config.Model.Trim();
+        var language = string.IsNullOrWhiteSpace(settings.ExplainLanguage) ? "简体中文" : settings.ExplainLanguage.Trim();
+        var seconds = config.TimeoutSeconds > 0 ? config.TimeoutSeconds : 30;
+        var targetHint = !string.IsNullOrWhiteSpace(selection) && !string.Equals(selection.Trim(), sentence.Trim(), StringComparison.OrdinalIgnoreCase)
+            ? $"句中重点词或短语是 \"{selection.Trim()}\"，请确保整句译文准确体现该词在当前上下文中的含义。"
+            : string.Empty;
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(seconds));
+
+        var body = JsonSerializer.Serialize(new
+        {
+            model,
+            temperature = 0.2,
+            stream = false,
+            messages = new[]
+            {
+                new
+                {
+                    role = "system",
+                    content = $"你是精准的语境翻译助手。请将用户提供的原句自然、准确地翻译为{language}。{targetHint}只输出整句译文本身，不要加引号、注释或多余解释。"
+                },
+                new
+                {
+                    role = "user",
+                    content = sentence.Trim()
+                }
+            }
+        });
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        try
+        {
+            using var response = await _httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
+            var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                throw ClassifyError(response.StatusCode, responseBody);
+
+            using var doc = JsonDocument.Parse(responseBody);
+            var choices = doc.RootElement.GetProperty("choices");
+            if (choices.GetArrayLength() == 0)
+                throw new InvalidOperationException("AI 未返回有效译文。");
+
+            var text = choices[0].GetProperty("message").GetProperty("content").GetString()?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(text))
+                throw new InvalidOperationException("AI 未返回有效译文。");
+            return text;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException($"AI 翻译请求超时（超过 {seconds} 秒未响应）。");
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException($"无法连接翻译服务，请检查 Base URL 和网络: {ex.Message}", ex);
+        }
+    }
+
     private async Task<TranslationResult> TranslateCoreAsync(CaptureResult capture, string baseUrl,
         string model, int timeoutSeconds, string language, string? apiKey, CancellationToken ct,
         IProgress<TranslationResult>? progress, bool bypassCache)

@@ -35,6 +35,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <converters:StringToVisibilityConverter x:Key="StringToVis" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+        <converters:InverseBooleanConverter x:Key="InverseBool" />
 
         <Style x:Key="PopupButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}" />
 
@@ -323,7 +324,20 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
-                        <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}" />
+                        <StackPanel Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
+                            <Grid Margin="0,0,0,4">
+                                <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                <ui:Button Content="{Binding TranslateSentenceButtonText}"
+                                           Command="{Binding TranslateSentenceCommand}"
+                                           Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
+                                           IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
+                                           Style="{StaticResource QuietActionButton}"
+                                           HorizontalAlignment="Right"
+                                           Padding="6,2"
+                                           FontSize="{StaticResource CaptionFontSize}" />
+                            </Grid>
+                            <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
                         <Expander Header="理解与用法" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
                                 <StackPanel Visibility="{Binding Analysis.KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
