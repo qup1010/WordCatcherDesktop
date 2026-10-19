@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.2" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -20,6 +21,10 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\WordCatcher.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>WordCatcher.App.Program</StartupObject>
+    <!-- WPF owns DPI initialization. WinForms is used only for the tray and monitor enumeration. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
     <Version>0.3.1</Version>
   </PropertyGroup>
 

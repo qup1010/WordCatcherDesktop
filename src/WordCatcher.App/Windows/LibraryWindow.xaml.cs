@@ -68,6 +68,7 @@ public partial class LibraryWindow : Window
         WordLookupViewModel? lookupVm = null)
     {
         InitializeComponent();
+        RootLayoutGrid.SizeChanged += (_, _) => UpdateResponsiveLayout();
         WpfUiResourceScope.PreferApplicationResources(this);
         _libraryVm = libraryVm;
         _syncVm = syncVm;
@@ -112,6 +113,7 @@ public partial class LibraryWindow : Window
         Loaded += OnLoaded;
         SourceInitialized += (_, _) =>
         {
+            FitToCurrentDisplay();
             if (WindowBackdrop.TryApply(this, 42))
             {
                 Background = System.Windows.Media.Brushes.Transparent;
@@ -125,6 +127,11 @@ public partial class LibraryWindow : Window
             UpdateWindowStateVisuals();
             Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(UpdateWindowStateVisuals));
         };
+        DpiChanged += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            FitToCurrentDisplay();
+            UpdateWindowStateVisuals();
+        }));
         SizeChanged += (_, _) =>
         {
             if (WindowState == WindowState.Maximized)
@@ -226,6 +233,52 @@ public partial class LibraryWindow : Window
     public void ShowBackgroundWebDavFailure(string message)
     {
         _libraryVm.StatusMessage = $"自动 WebDAV 同步失败：{message}";
+    }
+
+    private bool? _compactLayout;
+
+    private void UpdateResponsiveLayout()
+    {
+        if (RootLayoutGrid.ActualWidth <= 0) return;
+        var compact = RootLayoutGrid.ActualWidth < 980;
+        if (_compactLayout == compact) return;
+        _compactLayout = compact;
+        BrandColumn.Width = NavigationColumn.Width = new GridLength(compact ? 64 : 208);
+        BrandText.Visibility = NavigationHint.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        AppNavigation.PaneDisplayMode = compact
+            ? Wpf.Ui.Controls.NavigationViewPaneDisplayMode.LeftMinimal
+            : Wpf.Ui.Controls.NavigationViewPaneDisplayMode.Left;
+        foreach (var (item, title) in new[]
+        {
+            (LibraryNavigationItem, "生词库"), (LookupNavigationItem, "查词"),
+            (SyncNavigationItem, "Anki 同步"), (SettingsNavigationItem, "设置")
+        })
+        {
+            item.Content = compact ? null : title;
+            System.Windows.Automation.AutomationProperties.SetName(item, title);
+        }
+        LibraryListColumn.MinWidth = compact ? 180 : 250;
+        LibraryListColumn.Width = compact ? new GridLength(0.6, GridUnitType.Star) : new GridLength(300);
+    }
+
+    private void FitToCurrentDisplay()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return;
+        var dpi = WordCatcher.App.Interop.NativeMethods.GetDpiForWindow(hwnd);
+        var fit = WindowSizing.Fit(Width, Height,
+            info.WorkArea.Right - info.WorkArea.Left,
+            info.WorkArea.Bottom - info.WorkArea.Top, dpi > 0 ? dpi / 96.0 : 1.0);
+        MinWidth = fit.MinWidth;
+        MinHeight = fit.MinHeight;
+        if (WindowState == WindowState.Normal)
+        {
+            Width = fit.Width;
+            Height = fit.Height;
+        }
     }
 
     private void UpdateWindowStateVisuals()

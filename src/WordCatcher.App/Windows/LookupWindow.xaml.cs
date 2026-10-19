@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Threading.Tasks;
 using WordCatcher.App.Interop;
+using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
 using WordCatcher.Core.Interfaces;
@@ -30,6 +31,11 @@ public partial class LookupWindow : Window
         _viewModel.RequestClose += OnRequestClose;
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         Deactivated += Window_Deactivated;
+        DpiChanged += (_, e) => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            var screen = System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle);
+            ApplyDisplayConstraints(screen.WorkingArea.Width, screen.WorkingArea.Height, e.NewDpi.DpiScaleX);
+        }));
     }
 
     private void Window_Deactivated(object? sender, EventArgs e)
@@ -99,10 +105,7 @@ public partial class LookupWindow : Window
 
         // Keep the popup usable on small displays and guarantee the intended
         // card width even when SizeToContent measures a very long dictionary entry.
-        Width = 420;
-        MinWidth = 420;
-        MaxWidth = 420;
-        MaxHeight = Math.Max(360, workArea.Height - 24);
+        ApplyDisplayConstraints(physicalWorkArea.Width, physicalWorkArea.Height, dpiX);
         UpdateLayout();
 
         var width = ActualWidth > 0 ? ActualWidth : Width;
@@ -129,6 +132,16 @@ public partial class LookupWindow : Window
 
         Left = left;
         Top = top;
+    }
+
+    private void ApplyDisplayConstraints(double workWidth, double workHeight, double scale)
+    {
+        var fit = WindowSizing.FitPopup(workWidth, workHeight, scale);
+        MinWidth = 0;
+        MaxWidth = fit.Width;
+        Width = fit.Width;
+        MinWidth = fit.Width;
+        MaxHeight = fit.MaxHeight;
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

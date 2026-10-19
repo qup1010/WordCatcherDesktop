@@ -27,38 +27,31 @@ jobs:
       - name: Test
         run: dotnet test WordCatcher.Desktop.sln -c Release --no-restore
 
-      - name: Publish self-contained app
+      - name: Package Windows installer, portable app and update feed
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF_NAME.TrimStart('v')
-          dotnet publish src/WordCatcher.App/WordCatcher.App.csproj `
-            -c Release `
-            -r win-x64 `
-            --self-contained true `
-            -p:Version=$version `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:EnableCompressionInSingleFile=true `
-            -p:DebugType=None `
-            -p:DebugSymbols=false `
-            -o artifacts/publish
-
-      - name: Create archive
-        shell: pwsh
-        run: |
-          $archiveName = "artifacts/WordCatcher-$env:GITHUB_REF_NAME-win-x64.zip"
-          Compress-Archive -Path artifacts\publish\* -DestinationPath $archiveName
-          "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_ENV
+          ./scripts/Package-Windows.ps1 -Version $version
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
+          $releaseDirectory = 'artifacts/releases'
+          $requiredAssets = @('WordCatcherDesktop-win-Setup.exe', 'WordCatcherDesktop-win-Portable.zip')
+          foreach ($name in $requiredAssets) {
+            if (!(Test-Path -LiteralPath (Join-Path $releaseDirectory $name) -PathType Leaf)) {
+              throw "缺少 GitHub Release 必需产物：$name"
+            }
+          }
+          $assets = @(Get-ChildItem $releaseDirectory -File | ForEach-Object FullName)
+          if ($assets.Count -eq 0) { throw '发布产物为空。' }
           gh release view "$env:GITHUB_REF_NAME" *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload "$env:GITHUB_REF_NAME" "$env:ARCHIVE_NAME" --clobber
+            gh release upload "$env:GITHUB_REF_NAME" @assets --clobber
           } else {
-            gh release create "$env:GITHUB_REF_NAME" "$env:ARCHIVE_NAME" --notes-file "docs/releases/$env:GITHUB_REF_NAME.md" --title "$env:GITHUB_REF_NAME"
+            gh release create "$env:GITHUB_REF_NAME" @assets --verify-tag --notes-file "docs/releases/$env:GITHUB_REF_NAME.md" --title "$env:GITHUB_REF_NAME"
           }
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release 上传失败。' }
 

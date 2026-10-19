@@ -55,6 +55,22 @@ public sealed class WordLookupLayoutTests
                 using var narrowFile = File.Create(Path.Combine(Path.GetTempPath(), "wordcatcher-WordLookup-560.png"));
                 narrowEncoder.Save(narrowFile);
 
+                var input = Assert.IsType<TextBox>(view.FindName("QueryBox"));
+                input.Text = "digital 数字化";
+                input.SelectAll();
+                Assert.Equal(input.Text, input.SelectedText);
+                foreach (var scale in new[] { 1.25, 1.5, 2.0 })
+                {
+                    view.UpdateLayout();
+                    var scaled = new RenderTargetBitmap((int)(560 * scale), (int)(620 * scale),
+                        96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                    scaled.Render(view);
+                    var scaledEncoder = new PngBitmapEncoder();
+                    scaledEncoder.Frames.Add(BitmapFrame.Create(scaled));
+                    using var scaledFile = File.Create(Path.Combine(Path.GetTempPath(), $"wordcatcher-WordLookup-{scale:0.00}.png"));
+                    scaledEncoder.Save(scaledFile);
+                }
+
                 lookupVm.MemoryHook = null;
                 lookupVm.ContextTranslation = string.Empty;
                 view.Measure(new Size(880, 620));

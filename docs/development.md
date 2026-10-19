@@ -88,11 +88,14 @@ node tools/build-icons.mjs
 本地打包：
 
 ```powershell
-dotnet publish src/WordCatcher.App/WordCatcher.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o artifacts/publish
-Compress-Archive -Path artifacts/publish/* -DestinationPath artifacts/WordCatcher-local-win-x64.zip
+./scripts/Package-Windows.ps1 -Version 0.3.2
 ```
 
-发布工作流见 [release.yml](../.github/workflows/release.yml)：推送 `v*` 标签后，先运行测试，再构建自包含 x64 包并创建 GitHub Release。标签值决定发布版本。发布前需要完成真实场景验收，确认版本号与标签一致；测试通过本身不代表验收或发布完成。
+版本参数使用实际计划发布的三段版本号。脚本恢复固定版本的 Velopack CLI，发布 win-x64 自包含应用，并在 `artifacts/releases` 中生成 Setup、Portable、完整更新包和更新 feed。CLI 与应用内 SDK 必须保持相同版本。新的 `Program.Main` 在 WPF 初始化和单实例互斥锁之前调用 Velopack 启动钩子。
+
+Velopack 会拒绝向包含相同或更高版本的输出目录重新打包。本地重复验证同一版本时，可添加 `-OutputDirectory artifacts/local-preview` 使用新的产物目录；不覆盖原有发布包。
+
+发布工作流见 [release.yml](../.github/workflows/release.yml)：推送 `v*` 标签后先测试，再由 GitHub Actions Windows runner 调用打包脚本。工作流会核对 `WordCatcherDesktop-win-Setup.exe` 与 `WordCatcherDesktop-win-Portable.zip` 均已生成，再将安装包、便携包和完整更新 feed 上传到对应 GitHub Release。标签值决定安装包和程序集的版本；本地打包使用的版本也会覆盖程序集版本。签名证书尚未配置，目前生成未签名安装包。
 
 ## 产品展示图
 
