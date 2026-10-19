@@ -7,4 +7,6 @@ namespace WordCatcher.Core.Interfaces;
 public interface ITranslationService
 {
     Task<TranslationResult> TranslateAsync(CaptureResult capture, CancellationToken ct = default);
+    Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
+        => Task.FromResult(string.Empty);
 }

@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using WordCatcher.Core.Enums;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 using WordCatcher.Infrastructure.Translation;
+using Xunit;
 
 namespace WordCatcher.Infrastructure.Tests;
 
@@ -47,7 +50,7 @@ public sealed class LookupServiceTests
     }
 
     [Fact]
-    public async Task DictionaryMiss_UsesMachineTranslationBeforeAi()
+    public async Task DictionaryMiss_UsesMachineTranslationBeforeAi_AndLeavesContextTranslationEmptyByDefault()
     {
         var offline = new FakeOfflineDictionary { Result = null };
         var machine = new FakeMachineTranslationService { Result = "快速翻译结果" };
@@ -58,8 +61,75 @@ public sealed class LookupServiceTests
 
         Assert.Equal(LookupSource.MachineTranslation, result.Source);
         Assert.Equal("快速翻译结果", result.Definition);
+        Assert.Equal(string.Empty, result.ContextTranslation);
         Assert.Equal(1, machine.CallCount);
         Assert.Equal(0, ai.CallCount);
+    }
+
+    [Fact]
+    public async Task TranslateSentenceAsync_RoutesToSelectedServiceAndCachesRepeatedRequests()
+    {
+        var settings = new FakeSettingsService();
+        var machine = new FakeMachineTranslationService { Result = "机翻整句结果" };
+        var ai = new FakeTranslationService { SentenceResult = "AI 整句结果" };
+        var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings, machineTranslation: machine);
+
+        settings.Current.SentenceTranslateMode = "mt";
+        var mtFirst = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
+        var mtSecond = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
+        Assert.Equal("机翻整句结果", mtFirst);
+        Assert.Equal("机翻整句结果", mtSecond);
+        Assert.Equal(1, machine.CallCount);
+        Assert.Equal(0, ai.SentenceCallCount);
+
+        settings.Current.SentenceTranslateMode = "ai";
+        var aiFirst = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
+        var aiSecond = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
+        Assert.Equal("AI 整句结果", aiFirst);
+        Assert.Equal("AI 整句结果", aiSecond);
+        Assert.Equal(1, ai.SentenceCallCount);
+    }
+
+    [Fact]
+    public async Task TranslateSentenceAsync_ClearsCacheWhenSettingsChange()
+    {
+        var settings = new FakeSettingsService();
+        settings.Current.SentenceTranslateMode = "ai";
+        var ai = new FakeTranslationService { SentenceResult = "译文" };
+        var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings);
+
+        await service.TranslateSentenceAsync("The bank is closed.", "bank");
+        await service.TranslateSentenceAsync("The bank is closed.", "bank");
+        Assert.Equal(1, ai.SentenceCallCount);
+
+        settings.NotifySettingsChanged();
+        await service.TranslateSentenceAsync("The bank is closed.", "bank");
+
+        Assert.Equal(2, ai.SentenceCallCount);
+    }
+
+    [Fact]
+    public async Task TranslateSentenceAsync_DoesNotCacheAnInFlightResultAfterSettingsChange()
+    {
+        var settings = new FakeSettingsService();
+        settings.Current.SentenceTranslateMode = "ai";
+        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ai = new FakeTranslationService
+        {
+            SentenceHandler = () => pending.Task
+        };
+        var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings);
+
+        var firstRequest = service.TranslateSentenceAsync("The bank is closed.", "bank");
+        settings.NotifySettingsChanged();
+        pending.SetResult("旧设置的译文");
+        Assert.Equal("旧设置的译文", await firstRequest);
+
+        ai.SentenceHandler = () => Task.FromResult("新设置的译文");
+        var secondResult = await service.TranslateSentenceAsync("The bank is closed.", "bank");
+
+        Assert.Equal("新设置的译文", secondResult);
+        Assert.Equal(2, ai.SentenceCallCount);
     }
 
     [Fact]
@@ -117,6 +187,15 @@ public sealed class LookupServiceTests
     private static TranslationResult CreateResult(LookupSource source) =>
         new("quick", "/kwɪk/", "adj.", "快速的", string.Empty, null, source, null, null);
 
+    private sealed class FakeSettingsService : ISettingsService
+    {
+        public AppSettings Current { get; } = new();
+        public event Action<AppSettings>? SettingsChanged;
+        public Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default) => Task.FromResult(Current);
+        public Task SaveSettingsAsync(AppSettings settings, CancellationToken ct = default) => Task.CompletedTask;
+        public void NotifySettingsChanged() => SettingsChanged?.Invoke(Current);
+    }
+
     private sealed class FakeOfflineDictionary : IOfflineDictionaryService
     {
         public bool IsInstalled => true;
@@ -138,12 +217,21 @@ public sealed class LookupServiceTests
     private sealed class FakeTranslationService : ITranslationService
     {
         public int CallCount { get; private set; }
+        public int SentenceCallCount { get; private set; }
         public TranslationResult Result { get; init; } = CreateResult(LookupSource.Ai);
+        public string SentenceResult { get; init; } = string.Empty;
+        public Func<Task<string>>? SentenceHandler { get; set; }
 
         public Task<TranslationResult> TranslateAsync(CaptureResult capture, CancellationToken ct = default)
         {
             CallCount++;
             return Task.FromResult(Result);
+        }
+
+        public Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
+        {
+            SentenceCallCount++;
+            return SentenceHandler?.Invoke() ?? Task.FromResult(SentenceResult);
         }
     }
 

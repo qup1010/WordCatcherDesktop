@@ -85,6 +85,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _explainLanguage = "简体中文";
 
     [ObservableProperty]
+    private string _sentenceTranslateMode = "mt";
+
+    [ObservableProperty]
     private bool _ankiEnabled = true;
 
     [ObservableProperty]
@@ -134,7 +137,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _initializing;
     private static readonly HashSet<string> EditableProperties = new()
     {
-        nameof(Hotkey), nameof(ExplainLanguage), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
+        nameof(Hotkey), nameof(ExplainLanguage), nameof(SentenceTranslateMode), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
         nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
         nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
@@ -145,7 +148,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private string EditorState() => JsonSerializer.Serialize(new
     {
-        Hotkey, ExplainLanguage, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
+        Hotkey, ExplainLanguage, SentenceTranslateMode, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
         ActiveAiProfileId, AiProfileName, MachineTranslationProvider, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
         WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
@@ -285,6 +288,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             var s = _settingsService.Current;
             Hotkey = s.Hotkey;
             ExplainLanguage = s.ExplainLanguage;
+            SentenceTranslateMode = string.Equals(s.SentenceTranslateMode, "ai", StringComparison.OrdinalIgnoreCase) ? "ai" : "mt";
 
             var profiles = EnsureProfiles(s);
             AiProfiles = new ObservableCollection<TranslationProfile>(profiles.Select(CloneProfile));
@@ -484,6 +488,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             var s = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
             s.Hotkey = Hotkey.Trim();
             s.ExplainLanguage = ExplainLanguage.Trim();
+            s.SentenceTranslateMode = string.Equals(SentenceTranslateMode, "ai", StringComparison.OrdinalIgnoreCase) ? "ai" : "mt";
 
             SaveEditorToProfile(ActiveAiProfileId);
             s.TranslationProfiles = AiProfiles.Select(CloneProfile).ToList();

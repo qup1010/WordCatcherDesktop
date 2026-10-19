@@ -336,7 +336,20 @@
                                             <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Expander>
-<TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Margin="0,0,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}" />
+<StackPanel Margin="0,0,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
+                                        <Grid Margin="0,0,0,4">
+                                            <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                            <ui:Button Content="{Binding TranslateSentenceButtonText}"
+                                                       Command="{Binding TranslateSentenceCommand}"
+                                                       Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
+                                                       IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
+                                                       Style="{StaticResource QuietActionButton}"
+                                                       HorizontalAlignment="Right"
+                                                       Padding="6,2"
+                                                       FontSize="{StaticResource CaptionFontSize}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" />
+                                    </StackPanel>
                                     <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="12,10"
                                             Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                                         <StackPanel>

@@ -10,6 +10,37 @@ namespace WordCatcher.App.Tests;
 
 public class LibraryViewModelTests
 {
+    [Fact]
+    public async Task DelayedSentenceTranslationDoesNotOverwriteANewerDraft()
+    {
+        var repository = DispatchProxy.Create<IWordRepository, RepositoryProxy>();
+        var lookup = DispatchProxy.Create<ILookupService, LookupViewModelTests.ServiceProxy>();
+        var result = new TaskCompletionSource<string>();
+        ((LookupViewModelTests.ServiceProxy)lookup).TranslateSentence = (_, _) => result.Task;
+        var vm = new LibraryViewModel(repository, new WordCollectionEvents(), lookupService: lookup);
+        vm.EditContextCommand.Execute(new Occurrence { Sentence = "We sat on the bank.", SelectedText = "bank" });
+        var translating = vm.TranslateOccurrenceSentenceCommand.ExecuteAsync(null);
+        vm.ContextTranslation = "用户刚刚输入的译文";
+        result.SetResult("较晚返回的自动译文");
+        await translating;
+        Assert.Equal("用户刚刚输入的译文", vm.ContextTranslation);
+        Assert.False(vm.IsTranslatingContextSentence);
+    }
+
+    [Fact]
+    public void SyncRefreshDoesNotEmitAnotherLocalSave()
+    {
+        var events = new WordCollectionEvents();
+        var saves = 0;
+        var refreshes = 0;
+        events.WordSaved += () => saves++;
+        events.CollectionChanged += () => refreshes++;
+        events.NotifyWordSaved();
+        events.NotifyCollectionChanged();
+        Assert.Equal(1, saves);
+        Assert.Equal(2, refreshes);
+    }
+
     public class RepositoryProxy : DispatchProxy
     {
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);

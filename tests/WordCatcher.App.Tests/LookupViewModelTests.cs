@@ -16,6 +16,7 @@ public class LookupViewModelTests
     public class ServiceProxy : DispatchProxy
     {
         public Func<CaptureResult, Task<TranslationResult>> Lookup = _ => Task.FromResult(Digital());
+        public Func<string, string?, Task<string>> TranslateSentence = (_, _) => Task.FromResult("手动翻译的原句意思");
         public Func<SaveCardCommand, Task<(Word, Occurrence, SyncJob)>> Save = _ => Task.FromResult((new Word(), new Occurrence(), new SyncJob()));
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public AppSettings Settings = new() { Ui = new() { ClosePopupAfterSave = false } };
@@ -25,6 +26,7 @@ public class LookupViewModelTests
         {
             "FindWordAsync" => Task.FromResult(ExistingWord),
             "LookupAsync" => Lookup((CaptureResult)args![0]!),
+            "TranslateSentenceAsync" => TranslateSentence((string)args![0]!, (string?)args[1]),
             "SaveAsync" => Save((SaveCardCommand)args![0]!),
             "GetWordsAsync" => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
             "GetOccurrencesByWordIdAsync" => Task.FromResult<IReadOnlyList<Occurrence>>([]),
@@ -232,5 +234,65 @@ public class LookupViewModelTests
         Assert.Equal(savedStatus, vm.SavedStatusText);
         Assert.Contains("新增语境", savedStatus);
         Assert.Contains("朗读不可用", vm.ActionStatusText);
+    }
+
+    [Fact]
+    public async Task ManualSentenceTranslationPopulatesContextTranslationAndPersistsOnSave()
+    {
+        var (vm, lookup, repo, _) = Create();
+        lookup.TranslateSentence = (sentence, selection) =>
+        {
+            Assert.Equal("The digital camera is on the desk.", sentence);
+            Assert.Equal("digital", selection);
+            return Task.FromResult("数码相机在桌子上。");
+        };
+        SaveCardCommand? saved = null;
+        repo.Save = cmd => { saved = cmd; return Task.FromResult((new Word(), new Occurrence(), new SyncJob())); };
+
+        var captureWithSentence = new CaptureResult(
+            "digital",
+            "reader.exe",
+            "Book",
+            new ScreenPoint(0, 0),
+            DateTimeOffset.UtcNow,
+            Sentence: "The digital camera is on the desk.",
+            SentenceOffset: 4);
+
+        await vm.StartLookupAsync(captureWithSentence);
+        Assert.Equal(string.Empty, vm.ContextTranslation);
+        Assert.True(vm.CanTranslateSentence);
+
+        await vm.TranslateSentenceCommand.ExecuteAsync(null);
+        Assert.Equal("数码相机在桌子上。", vm.ContextTranslation);
+        Assert.False(vm.CanTranslateSentence);
+
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.NotNull(saved);
+        Assert.Equal("数码相机在桌子上。", saved!.Translation.ContextTranslation);
+    }
+
+    [Fact]
+    public async Task ManualSentenceTranslationDoesNotOverwriteDraftChangedWhileRequestIsPending()
+    {
+        var (vm, lookup, _, _) = Create();
+        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lookup.TranslateSentence = (_, _) => pending.Task;
+        var captureWithSentence = new CaptureResult(
+            "digital",
+            "reader.exe",
+            "Book",
+            new ScreenPoint(0, 0),
+            DateTimeOffset.UtcNow,
+            Sentence: "The digital camera is on the desk.",
+            SentenceOffset: 4);
+
+        await vm.StartLookupAsync(captureWithSentence);
+        var translate = vm.TranslateSentenceCommand.ExecuteAsync(null);
+        vm.EditTranslation = "用户正在输入的译文";
+        pending.SetResult("自动翻译结果");
+        await translate;
+
+        Assert.Equal("用户正在输入的译文", vm.EditTranslation);
+        Assert.Contains("未覆盖", vm.ActionStatusText);
     }
 }

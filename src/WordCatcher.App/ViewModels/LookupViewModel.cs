@@ -34,11 +34,16 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty] private string _editTranslation = string.Empty;
     [ObservableProperty] private string _learningNote = string.Empty;
     [ObservableProperty] private bool _hasSavedContext;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TranslateSentenceButtonText))]
+    private bool _isTranslatingSentence;
     private bool _lastForceAi;
     public string LearningExpression => string.IsNullOrWhiteSpace(Analysis?.Expression) ? Word : Analysis.Expression;
     public bool HasAnalysis => Analysis != null;
     public bool HasLearningDetails => !string.IsNullOrWhiteSpace(Analysis?.KeyExplanation) || !string.IsNullOrWhiteSpace(Analysis?.UsageNote) || !string.IsNullOrWhiteSpace(Analysis?.Example);
     public string AiButtonText => Source == LookupSource.Ai ? "重新生成" : "AI 详解";
+    public bool CanTranslateSentence => !string.IsNullOrWhiteSpace(OriginalSentence) && !IsLongText && string.IsNullOrWhiteSpace(ContextTranslation);
+    public string TranslateSentenceButtonText => IsTranslatingSentence ? "翻译中…" : "翻译原句";
     partial void OnSourceChanged(LookupSource value) => OnPropertyChanged(nameof(AiButtonText));
     partial void OnAnalysisChanged(LearningAnalysis? value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(HasAnalysis)); OnPropertyChanged(nameof(HasLearningDetails)); }
     partial void OnWordChanged(string value) => OnPropertyChanged(nameof(LearningExpression));
@@ -136,10 +141,10 @@ public sealed partial class LookupViewModel : ObservableObject
     public string SaveButtonText => IsSaving ? "保存中…" : !CanSave && IsSaved ? "已收藏 ✓" : HasSavedContext ? "更新这条语境" : IsSaved ? "保存新语境" : "存入生词库";
     partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
-    partial void OnSelectedTextChanged(string value) => OnPropertyChanged(nameof(IsLongText));
-    partial void OnContextTranslationChanged(string value) => OnPropertyChanged(nameof(HasSecondaryContent));
+    partial void OnSelectedTextChanged(string value) { OnPropertyChanged(nameof(IsLongText)); OnPropertyChanged(nameof(CanTranslateSentence)); }
+    partial void OnContextTranslationChanged(string value) { OnPropertyChanged(nameof(HasSecondaryContent)); OnPropertyChanged(nameof(CanTranslateSentence)); }
     partial void OnMemoryHookChanged(string? value) => OnPropertyChanged(nameof(HasSecondaryContent));
-    partial void OnOriginalSentenceChanged(string value) => OnPropertyChanged(nameof(HasSecondaryContent));
+    partial void OnOriginalSentenceChanged(string value) { OnPropertyChanged(nameof(HasSecondaryContent)); OnPropertyChanged(nameof(CanTranslateSentence)); }
     private long _actionVersion;
 
     private async Task ShowActionStatusAsync(string message)
@@ -187,6 +192,7 @@ public sealed partial class LookupViewModel : ObservableObject
         _lastForceAi = forceAi;
         Analysis = null;
         HasSavedContext = false;
+        IsTranslatingSentence = false;
         ++_lookupVersion;
         var previousLookup = _lookupCancellation;
         var currentLookup = new CancellationTokenSource();
@@ -342,6 +348,56 @@ public sealed partial class LookupViewModel : ObservableObject
     private void ToggleEditDefinition()
     {
         IsEditingDefinition = !IsEditingDefinition;
+    }
+
+    [RelayCommand]
+    private async Task TranslateSentenceAsync()
+    {
+        if (IsTranslatingSentence || string.IsNullOrWhiteSpace(OriginalSentence))
+            return;
+
+        var version = _lookupVersion;
+        var targetSentence = OriginalSentence;
+        var targetSelection = SelectedText;
+        var translationAtStart = EditTranslation;
+        IsTranslatingSentence = true;
+        try
+        {
+            var translated = await _lookupService.TranslateSentenceAsync(targetSentence, targetSelection).ConfigureAwait(true);
+            if (version != _lookupVersion || string.IsNullOrWhiteSpace(translated))
+                return;
+
+            if (EditTranslation != translationAtStart)
+            {
+                ActionStatusText = "译文草稿已修改，未覆盖你的输入。";
+                return;
+            }
+
+            ContextTranslation = translated.Trim();
+            EditTranslation = translated.Trim();
+            if (_currentTranslation != null)
+            {
+                _currentTranslation = _currentTranslation with { ContextTranslation = translated.Trim() };
+            }
+            if (IsSaved && !IsSaving)
+            {
+                CanSave = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (version == _lookupVersion)
+            {
+                ActionStatusText = $"原句翻译失败：{ex.Message}";
+            }
+        }
+        finally
+        {
+            if (version == _lookupVersion)
+            {
+                IsTranslatingSentence = false;
+            }
+        }
     }
 
     [RelayCommand]

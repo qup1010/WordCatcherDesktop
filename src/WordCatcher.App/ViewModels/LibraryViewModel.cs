@@ -22,6 +22,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     private readonly IWordRepository _wordRepository;
     private readonly ISpeechService? _speechService;
     private readonly IWebDavSyncService? _webDavSyncService;
+    private readonly ILookupService? _lookupService;
     private const int PageSize = 100;
     private int _loadVersion;
     private int _occurrenceVersion;
@@ -33,8 +34,23 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private string _contextTranslation = string.Empty;
     [ObservableProperty] private string _contextNote = string.Empty;
     [ObservableProperty] private bool _isSavingContext;
+    [ObservableProperty] private bool _isTranslatingContextSentence;
     public bool IsEditingContext => EditingOccurrence != null;
-    partial void OnEditingOccurrenceChanged(Occurrence? value) => OnPropertyChanged(nameof(IsEditingContext));
+    partial void OnEditingOccurrenceChanged(Occurrence? value)
+    {
+        OnPropertyChanged(nameof(IsEditingContext));
+        RefreshAfterEditing();
+    }
+    partial void OnIsSavingContextChanged(bool value) => RefreshAfterEditing();
+
+    private void RefreshAfterEditing()
+    {
+        if (!IsEditing && !IsEditingContext && !IsSavingContext && _refreshPending)
+        {
+            _refreshPending = false;
+            _ = LoadWordsAsync();
+        }
+    }
 
     // ── 遮挡释义 & 卡片自测复习模式 ──────────────────────────────────────────
     private readonly List<(Word Word, Occurrence? Occurrence)> _reviewItems = new();
@@ -243,6 +259,67 @@ public sealed partial class LibraryViewModel : ObservableObject
     private void CancelContextEdit() { if (!IsSavingContext) EditingOccurrence = null; }
 
     [RelayCommand]
+    private async Task TranslateOccurrenceSentenceAsync(Occurrence? target = null)
+    {
+        if (IsTranslatingContextSentence) return;
+        if (_lookupService == null)
+        {
+            StatusMessage = "翻译服务未初始化。";
+            return;
+        }
+
+        var occ = target ?? EditingOccurrence;
+        if (occ == null || string.IsNullOrWhiteSpace(occ.Sentence))
+        {
+            StatusMessage = "当前语境没有可翻译的原句。";
+            return;
+        }
+
+        IsTranslatingContextSentence = true;
+        var editingAtStart = EditingOccurrence;
+        var translationAtStart = ContextTranslation;
+        StatusMessage = "正在翻译原句…";
+        try
+        {
+            var translated = await _lookupService.TranslateSentenceAsync(occ.Sentence, occ.SelectedText).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(translated)) return;
+            if (target == null && (!ReferenceEquals(EditingOccurrence, editingAtStart)
+                || ContextTranslation != translationAtStart)) return;
+
+            if (ReferenceEquals(EditingOccurrence, editingAtStart) && EditingOccurrence?.Id == occ.Id
+                && ContextTranslation == translationAtStart)
+            {
+                ContextTranslation = translated.Trim();
+            }
+
+            if (target != null)
+            {
+                var def = !string.IsNullOrWhiteSpace(occ.Definition)
+                    ? occ.Definition
+                    : SelectedWord?.Definition ?? occ.SelectedText;
+                var edits = new LearningEdits(def, translated.Trim(), occ.Note);
+                await _wordRepository.UpdateOccurrenceEditsAsync(occ.Id, edits).ConfigureAwait(true);
+                if (SelectedWord?.Id == occ.WordId)
+                    await LoadOccurrencesForWordAsync(occ.WordId).ConfigureAwait(true);
+                _webDavSyncService?.ScheduleAutoSync();
+                StatusMessage = "原句翻译已生成并保存。";
+            }
+            else
+            {
+                StatusMessage = "原句翻译已填入，点击「保存语境」即可生效。";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"原句翻译失败：{ex.Message}";
+        }
+        finally
+        {
+            IsTranslatingContextSentence = false;
+        }
+    }
+
+    [RelayCommand]
     private async Task SaveContextEditAsync()
     {
         if (EditingOccurrence == null || IsSavingContext) return;
@@ -354,11 +431,13 @@ public sealed partial class LibraryViewModel : ObservableObject
         IWordRepository wordRepository,
         WordCollectionEvents wordCollectionEvents,
         ISpeechService? speechService = null,
-        IWebDavSyncService? webDavSyncService = null)
+        IWebDavSyncService? webDavSyncService = null,
+        ILookupService? lookupService = null)
     {
         _wordRepository = wordRepository;
         _speechService = speechService;
         _webDavSyncService = webDavSyncService;
+        _lookupService = lookupService;
         wordCollectionEvents.CollectionChanged += OnWordSaved;
     }
 

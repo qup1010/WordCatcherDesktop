@@ -1101,6 +1101,13 @@
                                                                                                Padding="8,4"
                                                                                                Margin="0,0,6,0"
                                                                                                Visibility="{Binding SourceUri, Converter={StaticResource StringToVis}}" />
+                                                                                    <ui:Button Content="翻译原句"
+                                                                                               Command="{Binding DataContext.TranslateOccurrenceSentenceCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                                                               CommandParameter="{Binding}"
+                                                                                               Style="{StaticResource QuietActionButton}"
+                                                                                               Padding="8,4"
+                                                                                               Margin="0,0,6,0"
+                                                                                               Visibility="{Binding Sentence, Converter={StaticResource StringToVis}}" />
                                                                                     <ui:Button Content="编辑语境"
                                                                                                Command="{Binding DataContext.EditContextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                                                                CommandParameter="{Binding}"
@@ -1116,7 +1123,15 @@
                                                         <StackPanel Visibility="{Binding IsEditingContext, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
                                                             <TextBlock Text="语境释义" />
                                                             <ui:TextBox Text="{Binding ContextDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
-                                                            <TextBlock Text="原句翻译" />
+                                                            <Grid>
+                                                                <TextBlock Text="原句翻译" VerticalAlignment="Center" />
+                                                                <ui:Button Content="翻译原句"
+                                                                           Command="{Binding TranslateOccurrenceSentenceCommand}"
+                                                                           IsEnabled="{Binding IsTranslatingContextSentence, Converter={StaticResource InverseBool}}"
+                                                                           Style="{StaticResource QuietActionButton}"
+                                                                           HorizontalAlignment="Right"
+                                                                           Padding="6,2" />
+                                                            </Grid>
                                                             <ui:TextBox Text="{Binding ContextTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
                                                             <TextBlock Text="个人笔记" />
                                                             <ui:TextBox Text="{Binding ContextNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
@@ -1640,6 +1655,25 @@
                                               VerticalContentAlignment="Center">
                                         <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
                                         <ComboBoxItem Content="谷歌翻译" Tag="google" />
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="原句翻译服务" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
+                                    <ComboBox Grid.Column="1"
+                                              SelectedValue="{Binding SentenceTranslateMode, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag"
+                                              MinHeight="36" Padding="10,4" FontSize="13"
+                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                              BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                              VerticalContentAlignment="Center"
+                                              ToolTip="原句默认不自动翻译；点击「翻译原句」时使用此处选定的服务">
+                                        <ComboBoxItem Content="在线快译（微软 / 谷歌，默认）" Tag="mt" />
+                                        <ComboBoxItem Content="AI 语境译句（使用当前 AI 配置）" Tag="ai" />
                                     </ComboBox>
                                 </Grid>
 
