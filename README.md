@@ -22,8 +22,8 @@ Word Catcher 是一款 Windows 查词与生词整理工具，适合阅读 PDF �
 
 运行环境：**Windows 10 / 11，x64**。发布的自包含包无需另外安装 .NET。
 
-1. 打开 [Releases](https://github.com/qup1010/WordCatcherDesktop/releases)，下载 `WordCatcher-<版本>-win-x64.zip`。
-2. 将压缩包完整解压到一个固定目录，双击 `WordCatcher.App.exe`。
+1. 打开 [Releases](https://github.com/qup1010/WordCatcherDesktop/releases)。提供安装器的版本优先选择 `WordCatcherDesktop-win-Setup.exe`，安装后可在应用内更新。
+2. 需要便携运行时，下载该版本的 Portable ZIP，完整解压后启动包内的 Word Catcher。旧版本的 ZIP 入口为 `WordCatcher.App.exe`。
 3. 应用启动后常驻右下角托盘。双击 Word Catcher 图标打开主窗口；图标被隐藏时，先展开托盘的折叠区域。
 4. 关闭主窗口会收回托盘。需要完全退出时，右键托盘图标，选择「退出」。
 
@@ -118,7 +118,9 @@ AI 结果优先展示当前语境义和原句翻译，并识别值得学习的�
 
 ## 更新应用
 
-在「设置」中检查更新，或直接查看 [Releases](https://github.com/qup1010/WordCatcherDesktop/releases)。有新包时，先从托盘完全退出应用，再解压并运行新版本。程序目录与本机数据目录分开，更新检查只读取 GitHub 的发布信息。
+在「设置 → 关于与更新」点击「检查更新」后，安装器版本会检查 GitHub Release 并下载可用更新；完成后点击「重启并安装更新」即可升级。应用不会在启动或后台自动检查。便携版用户可从 GitHub Releases 下载新版便携包。
+
+此前的独立便携 ZIP 需要手动更新，或从下载页面安装 Setup 版本。用户词库、配置和离线词典继续放在 `%LOCALAPPDATA%\WordCatcher`，安装程序位于独立的 `%LOCALAPPDATA%\WordCatcherDesktop`。更新访问 GitHub 发布信息和安装包。详见 [安装、升级与插件分发说明](docs/installation-and-updates.md)。
 
 ## 数据保存与备份
 

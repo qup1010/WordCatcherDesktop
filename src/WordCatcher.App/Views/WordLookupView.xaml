@@ -13,6 +13,7 @@
              Background="{DynamicResource CanvasBrush}"
              UseLayoutRounding="True"
              SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display"
              Loaded="View_Loaded">
 
     <UserControl.Resources>
@@ -56,10 +57,22 @@
         </Grid>
 
         <StackPanel Grid.Row="1" Margin="0,0,0,16">
-            <Border Style="{StaticResource SurfaceCardStyle}"
-                    BorderBrush="{StaticResource ControlBorderBrush}"
+            <Border
                     CornerRadius="8"
                     Padding="11,8">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource SurfaceCardStyle}">
+                        <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource TextMutedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -73,11 +86,11 @@
                                Foreground="{StaticResource AccentBrush}"
                                VerticalAlignment="Center"
                                Margin="1,0,9,0" />
-                    <ui:TextBox x:Name="QueryBox"
+                    <TextBox x:Name="QueryBox"
+                             Style="{StaticResource LookupQueryTextBox}"
                              Grid.Column="1"
                              Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="输入单词、短语或句子" AutomationProperties.Name="查词内容"
-                             ClearButtonEnabled="False"
+                             Tag="输入单词、短语或句子" AutomationProperties.Name="查词内容"
                              BorderThickness="0"
                              Background="Transparent"
                              Padding="10,6"

@@ -31,6 +31,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly OpenAiTranslationService _translationService;
     private readonly HotkeyManager _hotkeyManager;
     private readonly UpdateCheckService? _updateCheckService;
+    private readonly IAppUpdater? _appUpdater;
+    public event Action? UpdateRestartRequested;
     private readonly IWebDavSyncService? _webDavSyncService;
 
     [ObservableProperty]
@@ -180,6 +182,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "修改后点击保存，设置即可生效。";
 
     [ObservableProperty] private bool _isCheckingForUpdates;
+    [ObservableProperty] private bool _hasCheckedForUpdates;
+    [ObservableProperty] private bool _isUpdateReady;
+    [ObservableProperty] private int _updateProgress;
     [ObservableProperty] private string _updateStatus = "尚未检查更新。";
     [ObservableProperty] private string _latestReleaseUrl = UpdateCheckService.RepositoryUrl + "/releases/latest";
 
@@ -266,7 +271,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         OpenAiTranslationService translationService,
         HotkeyManager hotkeyManager,
         UpdateCheckService? updateCheckService = null,
-        IWebDavSyncService? webDavSyncService = null)
+        IWebDavSyncService? webDavSyncService = null,
+        IAppUpdater? appUpdater = null)
     {
         _settingsService = settingsService;
         _secretStore = secretStore;
@@ -276,6 +282,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _translationService = translationService;
         _hotkeyManager = hotkeyManager;
         _updateCheckService = updateCheckService;
+        _appUpdater = appUpdater;
+        IsUpdateReady = appUpdater?.IsUpdateReady ?? false;
         _webDavSyncService = webDavSyncService;
     }
 
@@ -859,10 +867,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task CheckForUpdatesAsync()
+    [RelayCommand(IncludeCancelCommand = true)]
+    private async Task CheckForUpdatesAsync(CancellationToken ct)
     {
         if (IsCheckingForUpdates) return;
+        HasCheckedForUpdates = true;
         if (_updateCheckService == null)
         {
             UpdateStatus = "更新检查服务不可用。";
@@ -873,11 +882,29 @@ public sealed partial class SettingsViewModel : ObservableObject
         UpdateStatus = "正在检查 GitHub Release…";
         try
         {
-            var result = await _updateCheckService.CheckAsync().ConfigureAwait(true);
+            var result = await _updateCheckService.CheckAsync(ct).ConfigureAwait(true);
             LatestReleaseUrl = result.ReleaseUrl;
-            UpdateStatus = result.IsUpdateAvailable
-                ? $"发现新版本 {result.LatestVersion}，点击“打开下载页面”获取更新。"
-                : $"当前已是最新版本（{result.CurrentVersion}）。";
+            if (!result.IsUpdateAvailable)
+            {
+                UpdateStatus = $"当前已是最新版本（{result.CurrentVersion}）。";
+                return;
+            }
+            if (_appUpdater?.IsInstalled != true)
+            {
+                UpdateStatus = $"发现新版本 {result.LatestVersion}。请从下载页面安装 Setup 版本，以后可在应用内更新。";
+                return;
+            }
+            UpdateProgress = 0;
+            UpdateStatus = $"正在下载 {result.LatestVersion}，完成后可重启安装。";
+            IProgress<int> progress = new Progress<int>(value => UpdateProgress = value);
+            IsUpdateReady = await _appUpdater.DownloadLatestAsync(progress.Report, ct).ConfigureAwait(true);
+            UpdateStatus = IsUpdateReady
+                ? $"{result.LatestVersion} 已下载，保存编辑后可点击“重启并安装更新”。"
+                : "新版本的更新包尚未就绪，请稍后重新检查或打开下载页面。";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            UpdateStatus = "更新下载已取消，可稍后重新检查。";
         }
         catch (InvalidOperationException ex)
         {
@@ -885,16 +912,28 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            UpdateStatus = "GitHub 上还没有已发布的版本。";
+            UpdateStatus = "更新包尚未发布完整，请稍后重试或打开下载页面。";
         }
         catch (Exception)
         {
-            UpdateStatus = "检查更新失败，请检查网络连接后重试。";
+            UpdateStatus = "检查或下载更新失败，请检查网络连接后重试。";
         }
         finally
         {
             IsCheckingForUpdates = false;
         }
+    }
+
+    [RelayCommand]
+    private void InstallUpdate()
+    {
+        if (!IsUpdateReady || IsCheckingForUpdates) return;
+        if (HasUnsavedChanges)
+        {
+            UpdateStatus = "请先保存或放弃设置修改，再重启安装更新。";
+            return;
+        }
+        UpdateRestartRequested?.Invoke();
     }
 
     [RelayCommand]

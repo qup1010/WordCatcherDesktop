@@ -63,6 +63,21 @@ public class LibraryLayoutTests
                     root.Arrange(new Rect(0, 0, 900, 700));
                     root.UpdateLayout();
                 }
+                ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("SettingsTab");
+                root.Measure(new Size(640, 480));
+                root.Arrange(new Rect(0, 0, 640, 480));
+                root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                root.UpdateLayout();
+                Assert.Equal(64, ((ColumnDefinition)window.FindName("NavigationColumn")).Width.Value);
+                Assert.Equal(Wpf.Ui.Controls.NavigationViewPaneDisplayMode.LeftMinimal,
+                    ((Wpf.Ui.Controls.NavigationView)window.FindName("AppNavigation")).PaneDisplayMode);
+                RenderState(root, "wordcatcher-settings-compact.png", 640, 480);
+
+                root.Measure(new Size(1180, 700));
+                root.Arrange(new Rect(0, 0, 1180, 700));
+                root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                root.UpdateLayout();
+                Assert.Equal(208, ((ColumnDefinition)window.FindName("NavigationColumn")).Width.Value);
                 window.ShowSettings();
                 window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 Assert.True(window.IsVisible);

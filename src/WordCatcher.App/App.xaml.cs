@@ -115,6 +115,8 @@ public partial class App : System.Windows.Application
             _trayManager.CaptureNowRequested += () => OnHotkeyTriggered();
 
             _libraryWindow = _serviceProvider.GetRequiredService<LibraryWindow>();
+            var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
+            settingsVm.UpdateRestartRequested += RestartForUpdate;
 
             if (settingsService.Current.WebDav.Enabled
                 && settingsService.Current.WebDav.AutoSync
@@ -149,6 +151,7 @@ public partial class App : System.Windows.Application
         // HTTP Client
         services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromMinutes(15) });
         services.AddSingleton<UpdateCheckService>();
+        services.AddSingleton<IAppUpdater, AppUpdater>();
 
         // Database & Repositories
         services.AddSingleton<SqliteConnectionFactory>();
@@ -268,9 +271,38 @@ public partial class App : System.Windows.Application
         _libraryWindow?.ShowSettings();
     }
 
+    private void RestartForUpdate()
+    {
+        if (_serviceProvider == null) return;
+        var settings = _serviceProvider.GetRequiredService<SettingsViewModel>();
+        var library = _serviceProvider.GetRequiredService<LibraryViewModel>();
+        var mainLookup = _serviceProvider.GetRequiredService<WordLookupViewModel>().Lookup;
+        var popupLookup = _activeLookupWindow?.DataContext as LookupViewModel;
+        if (library.IsEditing || library.IsEditingContext || library.IsSavingEdit || library.IsSavingContext
+            || library.IsChangingCollection || library.IsExporting || library.IsSyncingWebDav
+            || settings.HasUnsavedChanges || settings.IsSaving || settings.IsSyncingWebDav || settings.IsDictInstalling
+            || mainLookup.IsEditingDefinition || mainLookup.IsSaving || mainLookup.IsTranslatingSentence || mainLookup.IsLoading
+            || popupLookup is { IsEditingDefinition: true } or { IsSaving: true } or { IsTranslatingSentence: true } or { IsLoading: true })
+        {
+            settings.UpdateStatus = "请先保存或结束当前查词、编辑、导出和同步操作，再重启安装更新。";
+            return;
+        }
+        try
+        {
+            _serviceProvider.GetRequiredService<IAppUpdater>().PrepareRestart();
+            Shutdown();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to launch updater");
+            settings.UpdateStatus = "无法启动更新安装，请重试或打开下载页面。";
+        }
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("Word Catcher shutting down...");
+        _serviceProvider?.GetService<SettingsViewModel>()?.CheckForUpdatesCancelCommand.Execute(null);
 
         _hotkeyManager?.Dispose();
         _trayManager?.Dispose();

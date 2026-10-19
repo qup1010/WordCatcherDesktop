@@ -25,6 +25,7 @@
         FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
