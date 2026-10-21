@@ -88,14 +88,14 @@ node tools/build-icons.mjs
 本地打包：
 
 ```powershell
-./scripts/Package-Windows.ps1 -Version 0.3.2
+./scripts/Package-Windows.ps1 -Version 0.3.3
 ```
 
 版本参数使用实际计划发布的三段版本号。先安装 Inno Setup 6.7.1，再运行打包脚本；脚本发布 win-x64 自包含应用，并在 `artifacts/releases` 中生成 Inno Setup 安装包和 Portable ZIP。
 
 ```powershell
 choco install innosetup --yes --no-progress --version=6.7.1
-./scripts/Package-Windows.ps1 -Version 0.3.2
+./scripts/Package-Windows.ps1 -Version 0.3.3
 ```
 
 脚本要求 `ISCC.exe` 可用，清理本次产物的同名旧文件，并保留其他本地产物。本地预览可传 `-OutputDirectory artifacts/local-preview`。
