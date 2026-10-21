@@ -116,7 +116,7 @@ public partial class App : System.Windows.Application
 
             _libraryWindow = _serviceProvider.GetRequiredService<LibraryWindow>();
             var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
-            settingsVm.UpdateRestartRequested += RestartForUpdate;
+            settingsVm.UpdateInstallRequested += InstallDownloadedUpdate;
 
             if (settingsService.Current.WebDav.Enabled
                 && settingsService.Current.WebDav.AutoSync
@@ -271,7 +271,7 @@ public partial class App : System.Windows.Application
         _libraryWindow?.ShowSettings();
     }
 
-    private void RestartForUpdate()
+    private void InstallDownloadedUpdate()
     {
         if (_serviceProvider == null) return;
         var settings = _serviceProvider.GetRequiredService<SettingsViewModel>();
@@ -284,12 +284,12 @@ public partial class App : System.Windows.Application
             || mainLookup.IsEditingDefinition || mainLookup.IsSaving || mainLookup.IsTranslatingSentence || mainLookup.IsLoading
             || popupLookup is { IsEditingDefinition: true } or { IsSaving: true } or { IsTranslatingSentence: true } or { IsLoading: true })
         {
-            settings.UpdateStatus = "请先保存或结束当前查词、编辑、导出和同步操作，再重启安装更新。";
+            settings.UpdateStatus = "请先保存或结束当前查词、编辑、导出和同步操作，再打开安装向导。";
             return;
         }
         try
         {
-            _serviceProvider.GetRequiredService<IAppUpdater>().PrepareRestart();
+            _serviceProvider.GetRequiredService<IAppUpdater>().LaunchInstaller();
             Shutdown();
         }
         catch (Exception ex)

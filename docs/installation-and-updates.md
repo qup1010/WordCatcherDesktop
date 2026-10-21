@@ -2,17 +2,16 @@
 
 ## Windows 桌面版
 
-桌面安装与更新使用 [Velopack](https://docs.velopack.io/)，应用 SDK 和构建工具固定为 1.2.161。
+桌面安装和卸载由 [Inno Setup](https://jrsoftware.org/isinfo.php) 管理，应用内更新下载并启动同一 GitHub Release 中的安装包。
 
-- `WordCatcherDesktop-win-Setup.exe`：当前用户安装，无需管理员权限，创建开始菜单和桌面快捷方式。
-- `WordCatcherDesktop-win-Portable.zip`：完整解压运行的便携包；保留包内的启动入口和更新器文件。
-- `*-full.nupkg`、`releases.win.json` 等：GitHub 更新源，和对应版本的安装器一起发布。
+- `WordCatcherDesktop-win-Setup.exe`：标准安装向导，可选择安装目录和是否创建桌面快捷方式；默认当前用户安装，无需管理员权限，并创建开始菜单快捷方式。
+- `WordCatcherDesktop-win-Portable.zip`：解压后直接运行的便携包，不提供应用内安装更新。
 
-程序安装目录为 `%LOCALAPPDATA%\WordCatcherDesktop`；个人数据保留在现有 `%LOCALAPPDATA%\WordCatcher`。两者使用不同目录，防止安装器或更新器替换程序文件时影响数据库、词典和配置。
+安装目录默认是 `%LOCALAPPDATA%\Programs\WordCatcherDesktop`，后续 Inno Setup 更新默认沿用用户上次选择的目录。个人数据保留在 `%LOCALAPPDATA%\WordCatcher`；卸载只移除程序、快捷方式和卸载项，不删除数据库、词典或配置。
 
-应用不会在启动时或后台自动检查更新。用户在「设置 → 关于与更新」点击「检查更新」后，安装器版本才会检查并下载可用更新；检查状态只在此时显示。下载完成后点击「重启并安装更新」，应用会先确认当前编辑、保存、导出、词典安装和手动同步操作已经结束，再正常关闭并替换程序。下载支持取消，失败后可重新手动检查。便携版可从 GitHub Release 下载新版便携包。
+应用不会在启动时或后台自动检查更新。用户在「设置 → 关于与更新」点击「检查更新」后，安装版检查最新 Release 并下载 `WordCatcherDesktop-win-Setup.exe`；下载完成后点击「安装更新」，应用确认编辑、保存、导出、词典安装和手动同步操作已经结束，再退出并打开安装向导。向导默认填入原安装目录，用户确认后完成覆盖更新。下载支持取消，失败后可重新手动检查。便携版可从 GitHub Release 下载新版便携包。
 
-GitHub 标签发布工作流会在 Windows runner 上生成 `WordCatcherDesktop-win-Setup.exe` 和 `WordCatcherDesktop-win-Portable.zip`，并将两者连同更新 feed 上传到 GitHub Release。首次发布 Velopack 更新源后，安装器版本可通过应用内手动检查获取后续更新。旧版独立便携 ZIP 仍需手动下载新版。
+GitHub 标签发布工作流会在 Windows runner 上发布 win-x64 自包含应用，使用 Inno Setup 生成 `WordCatcherDesktop-win-Setup.exe`，并生成 `WordCatcherDesktop-win-Portable.zip`。Release 只上传这两个产物；不再生成或发布 Velopack 更新 feed。
 
 安装器目前未配置代码签名证书。Windows 实机安装、卸载及跨版本重启更新应在独立测试环境验收，再发布给其他用户。
 

@@ -235,6 +235,9 @@
                         </StackPanel>
                     </Border>
                     <ui:Button Content="重新查询" Command="{Binding RetryCommand}" Style="{StaticResource PopupButton}" HorizontalAlignment="Right" Margin="0,8,0,0" />
+                    <ui:Button Content="改用 AI 详解" Command="{Binding ForceAiCommand}"
+                               Visibility="{Binding CanUseAiFallback, Converter={StaticResource BoolToVis}}"
+                               Style="{StaticResource QuietActionButton}" HorizontalAlignment="Right" Margin="0,6,0,0" />
                 </StackPanel>
                 <ScrollViewer x:Name="ResultScroll" MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                     <StackPanel Margin="0,0,4,0">
@@ -328,16 +331,24 @@
                         <StackPanel Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
                             <Grid Margin="0,0,0,4">
                                 <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                                <ui:Button Content="{Binding TranslateSentenceButtonText}"
-                                           Command="{Binding TranslateSentenceCommand}"
-                                           Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
-                                           IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
-                                           Style="{StaticResource QuietActionButton}"
-                                           HorizontalAlignment="Right"
-                                           Padding="6,2"
-                                           FontSize="{StaticResource CaptionFontSize}" />
+                                <WrapPanel HorizontalAlignment="Right">
+                                    <ui:Button Content="{Binding TranslateSentenceButtonText}"
+                                               Command="{Binding TranslateSentenceCommand}"
+                                               Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
+                                               IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
+                                               Style="{StaticResource QuietActionButton}"
+                                               Padding="6,2" FontSize="{StaticResource CaptionFontSize}" />
+                                    <ui:Button Content="改用 AI" Command="{Binding UseAiSentenceTranslationCommand}"
+                                               Visibility="{Binding CanUseAiSentenceTranslation, Converter={StaticResource BoolToVis}}"
+                                               IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
+                                               Style="{StaticResource QuietActionButton}"
+                                               Padding="6,2" Margin="4,0,0,0" FontSize="{StaticResource CaptionFontSize}" />
+                                </WrapPanel>
                             </Grid>
                             <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SentenceTranslationError}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
+                                       TextWrapping="Wrap" Margin="0,5,0,0"
+                                       Visibility="{Binding SentenceTranslationError, Converter={StaticResource StringToVis}}" />
                         </StackPanel>
                         <Expander Header="理解与用法" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">

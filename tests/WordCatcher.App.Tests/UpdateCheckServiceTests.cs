@@ -35,6 +35,7 @@ public sealed class UpdateCheckServiceTests
         Assert.Equal(typeof(UpdateCheckService).Assembly.GetName().Version!.ToString(3), result.CurrentVersion);
         Assert.Equal(latestVersion, result.LatestVersion);
         Assert.Equal($"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}", result.ReleaseUrl);
+        Assert.Equal($"{UpdateCheckService.RepositoryUrl}/releases/download/{latestTag}/{UpdateCheckService.InstallerAssetName}", result.InstallerDownloadUrl);
         Assert.True(result.IsUpdateAvailable);
         Assert.Equal("WordCatcherDesktop", handler.Request!.Headers.UserAgent.First().Product!.Name);
     }
@@ -49,7 +50,7 @@ public sealed class UpdateCheckServiceTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(
-                    $"{{\"tag_name\":\"{latestTag}\",\"html_url\":\"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}\"}}")
+                    $"{{\"tag_name\":\"{latestTag}\",\"html_url\":\"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}\",\"assets\":[{{\"name\":\"{UpdateCheckService.InstallerAssetName}\",\"browser_download_url\":\"{UpdateCheckService.RepositoryUrl}/releases/download/{latestTag}/{UpdateCheckService.InstallerAssetName}\"}}]}}")
             });
         }
     }

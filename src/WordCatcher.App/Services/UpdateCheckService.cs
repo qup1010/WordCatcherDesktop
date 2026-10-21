@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -13,11 +14,13 @@ public sealed record UpdateCheckResult(
     string CurrentVersion,
     string LatestVersion,
     string ReleaseUrl,
+    string? InstallerDownloadUrl,
     bool IsUpdateAvailable);
 
 public sealed class UpdateCheckService
 {
     public const string RepositoryUrl = "https://github.com/qup1010/WordCatcherDesktop";
+    public const string InstallerAssetName = "WordCatcherDesktop-win-Setup.exe";
     private const string LatestReleaseApiUrl = RepositoryUrl + "/releases/latest";
 
     private readonly HttpClient _httpClient;
@@ -61,11 +64,17 @@ public sealed class UpdateCheckService
         releaseUrl = string.IsNullOrWhiteSpace(releaseUrl) ? RepositoryUrl + "/releases/latest" : releaseUrl;
 
         var latestVersion = NormalizeVersion(tagName);
+        var installerDownloadUrl = GetInstallerDownloadUrl(root);
+        var isUpdateAvailable = IsNewerVersion(CurrentVersion, latestVersion);
+        if (isUpdateAvailable && installerDownloadUrl is null)
+            throw new InvalidOperationException($"GitHub Release 缺少 {InstallerAssetName} 安装包。");
+
         return new UpdateCheckResult(
             CurrentVersion,
             latestVersion,
             releaseUrl,
-            IsNewerVersion(CurrentVersion, latestVersion));
+            installerDownloadUrl,
+            isUpdateAvailable);
     }
 
     public static bool IsNewerVersion(string currentVersion, string latestVersion)
@@ -94,5 +103,30 @@ public sealed class UpdateCheckService
             normalized = normalized[1..];
         var prereleaseIndex = normalized.IndexOf('-', StringComparison.Ordinal);
         return prereleaseIndex >= 0 ? normalized[..prereleaseIndex] : normalized;
+    }
+
+    private static string? GetInstallerDownloadUrl(JsonElement release)
+    {
+        if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (!asset.TryGetProperty("name", out var nameElement)
+                || !string.Equals(nameElement.GetString(), InstallerAssetName, StringComparison.Ordinal))
+                continue;
+
+            if (!asset.TryGetProperty("browser_download_url", out var urlElement)
+                || !Uri.TryCreate(urlElement.GetString(), UriKind.Absolute, out var uri)
+                || uri.Scheme != Uri.UriSchemeHttps
+                || !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+                || !uri.AbsolutePath.StartsWith("/qup1010/WordCatcherDesktop/releases/download/", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileName(uri.AbsolutePath), InstallerAssetName, StringComparison.Ordinal))
+                return null;
+
+            return uri.ToString();
+        }
+
+        return null;
     }
 }

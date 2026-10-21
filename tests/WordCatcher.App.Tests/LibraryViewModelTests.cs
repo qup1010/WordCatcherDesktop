@@ -28,6 +28,29 @@ public class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task SentenceTranslationFailureOffersExplicitAiAction()
+    {
+        var repository = DispatchProxy.Create<IWordRepository, RepositoryProxy>();
+        var lookup = DispatchProxy.Create<ILookupService, LookupViewModelTests.ServiceProxy>();
+        var service = (LookupViewModelTests.ServiceProxy)lookup;
+        service.TranslateSentence = (_, _) => throw new InvalidOperationException("provider unavailable");
+        var vm = new LibraryViewModel(repository, new WordCollectionEvents(), lookupService: lookup);
+        vm.EditContextCommand.Execute(new Occurrence { Sentence = "We sat on the bank.", SelectedText = "bank" });
+
+        await vm.TranslateOccurrenceSentenceCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ContextSentenceTranslationFailed);
+        Assert.True(vm.CanUseAiContextSentence);
+        Assert.Contains("在线快译失败", vm.StatusMessage);
+
+        await vm.UseAiOccurrenceSentenceCommand.ExecuteAsync(null);
+
+        Assert.Equal("AI 译句", vm.ContextTranslation);
+        Assert.False(vm.ContextSentenceTranslationFailed);
+        Assert.False(vm.CanUseAiContextSentence);
+    }
+
+    [Fact]
     public void SyncRefreshDoesNotEmitAnotherLocalSave()
     {
         var events = new WordCollectionEvents();

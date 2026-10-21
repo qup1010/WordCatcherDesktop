@@ -34,11 +34,32 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private string _contextTranslation = string.Empty;
     [ObservableProperty] private string _contextNote = string.Empty;
     [ObservableProperty] private bool _isSavingContext;
-    [ObservableProperty] private bool _isTranslatingContextSentence;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContextSentenceButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanUseAiContextSentence))]
+    private bool _isTranslatingContextSentence;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContextSentenceButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanUseAiContextSentence))]
+    private bool _contextSentenceTranslationFailed;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContextSentenceButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanUseAiContextSentence))]
+    private bool _lastContextSentenceUsedAi;
+    private Occurrence? _lastContextSentenceOccurrence;
+    private bool _lastContextSentenceFromEditor;
+    public string ContextSentenceButtonText => IsTranslatingContextSentence
+        ? "翻译中…"
+        : ContextSentenceTranslationFailed
+            ? LastContextSentenceUsedAi ? "重试 AI" : "重试快译"
+            : "翻译原句";
+    public bool CanUseAiContextSentence => ContextSentenceTranslationFailed && !LastContextSentenceUsedAi && !IsTranslatingContextSentence;
+    public bool ShowContextSentenceActions => ContextSentenceTranslationFailed && !IsEditingContext;
     public bool IsEditingContext => EditingOccurrence != null;
     partial void OnEditingOccurrenceChanged(Occurrence? value)
     {
         OnPropertyChanged(nameof(IsEditingContext));
+        OnPropertyChanged(nameof(ShowContextSentenceActions));
         RefreshAfterEditing();
     }
     partial void OnIsSavingContextChanged(bool value) => RefreshAfterEditing();
@@ -259,7 +280,28 @@ public sealed partial class LibraryViewModel : ObservableObject
     private void CancelContextEdit() { if (!IsSavingContext) EditingOccurrence = null; }
 
     [RelayCommand]
-    private async Task TranslateOccurrenceSentenceAsync(Occurrence? target = null)
+    private Task TranslateOccurrenceSentenceAsync(Occurrence? target = null)
+        => TranslateOccurrenceSentenceCoreAsync(target, useAi: false);
+
+    [RelayCommand]
+    private Task UseAiOccurrenceSentenceAsync(Occurrence? target = null)
+        => TranslateOccurrenceSentenceCoreAsync(target, useAi: true);
+
+    [RelayCommand]
+    private Task RetryContextSentenceAsync(Occurrence? target = null)
+    {
+        var retryTarget = target ?? (_lastContextSentenceFromEditor ? null : _lastContextSentenceOccurrence);
+        var retryWithAi = ContextSentenceTranslationFailed && LastContextSentenceUsedAi;
+        return TranslateOccurrenceSentenceCoreAsync(retryTarget, retryWithAi);
+    }
+
+    [RelayCommand]
+    private Task UseAiFailedContextSentenceAsync()
+        => TranslateOccurrenceSentenceCoreAsync(
+            _lastContextSentenceFromEditor ? null : _lastContextSentenceOccurrence,
+            useAi: true);
+
+    private async Task TranslateOccurrenceSentenceCoreAsync(Occurrence? target, bool useAi)
     {
         if (IsTranslatingContextSentence) return;
         if (_lookupService == null)
@@ -276,13 +318,20 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
 
         IsTranslatingContextSentence = true;
+        ContextSentenceTranslationFailed = false;
+        LastContextSentenceUsedAi = useAi;
+        _lastContextSentenceOccurrence = occ;
+        _lastContextSentenceFromEditor = target == null;
         var editingAtStart = EditingOccurrence;
         var translationAtStart = ContextTranslation;
-        StatusMessage = "正在翻译原句…";
+        StatusMessage = useAi ? "正在使用 AI 翻译原句…" : "正在进行在线快译…";
         try
         {
-            var translated = await _lookupService.TranslateSentenceAsync(occ.Sentence, occ.SelectedText).ConfigureAwait(true);
-            if (string.IsNullOrWhiteSpace(translated)) return;
+            var translated = useAi
+                ? await _lookupService.TranslateSentenceWithAiAsync(occ.Sentence, occ.SelectedText).ConfigureAwait(true)
+                : await _lookupService.TranslateSentenceAsync(occ.Sentence, occ.SelectedText).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(translated))
+                throw new InvalidOperationException(useAi ? "AI 翻译未返回结果。" : "在线快译未返回结果。");
             if (target == null && (!ReferenceEquals(EditingOccurrence, editingAtStart)
                 || ContextTranslation != translationAtStart)) return;
 
@@ -311,7 +360,8 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"原句翻译失败：{ex.Message}";
+            ContextSentenceTranslationFailed = true;
+            StatusMessage = $"{(useAi ? "AI 翻译" : "在线快译")}失败：{ex.Message}";
         }
         finally
         {

@@ -648,7 +648,16 @@
                                         <CheckBox Content="紧凑列表" IsChecked="{Binding IsCompact}" VerticalAlignment="Center" Margin="0,0,12,0" />
                                         <CheckBox Content="遮挡释义" IsChecked="{Binding IsDefinitionMasked}" VerticalAlignment="Center" ToolTip="在列表与详情中先隐藏中文释义，方便主动回忆" />
                                     </WrapPanel>
-                                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" /><StackPanel Margin="0,8,0,0" Visibility="{Binding DeleteStatusText, Converter={StaticResource StringToVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <WrapPanel Margin="0,5,0,0" Visibility="{Binding ShowContextSentenceActions, Converter={StaticResource BoolToVis}}">
+                                            <ui:Button Content="{Binding ContextSentenceButtonText}" Command="{Binding RetryContextSentenceCommand}"
+                                                       Style="{StaticResource QuietActionButton}" Padding="8,4" Margin="0,0,6,0" />
+                                            <ui:Button Content="改用 AI" Command="{Binding UseAiFailedContextSentenceCommand}"
+                                                       Visibility="{Binding CanUseAiContextSentence, Converter={StaticResource BoolToVis}}"
+                                                       Style="{StaticResource QuietActionButton}" Padding="8,4" />
+                                        </WrapPanel>
+                                    </StackPanel><StackPanel Margin="0,8,0,0" Visibility="{Binding DeleteStatusText, Converter={StaticResource StringToVis}}">
 <TextBlock Text="{Binding DeleteStatusText}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" />
 <ui:Button Content="撤销删除" Style="{StaticResource SecondaryActionButton}" Command="{Binding UndoDeleteCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding CanUndoDelete, Converter={StaticResource BoolToVis}}" />
 </StackPanel>
@@ -1109,6 +1118,7 @@
                                                                                                Style="{StaticResource QuietActionButton}"
                                                                                                Padding="8,4"
                                                                                                Margin="0,0,6,0"
+                                                                                               IsEnabled="{Binding DataContext.IsTranslatingContextSentence, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource InverseBool}}"
                                                                                                Visibility="{Binding Sentence, Converter={StaticResource StringToVis}}" />
                                                                                     <ui:Button Content="编辑语境"
                                                                                                Command="{Binding DataContext.EditContextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
@@ -1127,12 +1137,19 @@
                                                             <ui:TextBox Text="{Binding ContextDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
                                                             <Grid>
                                                                 <TextBlock Text="原句翻译" VerticalAlignment="Center" />
-                                                                <ui:Button Content="翻译原句"
-                                                                           Command="{Binding TranslateOccurrenceSentenceCommand}"
+                                                                <WrapPanel HorizontalAlignment="Right">
+                                                                <ui:Button Content="{Binding ContextSentenceButtonText}"
+                                                                           Command="{Binding RetryContextSentenceCommand}"
                                                                            IsEnabled="{Binding IsTranslatingContextSentence, Converter={StaticResource InverseBool}}"
                                                                            Style="{StaticResource QuietActionButton}"
-                                                                           HorizontalAlignment="Right"
                                                                            Padding="6,2" />
+                                                                <ui:Button Content="改用 AI"
+                                                                           Command="{Binding UseAiOccurrenceSentenceCommand}"
+                                                                           Visibility="{Binding CanUseAiContextSentence, Converter={StaticResource BoolToVis}}"
+                                                                           IsEnabled="{Binding IsTranslatingContextSentence, Converter={StaticResource InverseBool}}"
+                                                                           Style="{StaticResource QuietActionButton}"
+                                                                           Padding="6,2" Margin="4,0,0,0" />
+                                                                </WrapPanel>
                                                             </Grid>
                                                             <ui:TextBox Text="{Binding ContextTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
                                                             <TextBlock Text="个人笔记" />
@@ -1605,7 +1622,7 @@
                         <!-- 3. 翻译服务 -->
                         <GroupBox Header="翻译服务" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
-                                <TextBlock Text="离线词典未命中或选中长句时，优先使用免费机翻；点击卡片里的「AI 详解」时使用当前 AI 配置。"
+                                <TextBlock Text="离线词典未命中、查词整句或手动翻译原句时，都会使用此处选择的快速翻译服务。AI 仅在点击「AI 详解」或快译失败后选择「改用 AI」时调用。"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            FontSize="{StaticResource CaptionFontSize}"
                                            TextWrapping="Wrap"
@@ -1657,25 +1674,6 @@
                                               VerticalContentAlignment="Center">
                                         <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
                                         <ComboBoxItem Content="谷歌翻译" Tag="google" />
-                                    </ComboBox>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="原句翻译服务" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
-                                    <ComboBox Grid.Column="1"
-                                              SelectedValue="{Binding SentenceTranslateMode, UpdateSourceTrigger=PropertyChanged}"
-                                              SelectedValuePath="Tag"
-                                              MinHeight="36" Padding="10,4" FontSize="13"
-                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
-                                              BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
-                                              VerticalContentAlignment="Center"
-                                              ToolTip="原句默认不自动翻译；点击「翻译原句」时使用此处选定的服务">
-                                        <ComboBoxItem Content="在线快译（微软 / 谷歌，默认）" Tag="mt" />
-                                        <ComboBoxItem Content="AI 语境译句（使用当前 AI 配置）" Tag="ai" />
                                     </ComboBox>
                                 </Grid>
 
@@ -1977,7 +1975,7 @@
                                         <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Height="4" Margin="0,8,0,4"
                                                      Visibility="{Binding IsCheckingForUpdates, Converter={StaticResource BoolToVis}}" />
                                         <WrapPanel Margin="0,8,0,0">
-                                            <ui:Button Content="重启并安装更新" Style="{StaticResource PrimaryActionButton}"
+                                            <ui:Button Content="安装更新" Style="{StaticResource PrimaryActionButton}"
                                                        Command="{Binding InstallUpdateCommand}"
                                                        IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource InverseBool}}"
                                                        Visibility="{Binding IsUpdateReady, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0" />
@@ -1985,7 +1983,7 @@
                                                        Command="{Binding CheckForUpdatesCancelCommand}"
                                                        Visibility="{Binding IsCheckingForUpdates, Converter={StaticResource BoolToVis}}" />
                                         </WrapPanel>
-                                        <TextBlock Text="更新检查与下载访问 GitHub 发布信息和更新包，不会上传词库、API Key 或取词内容。"
+                                        <TextBlock Text="更新检查与下载访问 GitHub 发布信息和安装包，不会上传词库、API Key 或取词内容。"
                                                    TextWrapping="Wrap"
                                                    Foreground="{StaticResource TextMutedBrush}"
                                                    FontSize="{StaticResource CaptionFontSize}"

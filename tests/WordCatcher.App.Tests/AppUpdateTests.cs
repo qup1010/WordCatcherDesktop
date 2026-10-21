@@ -11,10 +11,10 @@ namespace WordCatcher.App.Tests;
 public sealed class AppUpdateTests
 {
     [Fact]
-    public void DevelopmentBuildDoesNotClaimToBeManagedInstallation()
+    public void DevelopmentBuildDoesNotClaimToBeInnoManagedInstallation()
     {
-        Velopack.VelopackApp.Build().Run();
-        var updater = new AppUpdater();
+        using var httpClient = new HttpClient();
+        var updater = new AppUpdater(httpClient);
         Assert.False(updater.IsInstalled);
         Assert.False(updater.IsUpdateReady);
     }
@@ -24,18 +24,20 @@ public sealed class AppUpdateTests
     {
         var updater = new FakeUpdater();
         var vm = Create(updater);
-        var restarts = 0;
-        vm.UpdateRestartRequested += () => restarts++;
+        var installs = 0;
+        vm.UpdateInstallRequested += () => installs++;
 
         Assert.False(vm.HasCheckedForUpdates);
         await vm.CheckForUpdatesCommand.ExecuteAsync(null);
 
         Assert.Equal(1, updater.Downloads);
+        Assert.Equal("99.0.0", updater.DownloadedVersion);
+        Assert.Equal("https://github.com/qup1010/WordCatcherDesktop/releases/download/v99.0.0/WordCatcherDesktop-win-Setup.exe", updater.DownloadedInstallerUri!.ToString());
         Assert.True(vm.HasCheckedForUpdates);
         Assert.True(vm.IsUpdateReady);
-        Assert.Equal(0, restarts);
+        Assert.Equal(0, installs);
         vm.InstallUpdateCommand.Execute(null);
-        Assert.Equal(1, restarts);
+        Assert.Equal(1, installs);
     }
 
     [Fact]
@@ -55,10 +57,10 @@ public sealed class AppUpdateTests
         var vm = Create(new FakeUpdater());
         await vm.CheckForUpdatesCommand.ExecuteAsync(null);
         vm.HasUnsavedChanges = true;
-        var restarts = 0;
-        vm.UpdateRestartRequested += () => restarts++;
+        var installs = 0;
+        vm.UpdateInstallRequested += () => installs++;
         vm.InstallUpdateCommand.Execute(null);
-        Assert.Equal(0, restarts);
+        Assert.Equal(0, installs);
         Assert.True(vm.HasUnsavedChanges);
         Assert.Contains("保存", vm.UpdateStatus);
     }
@@ -102,19 +104,23 @@ public sealed class AppUpdateTests
         public bool IsInstalled { get; set; } = true;
         public bool IsUpdateReady { get; private set; }
         public int Downloads;
+        public string? DownloadedVersion;
+        public Uri? DownloadedInstallerUri;
         public bool Fail;
         public bool WaitForCancel;
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public async Task<bool> DownloadLatestAsync(Action<int> progress, CancellationToken ct)
+        public async Task<bool> DownloadLatestAsync(Uri installerUri, string version, Action<int> progress, CancellationToken ct)
         {
             Downloads++;
+            DownloadedInstallerUri = installerUri;
+            DownloadedVersion = version;
             Started.TrySetResult();
             if (WaitForCancel) await Task.Delay(Timeout.Infinite, ct);
             if (Fail) throw new IOException("download failed");
             IsUpdateReady = true;
             return true;
         }
-        public void PrepareRestart() => throw new InvalidOperationException("Tests must not start an installer.");
+        public void LaunchInstaller() => throw new InvalidOperationException("Tests must not start an installer.");
     }
 
     private sealed class FakeSettings : ISettingsService
@@ -130,7 +136,7 @@ public sealed class AppUpdateTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"tag_name\":\"v99.0.0\"}")
+                Content = new StringContent("{\"tag_name\":\"v99.0.0\",\"assets\":[{\"name\":\"WordCatcherDesktop-win-Setup.exe\",\"browser_download_url\":\"https://github.com/qup1010/WordCatcherDesktop/releases/download/v99.0.0/WordCatcherDesktop-win-Setup.exe\"}]}")
             });
     }
 }
