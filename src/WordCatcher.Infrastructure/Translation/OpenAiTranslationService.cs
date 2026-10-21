@@ -53,7 +53,7 @@ public sealed class OpenAiTranslationService : IStreamingTranslationService
             ? await profiles.GetApiKeyAsync(settings.ActiveTranslationProfileId, ct).ConfigureAwait(false)
             : await _secretStore.GetApiKeyAsync(ct).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(apiKey))
-            throw new InvalidOperationException("未配置翻译 API Key，请在设置页中输入，或将原句翻译切换为在线快译。");
+            throw new InvalidOperationException("未配置翻译 API Key，请在设置页中输入后重试 AI 翻译。");
 
         var config = settings.ActiveTranslation;
         var baseUrl = config.BaseUrl.Trim().TrimEnd('/');

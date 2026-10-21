@@ -1,5 +1,7 @@
 # 显示适配、安装器与更新验证（2026-10-19）
 
+> 历史记录：本次记录验证的是当时的 Velopack 安装和更新实现。当前方案已切换为 Inno Setup，现行流程见 [安装、升级与插件分发说明](installation-and-updates.md)。
+
 开发分支：`codex/dpi-installer-updates`，基于 `origin/main` 的 `2186c70`。
 
 ## 已验证

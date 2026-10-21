@@ -91,11 +91,16 @@ node tools/build-icons.mjs
 ./scripts/Package-Windows.ps1 -Version 0.3.2
 ```
 
-版本参数使用实际计划发布的三段版本号。脚本恢复固定版本的 Velopack CLI，发布 win-x64 自包含应用，并在 `artifacts/releases` 中生成 Setup、Portable、完整更新包和更新 feed。CLI 与应用内 SDK 必须保持相同版本。新的 `Program.Main` 在 WPF 初始化和单实例互斥锁之前调用 Velopack 启动钩子。
+版本参数使用实际计划发布的三段版本号。先安装 Inno Setup 6.7.1，再运行打包脚本；脚本发布 win-x64 自包含应用，并在 `artifacts/releases` 中生成 Inno Setup 安装包和 Portable ZIP。
 
-Velopack 会拒绝向包含相同或更高版本的输出目录重新打包。本地重复验证同一版本时，可添加 `-OutputDirectory artifacts/local-preview` 使用新的产物目录；不覆盖原有发布包。
+```powershell
+choco install innosetup --yes --no-progress --version=6.7.1
+./scripts/Package-Windows.ps1 -Version 0.3.2
+```
 
-发布工作流见 [release.yml](../.github/workflows/release.yml)：推送 `v*` 标签后先测试，再由 GitHub Actions Windows runner 调用打包脚本。工作流会核对 `WordCatcherDesktop-win-Setup.exe` 与 `WordCatcherDesktop-win-Portable.zip` 均已生成，再将安装包、便携包和完整更新 feed 上传到对应 GitHub Release。标签值决定安装包和程序集的版本；本地打包使用的版本也会覆盖程序集版本。签名证书尚未配置，目前生成未签名安装包。
+脚本要求 `ISCC.exe` 可用，清理本次产物的同名旧文件，并保留其他本地产物。本地预览可传 `-OutputDirectory artifacts/local-preview`。
+
+发布工作流见 [release.yml](../.github/workflows/release.yml)：推送 `v*` 标签后先测试，再由 GitHub Actions Windows runner 安装 Inno Setup 并调用打包脚本。工作流核对并只上传 `WordCatcherDesktop-win-Setup.exe` 与 `WordCatcherDesktop-win-Portable.zip`。标签值决定安装包和程序集的版本；本地打包使用的版本也会覆盖程序集版本。签名证书尚未配置，目前生成未签名安装包。
 
 ## 产品展示图
 

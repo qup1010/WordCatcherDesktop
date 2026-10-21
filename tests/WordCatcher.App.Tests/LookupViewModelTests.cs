@@ -17,6 +17,7 @@ public class LookupViewModelTests
     {
         public Func<CaptureResult, Task<TranslationResult>> Lookup = _ => Task.FromResult(Digital());
         public Func<string, string?, Task<string>> TranslateSentence = (_, _) => Task.FromResult("手动翻译的原句意思");
+        public Func<string, string?, Task<string>> TranslateSentenceWithAi = (_, _) => Task.FromResult("AI 译句");
         public Func<SaveCardCommand, Task<(Word, Occurrence, SyncJob)>> Save = _ => Task.FromResult((new Word(), new Occurrence(), new SyncJob()));
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public AppSettings Settings = new() { Ui = new() { ClosePopupAfterSave = false } };
@@ -27,6 +28,7 @@ public class LookupViewModelTests
             "FindWordAsync" => Task.FromResult(ExistingWord),
             "LookupAsync" => Lookup((CaptureResult)args![0]!),
             "TranslateSentenceAsync" => TranslateSentence((string)args![0]!, (string?)args[1]),
+            "TranslateSentenceWithAiAsync" => TranslateSentenceWithAi((string)args![0]!, (string?)args[1]),
             "SaveAsync" => Save((SaveCardCommand)args![0]!),
             "GetWordsAsync" => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
             "GetOccurrencesByWordIdAsync" => Task.FromResult<IReadOnlyList<Occurrence>>([]),

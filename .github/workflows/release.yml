@@ -27,7 +27,11 @@ jobs:
       - name: Test
         run: dotnet test WordCatcher.Desktop.sln -c Release --no-restore
 
-      - name: Package Windows installer, portable app and update feed
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress --version=6.7.1
+
+      - name: Package Windows installer and portable app
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF_NAME.TrimStart('v')
@@ -45,7 +49,7 @@ jobs:
               throw "缺少 GitHub Release 必需产物：$name"
             }
           }
-          $assets = @(Get-ChildItem $releaseDirectory -File | ForEach-Object FullName)
+          $assets = @($requiredAssets | ForEach-Object { (Resolve-Path (Join-Path $releaseDirectory $_)).Path })
           if ($assets.Count -eq 0) { throw '发布产物为空。' }
           gh release view "$env:GITHUB_REF_NAME" *> $null
           if ($LASTEXITCODE -eq 0) {

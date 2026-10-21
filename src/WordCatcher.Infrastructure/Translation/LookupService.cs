@@ -62,7 +62,13 @@ public sealed class LookupService : IStreamingLookupService
     public Task<TranslationResult> LookupAsync(CaptureResult capture, bool forceAi, CancellationToken ct = default)
         => LookupCoreAsync(capture, forceAi, null, false, ct);
 
-    public async Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
+    public Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
+        => TranslateSentenceCoreAsync(sentence, selection, useAi: false, ct);
+
+    public Task<string> TranslateSentenceWithAiAsync(string sentence, string? selection = null, CancellationToken ct = default)
+        => TranslateSentenceCoreAsync(sentence, selection, useAi: true, ct);
+
+    private async Task<string> TranslateSentenceCoreAsync(string sentence, string? selection, bool useAi, CancellationToken ct)
     {
         var trimmedSentence = sentence?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(trimmedSentence))
@@ -75,16 +81,13 @@ public sealed class LookupService : IStreamingLookupService
         }
 
         var settings = _settingsService?.Current;
-        var mode = string.Equals(settings?.SentenceTranslateMode, "ai", StringComparison.OrdinalIgnoreCase)
-            ? "ai"
-            : "mt";
         var explainLanguage = settings?.ExplainLanguage ?? "简体中文";
         var provider = settings?.ActiveTranslation.MachineTranslationProvider ?? "microsoft";
         var cacheKey = System.Text.Json.JsonSerializer.Serialize(new
         {
-            mode,
+            mode = useAi ? "ai" : "mt",
             explainLanguage,
-            provider = mode == "mt" ? provider : settings?.ActiveTranslationProfileId,
+            provider = useAi ? settings?.ActiveTranslationProfileId : provider,
             sentence = trimmedSentence,
             selection = selection?.Trim() ?? string.Empty
         });
@@ -101,7 +104,7 @@ public sealed class LookupService : IStreamingLookupService
         }
 
         string translated;
-        if (mode == "ai")
+        if (useAi)
         {
             translated = await _aiTranslation.TranslateSentenceAsync(trimmedSentence, selection, ct).ConfigureAwait(false);
         }
@@ -109,31 +112,42 @@ public sealed class LookupService : IStreamingLookupService
         {
             if (_machineTranslation == null)
                 throw new InvalidOperationException("在线翻译服务未初始化。");
-            translated = await _machineTranslation.TranslateAsync(trimmedSentence, explainLanguage, provider, ct).ConfigureAwait(false);
+            try
+            {
+                translated = await _machineTranslation.TranslateAsync(trimmedSentence, explainLanguage, provider, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"在线快译失败：{ex.Message}", ex);
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(translated))
+        if (string.IsNullOrWhiteSpace(translated))
+            throw new InvalidOperationException(useAi ? "AI 翻译未返回结果。" : "在线快译未返回结果。请重试，或改用 AI。");
+
+        lock (_sentenceCacheLock)
         {
-            lock (_sentenceCacheLock)
+            if (_sentenceCacheSettingsVersion != cacheSettingsVersion)
             {
-                if (_sentenceCacheSettingsVersion != cacheSettingsVersion)
-                {
-                    return translated;
-                }
-
-                if (_sentenceCache.ContainsKey(cacheKey))
-                {
-                    _sentenceCacheOrder.Remove(cacheKey);
-                }
-                else if (_sentenceCache.Count >= MaxSentenceCacheSize && _sentenceCacheOrder.First is { } oldest)
-                {
-                    _sentenceCache.Remove(oldest.Value);
-                    _sentenceCacheOrder.RemoveFirst();
-                }
-
-                _sentenceCache[cacheKey] = translated;
-                _sentenceCacheOrder.AddLast(cacheKey);
+                return translated;
             }
+
+            if (_sentenceCache.ContainsKey(cacheKey))
+            {
+                _sentenceCacheOrder.Remove(cacheKey);
+            }
+            else if (_sentenceCache.Count >= MaxSentenceCacheSize && _sentenceCacheOrder.First is { } oldest)
+            {
+                _sentenceCache.Remove(oldest.Value);
+                _sentenceCacheOrder.RemoveFirst();
+            }
+
+            _sentenceCache[cacheKey] = translated;
+            _sentenceCacheOrder.AddLast(cacheKey);
         }
 
         return translated;
@@ -175,37 +189,26 @@ public sealed class LookupService : IStreamingLookupService
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "Offline dictionary lookup failed for selected text {TextInfo}, falling back to AI", textInfo);
+                _logger?.LogWarning(ex, "Offline dictionary lookup failed for selected text {TextInfo}, continuing with machine translation", textInfo);
             }
         }
 
-        // 2. Prefer free machine translation for misses and long text. AI is
-        // still available through the explicit "AI 详解" action and remains a
-        // final fallback when machine translation is unavailable.
-        if (!forceAi && _machineTranslation != null)
+        // 2. Misses and sentences use the selected quick-translation provider.
+        // AI is only requested by the explicit "AI 详解" action.
+        if (!forceAi)
         {
+            if (_machineTranslation == null)
+                throw new InvalidOperationException("在线快译服务未初始化。请重试，或改用 AI 详解。");
+
+            string translated;
             try
             {
                 var settings = _settingsService?.Current;
-                var translated = await _machineTranslation.TranslateAsync(
+                translated = await _machineTranslation.TranslateAsync(
                     text,
                     settings?.ExplainLanguage ?? "简体中文",
                     settings?.ActiveTranslation.MachineTranslationProvider ?? "microsoft",
                     ct).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(translated))
-                {
-                    _logger?.LogInformation("Machine translation hit for selected text {TextInfo}", textInfo);
-                    return new TranslationResult(
-                        Word: text,
-                        Reading: string.Empty,
-                        PartOfSpeech: string.Empty,
-                        Definition: translated,
-                        ContextTranslation: string.Empty,
-                        MemoryHook: null,
-                        Source: LookupSource.MachineTranslation,
-                        SourceEntryId: null,
-                        SourceSchemaVersion: null);
-                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -213,11 +216,27 @@ public sealed class LookupService : IStreamingLookupService
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "Machine translation failed for selected text {TextInfo}, falling back to AI", textInfo);
+                _logger?.LogWarning(ex, "Machine translation failed for selected text {TextInfo}", textInfo);
+                throw new InvalidOperationException($"在线快译失败：{ex.Message}", ex);
             }
+
+            if (string.IsNullOrWhiteSpace(translated))
+                throw new InvalidOperationException("在线快译未返回结果。请重试，或改用 AI 详解。");
+
+            _logger?.LogInformation("Machine translation hit for selected text {TextInfo}", textInfo);
+            return new TranslationResult(
+                Word: text,
+                Reading: string.Empty,
+                PartOfSpeech: string.Empty,
+                Definition: translated,
+                ContextTranslation: string.Empty,
+                MemoryHook: null,
+                Source: LookupSource.MachineTranslation,
+                SourceEntryId: null,
+                SourceSchemaVersion: null);
         }
 
-        // 3. Final fallback to online AI translation (with LRU cache + offline dictionary MemoryHook/Reading backfill)
+        // 3. Explicit AI lookup (with LRU cache + offline dictionary MemoryHook/Reading backfill).
         var cacheKey = BuildAiCacheKey(capture, text);
         var useLookupCache = _aiTranslation is not IStreamingTranslationService;
         if (useLookupCache && !bypassCache && TryGetCachedAiResult(cacheKey, out var cachedResult))

@@ -32,7 +32,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly HotkeyManager _hotkeyManager;
     private readonly UpdateCheckService? _updateCheckService;
     private readonly IAppUpdater? _appUpdater;
-    public event Action? UpdateRestartRequested;
+    public event Action? UpdateInstallRequested;
     private readonly IWebDavSyncService? _webDavSyncService;
 
     [ObservableProperty]
@@ -87,9 +87,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _explainLanguage = "简体中文";
 
     [ObservableProperty]
-    private string _sentenceTranslateMode = "mt";
-
-    [ObservableProperty]
     private bool _ankiEnabled = true;
 
     [ObservableProperty]
@@ -139,7 +136,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _initializing;
     private static readonly HashSet<string> EditableProperties = new()
     {
-        nameof(Hotkey), nameof(ExplainLanguage), nameof(SentenceTranslateMode), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
+        nameof(Hotkey), nameof(ExplainLanguage), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
         nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
         nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
@@ -150,7 +147,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private string EditorState() => JsonSerializer.Serialize(new
     {
-        Hotkey, ExplainLanguage, SentenceTranslateMode, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
+        Hotkey, ExplainLanguage, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
         ActiveAiProfileId, AiProfileName, MachineTranslationProvider, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
         WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
@@ -296,7 +293,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             var s = _settingsService.Current;
             Hotkey = s.Hotkey;
             ExplainLanguage = s.ExplainLanguage;
-            SentenceTranslateMode = string.Equals(s.SentenceTranslateMode, "ai", StringComparison.OrdinalIgnoreCase) ? "ai" : "mt";
 
             var profiles = EnsureProfiles(s);
             AiProfiles = new ObservableCollection<TranslationProfile>(profiles.Select(CloneProfile));
@@ -496,7 +492,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             var s = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
             s.Hotkey = Hotkey.Trim();
             s.ExplainLanguage = ExplainLanguage.Trim();
-            s.SentenceTranslateMode = string.Equals(SentenceTranslateMode, "ai", StringComparison.OrdinalIgnoreCase) ? "ai" : "mt";
 
             SaveEditorToProfile(ActiveAiProfileId);
             s.TranslationProfiles = AiProfiles.Select(CloneProfile).ToList();
@@ -895,12 +890,19 @@ public sealed partial class SettingsViewModel : ObservableObject
                 return;
             }
             UpdateProgress = 0;
-            UpdateStatus = $"正在下载 {result.LatestVersion}，完成后可重启安装。";
+            if (string.IsNullOrWhiteSpace(result.InstallerDownloadUrl))
+            {
+                UpdateStatus = "最新版本尚未提供安装包，请打开下载页面获取 Setup 版本。";
+                return;
+            }
+
+            UpdateStatus = $"正在下载 {result.LatestVersion} 安装包…";
             IProgress<int> progress = new Progress<int>(value => UpdateProgress = value);
-            IsUpdateReady = await _appUpdater.DownloadLatestAsync(progress.Report, ct).ConfigureAwait(true);
+            IsUpdateReady = await _appUpdater.DownloadLatestAsync(
+                new Uri(result.InstallerDownloadUrl), result.LatestVersion, progress.Report, ct).ConfigureAwait(true);
             UpdateStatus = IsUpdateReady
-                ? $"{result.LatestVersion} 已下载，保存编辑后可点击“重启并安装更新”。"
-                : "新版本的更新包尚未就绪，请稍后重新检查或打开下载页面。";
+                ? $"{result.LatestVersion} 安装包已下载。保存编辑后，点击“安装更新”打开安装向导。"
+                : "新版本安装包尚未就绪，请稍后重新检查或打开下载页面。";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -930,10 +932,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!IsUpdateReady || IsCheckingForUpdates) return;
         if (HasUnsavedChanges)
         {
-            UpdateStatus = "请先保存或放弃设置修改，再重启安装更新。";
+            UpdateStatus = "请先保存或放弃设置修改，再打开安装向导。";
             return;
         }
-        UpdateRestartRequested?.Invoke();
+        UpdateInstallRequested?.Invoke();
     }
 
     [RelayCommand]

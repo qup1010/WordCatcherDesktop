@@ -36,15 +36,29 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty] private bool _hasSavedContext;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TranslateSentenceButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanUseAiSentenceTranslation))]
     private bool _isTranslatingSentence;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TranslateSentenceButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanUseAiSentenceTranslation))]
+    private bool _sentenceTranslationFailed;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TranslateSentenceButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanUseAiSentenceTranslation))]
+    private bool _lastSentenceTranslationUsedAi;
+    [ObservableProperty]
+    private string _sentenceTranslationError = string.Empty;
     private bool _lastForceAi;
     public string LearningExpression => string.IsNullOrWhiteSpace(Analysis?.Expression) ? Word : Analysis.Expression;
     public bool HasAnalysis => Analysis != null;
     public bool HasLearningDetails => !string.IsNullOrWhiteSpace(Analysis?.KeyExplanation) || !string.IsNullOrWhiteSpace(Analysis?.UsageNote) || !string.IsNullOrWhiteSpace(Analysis?.Example);
     public string AiButtonText => Source == LookupSource.Ai ? "重新生成" : "AI 详解";
     public bool CanTranslateSentence => !string.IsNullOrWhiteSpace(OriginalSentence) && !IsLongText && string.IsNullOrWhiteSpace(ContextTranslation);
-    public string TranslateSentenceButtonText => IsTranslatingSentence ? "翻译中…" : "翻译原句";
+    public bool CanUseAiFallback => HasError && !_lastForceAi && _currentCapture != null;
+    public bool CanUseAiSentenceTranslation => SentenceTranslationFailed && !LastSentenceTranslationUsedAi && !IsTranslatingSentence;
+    public string TranslateSentenceButtonText => IsTranslatingSentence ? "翻译中…" : SentenceTranslationFailed ? (LastSentenceTranslationUsedAi ? "重试 AI" : "重试快译") : "翻译原句";
     partial void OnSourceChanged(LookupSource value) => OnPropertyChanged(nameof(AiButtonText));
+    partial void OnHasErrorChanged(bool value) => OnPropertyChanged(nameof(CanUseAiFallback));
     partial void OnAnalysisChanged(LearningAnalysis? value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(HasAnalysis)); OnPropertyChanged(nameof(HasLearningDetails)); }
     partial void OnWordChanged(string value) => OnPropertyChanged(nameof(LearningExpression));
     partial void OnHasSavedContextChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
@@ -190,9 +204,13 @@ public sealed partial class LookupViewModel : ObservableObject
             EditDefinition != _currentTranslation?.Definition ? EditDefinition : null,
             EditTranslation != _currentTranslation?.ContextTranslation ? EditTranslation : null, LearningNote) : null;
         _lastForceAi = forceAi;
+        OnPropertyChanged(nameof(CanUseAiFallback));
         Analysis = null;
         HasSavedContext = false;
         IsTranslatingSentence = false;
+        SentenceTranslationFailed = false;
+        LastSentenceTranslationUsedAi = false;
+        SentenceTranslationError = string.Empty;
         ++_lookupVersion;
         var previousLookup = _lookupCancellation;
         var currentLookup = new CancellationTokenSource();
@@ -205,6 +223,7 @@ public sealed partial class LookupViewModel : ObservableObject
             : null;
 
         _currentCapture = capture;
+        OnPropertyChanged(nameof(CanUseAiFallback));
         SelectedText = capture.SelectedText;
         Word = capture.SelectedText;
         Reading = string.Empty;
@@ -351,7 +370,12 @@ public sealed partial class LookupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task TranslateSentenceAsync()
+    private Task TranslateSentenceAsync() => TranslateSentenceCoreAsync(useAi: false);
+
+    [RelayCommand]
+    private Task UseAiSentenceTranslationAsync() => TranslateSentenceCoreAsync(useAi: true);
+
+    private async Task TranslateSentenceCoreAsync(bool useAi)
     {
         if (IsTranslatingSentence || string.IsNullOrWhiteSpace(OriginalSentence))
             return;
@@ -361,11 +385,18 @@ public sealed partial class LookupViewModel : ObservableObject
         var targetSelection = SelectedText;
         var translationAtStart = EditTranslation;
         IsTranslatingSentence = true;
+        SentenceTranslationFailed = false;
+        LastSentenceTranslationUsedAi = useAi;
+        SentenceTranslationError = string.Empty;
         try
         {
-            var translated = await _lookupService.TranslateSentenceAsync(targetSentence, targetSelection).ConfigureAwait(true);
-            if (version != _lookupVersion || string.IsNullOrWhiteSpace(translated))
+            var translated = useAi
+                ? await _lookupService.TranslateSentenceWithAiAsync(targetSentence, targetSelection).ConfigureAwait(true)
+                : await _lookupService.TranslateSentenceAsync(targetSentence, targetSelection).ConfigureAwait(true);
+            if (version != _lookupVersion)
                 return;
+            if (string.IsNullOrWhiteSpace(translated))
+                throw new InvalidOperationException(useAi ? "AI 翻译未返回结果。" : "在线快译未返回结果。请重试，或改用 AI。");
 
             if (EditTranslation != translationAtStart)
             {
@@ -388,7 +419,8 @@ public sealed partial class LookupViewModel : ObservableObject
         {
             if (version == _lookupVersion)
             {
-                ActionStatusText = $"原句翻译失败：{ex.Message}";
+                SentenceTranslationFailed = true;
+                SentenceTranslationError = $"{(useAi ? "AI 翻译" : "在线快译")}失败：{ex.Message}";
             }
         }
         finally

@@ -30,27 +30,26 @@ public sealed class LookupServiceTests
     }
 
     [Fact]
-    public async Task OfflineLookupFailure_FallsBackToAi()
+    public async Task OfflineLookupFailure_ContinuesToMachineTranslationWithoutCallingAi()
     {
         var offline = new FakeOfflineDictionary
         {
             ThrowOnLookup = true
         };
-        var ai = new FakeTranslationService
-        {
-            Result = CreateResult(LookupSource.Ai)
-        };
-        var service = new LookupService(offline, ai);
+        var machine = new FakeMachineTranslationService { Result = "快速翻译结果" };
+        var ai = new FakeTranslationService { Result = CreateResult(LookupSource.Ai) };
+        var service = new LookupService(offline, ai, machineTranslation: machine);
 
         var result = await service.LookupAsync(CreateCapture("quick"), forceAi: false);
 
-        Assert.Equal(LookupSource.Ai, result.Source);
+        Assert.Equal(LookupSource.MachineTranslation, result.Source);
         Assert.Equal(1, offline.LookupCount);
-        Assert.Equal(1, ai.CallCount);
+        Assert.Equal(1, machine.CallCount);
+        Assert.Equal(0, ai.CallCount);
     }
 
     [Fact]
-    public async Task DictionaryMiss_UsesMachineTranslationBeforeAi_AndLeavesContextTranslationEmptyByDefault()
+    public async Task DictionaryMiss_UsesMachineTranslationWithoutCallingAi_AndLeavesContextTranslationEmptyByDefault()
     {
         var offline = new FakeOfflineDictionary { Result = null };
         var machine = new FakeMachineTranslationService { Result = "快速翻译结果" };
@@ -67,26 +66,57 @@ public sealed class LookupServiceTests
     }
 
     [Fact]
-    public async Task TranslateSentenceAsync_RoutesToSelectedServiceAndCachesRepeatedRequests()
+    public async Task TranslateSentenceAsync_AlwaysUsesSelectedQuickProviderAndCachesRepeatedRequests()
     {
         var settings = new FakeSettingsService();
         var machine = new FakeMachineTranslationService { Result = "机翻整句结果" };
         var ai = new FakeTranslationService { SentenceResult = "AI 整句结果" };
         var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings, machineTranslation: machine);
 
-        settings.Current.SentenceTranslateMode = "mt";
+        settings.Current.ExplainLanguage = "English";
+        settings.Current.Translation.MachineTranslationProvider = "google";
         var mtFirst = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
         var mtSecond = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
         Assert.Equal("机翻整句结果", mtFirst);
         Assert.Equal("机翻整句结果", mtSecond);
         Assert.Equal(1, machine.CallCount);
         Assert.Equal(0, ai.SentenceCallCount);
+        Assert.Equal("English", machine.LastTargetLanguage);
+        Assert.Equal("google", machine.LastProvider);
+    }
 
-        settings.Current.SentenceTranslateMode = "ai";
-        var aiFirst = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
-        var aiSecond = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
+    [Fact]
+    public async Task TranslateSentenceWithAiAsync_UsesAiOnlyWhenExplicitlyRequested()
+    {
+        var settings = new FakeSettingsService();
+        var machine = new FakeMachineTranslationService { Result = "机翻整句结果" };
+        var ai = new FakeTranslationService { SentenceResult = "AI 整句结果" };
+        var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings, machineTranslation: machine);
+
+        var aiFirst = await service.TranslateSentenceWithAiAsync("We sat on the bank.", "bank");
+        var aiSecond = await service.TranslateSentenceWithAiAsync("We sat on the bank.", "bank");
         Assert.Equal("AI 整句结果", aiFirst);
         Assert.Equal("AI 整句结果", aiSecond);
+        Assert.Equal(1, ai.SentenceCallCount);
+        Assert.Equal(0, machine.CallCount);
+    }
+
+    [Fact]
+    public async Task TranslateSentenceAsync_ReportsQuickFailureWithoutCallingAi()
+    {
+        var machine = new FakeMachineTranslationService { Failure = new InvalidOperationException("provider unavailable") };
+        var ai = new FakeTranslationService { SentenceResult = "AI 整句结果" };
+        var service = new LookupService(new FakeOfflineDictionary(), ai, machineTranslation: machine);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.TranslateSentenceAsync("We sat on the bank.", "bank"));
+
+        Assert.Contains("在线快译失败", error.Message);
+        Assert.Equal(1, machine.CallCount);
+        Assert.Equal(0, ai.SentenceCallCount);
+
+        var aiResult = await service.TranslateSentenceWithAiAsync("We sat on the bank.", "bank");
+        Assert.Equal("AI 整句结果", aiResult);
         Assert.Equal(1, ai.SentenceCallCount);
     }
 
@@ -94,42 +124,56 @@ public sealed class LookupServiceTests
     public async Task TranslateSentenceAsync_ClearsCacheWhenSettingsChange()
     {
         var settings = new FakeSettingsService();
-        settings.Current.SentenceTranslateMode = "ai";
-        var ai = new FakeTranslationService { SentenceResult = "译文" };
-        var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings);
+        var machine = new FakeMachineTranslationService { Result = "译文" };
+        var service = new LookupService(new FakeOfflineDictionary(), new FakeTranslationService(), settingsService: settings, machineTranslation: machine);
 
         await service.TranslateSentenceAsync("The bank is closed.", "bank");
         await service.TranslateSentenceAsync("The bank is closed.", "bank");
-        Assert.Equal(1, ai.SentenceCallCount);
+        Assert.Equal(1, machine.CallCount);
 
         settings.NotifySettingsChanged();
         await service.TranslateSentenceAsync("The bank is closed.", "bank");
 
-        Assert.Equal(2, ai.SentenceCallCount);
+        Assert.Equal(2, machine.CallCount);
     }
 
     [Fact]
     public async Task TranslateSentenceAsync_DoesNotCacheAnInFlightResultAfterSettingsChange()
     {
         var settings = new FakeSettingsService();
-        settings.Current.SentenceTranslateMode = "ai";
         var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ai = new FakeTranslationService
+        var machine = new FakeMachineTranslationService
         {
-            SentenceHandler = () => pending.Task
+            Handler = () => pending.Task
         };
-        var service = new LookupService(new FakeOfflineDictionary(), ai, settingsService: settings);
+        var service = new LookupService(new FakeOfflineDictionary(), new FakeTranslationService(), settingsService: settings, machineTranslation: machine);
 
         var firstRequest = service.TranslateSentenceAsync("The bank is closed.", "bank");
         settings.NotifySettingsChanged();
         pending.SetResult("旧设置的译文");
         Assert.Equal("旧设置的译文", await firstRequest);
 
-        ai.SentenceHandler = () => Task.FromResult("新设置的译文");
+        machine.Handler = () => Task.FromResult("新设置的译文");
         var secondResult = await service.TranslateSentenceAsync("The bank is closed.", "bank");
 
         Assert.Equal("新设置的译文", secondResult);
-        Assert.Equal(2, ai.SentenceCallCount);
+        Assert.Equal(2, machine.CallCount);
+    }
+
+    [Fact]
+    public async Task QuickTranslationFailure_DoesNotSilentlyFallBackToAi()
+    {
+        var offline = new FakeOfflineDictionary { Result = null };
+        var machine = new FakeMachineTranslationService { Failure = new InvalidOperationException("provider unavailable") };
+        var ai = new FakeTranslationService { Result = CreateResult(LookupSource.Ai) };
+        var service = new LookupService(offline, ai, machineTranslation: machine);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LookupAsync(CreateCapture("A sentence to translate."), forceAi: false));
+
+        Assert.Contains("在线快译失败", error.Message);
+        Assert.Equal(1, machine.CallCount);
+        Assert.Equal(0, ai.CallCount);
     }
 
     [Fact]
@@ -239,6 +283,10 @@ public sealed class LookupServiceTests
     {
         public int CallCount { get; private set; }
         public string Result { get; init; } = string.Empty;
+        public Exception? Failure { get; init; }
+        public Func<Task<string>>? Handler { get; set; }
+        public string? LastTargetLanguage { get; private set; }
+        public string? LastProvider { get; private set; }
 
         public Task<string> TranslateAsync(
             string text,
@@ -247,7 +295,10 @@ public sealed class LookupServiceTests
             CancellationToken ct = default)
         {
             CallCount++;
-            return Task.FromResult(Result);
+            LastTargetLanguage = targetLanguage;
+            LastProvider = provider;
+            if (Failure != null) throw Failure;
+            return Handler?.Invoke() ?? Task.FromResult(Result);
         }
     }
 }

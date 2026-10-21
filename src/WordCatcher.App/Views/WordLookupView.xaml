@@ -173,8 +173,12 @@
                         <TextBlock Text="查询未完成" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
                         <TextBlock Text="{Binding Lookup.ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
                                    TextWrapping="Wrap" Margin="0,6,0,0" />
-                        <ui:Button Content="重新查询" Command="{Binding SearchCommand}" Style="{StaticResource LookupActionButton}"
+                        <ui:Button Content="重新查询" Command="{Binding Lookup.RetryCommand}" Style="{StaticResource LookupActionButton}"
                                 HorizontalAlignment="Left" Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource DangerBrush}" Margin="0,12,0,0" />
+                        <ui:Button Content="改用 AI 详解" Command="{Binding Lookup.ForceAiCommand}"
+                                Visibility="{Binding Lookup.CanUseAiFallback, Converter={StaticResource BoolToVis}}"
+                                Style="{StaticResource LookupActionButton}" HorizontalAlignment="Left"
+                                Background="{StaticResource SubtleSurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -352,16 +356,24 @@
 <StackPanel Margin="0,0,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
                                         <Grid Margin="0,0,0,4">
                                             <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                                            <ui:Button Content="{Binding TranslateSentenceButtonText}"
-                                                       Command="{Binding TranslateSentenceCommand}"
-                                                       Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
-                                                       IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
-                                                       Style="{StaticResource QuietActionButton}"
-                                                       HorizontalAlignment="Right"
-                                                       Padding="6,2"
-                                                       FontSize="{StaticResource CaptionFontSize}" />
+                                            <WrapPanel HorizontalAlignment="Right">
+                                                <ui:Button Content="{Binding TranslateSentenceButtonText}"
+                                                           Command="{Binding TranslateSentenceCommand}"
+                                                           Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
+                                                           IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Padding="6,2" FontSize="{StaticResource CaptionFontSize}" />
+                                                <ui:Button Content="改用 AI" Command="{Binding UseAiSentenceTranslationCommand}"
+                                                           Visibility="{Binding CanUseAiSentenceTranslation, Converter={StaticResource BoolToVis}}"
+                                                           IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Padding="6,2" Margin="4,0,0,0" FontSize="{StaticResource CaptionFontSize}" />
+                                            </WrapPanel>
                                         </Grid>
                                         <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" />
+                                        <TextBlock Text="{Binding SentenceTranslationError}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
+                                                   TextWrapping="Wrap" Margin="0,5,0,0"
+                                                   Visibility="{Binding SentenceTranslationError, Converter={StaticResource StringToVis}}" />
                                     </StackPanel>
                                     <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="12,10"
                                             Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">

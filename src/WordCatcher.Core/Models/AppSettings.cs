@@ -8,7 +8,6 @@ public sealed class AppSettings
 {
     public string Hotkey { get; set; } = "Alt+Q";
     public string ExplainLanguage { get; set; } = "简体中文";
-    public string SentenceTranslateMode { get; set; } = "mt";
     public TranslationSettings Translation { get; set; } = new();
     public List<TranslationProfile> TranslationProfiles { get; set; } = new();
     public string ActiveTranslationProfileId { get; set; } = "default";
