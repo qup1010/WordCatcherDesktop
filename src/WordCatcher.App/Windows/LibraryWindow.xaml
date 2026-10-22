@@ -1,4 +1,4 @@
-<Window x:Class="WordCatcher.App.Windows.LibraryWindow"
+﻿<Window x:Class="WordCatcher.App.Windows.LibraryWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -1581,36 +1581,40 @@
                     </Grid.RowDefinitions>
                     <StackPanel Margin="0,0,0,18">
                         <TextBlock Text="设置" Style="{StaticResource PageTitleStyle}" />
-                        <TextBlock Text="管理取词、离线词典、翻译服务和 Anki 集成"
+                        <TextBlock Text="普通偏好即时保存；连接配置与快捷键点击保存后生效"
                                    Style="{StaticResource PageSubtitleStyle}" />
+<WrapPanel Margin="0,12,0,0"><ui:Button Content="查词与翻译" Tag="LookupSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="AI 详解" Tag="AiSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="词库与同步" Tag="WebDavSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="Anki" Tag="AnkiSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="操作与显示" Tag="InteractionSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="关于" Tag="AboutSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /></WrapPanel>
                     </StackPanel>
                 <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}">
                         <StackPanel MaxWidth="900" HorizontalAlignment="Center" Margin="0,0,12,0">
-                        <!-- 1. 全局快捷键 -->
-                        <GroupBox Header="取词快捷键" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
-                                <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,12">
-                                    <Run Text="当前生效：" /><Run Text="{Binding AppliedHotkey, Mode=OneWay}" FontWeight="SemiBold" />
-                                </TextBlock>
-                                <WrapPanel>
-                                    <Border Background="{StaticResource AccentSubtleBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16,9" MinWidth="140" Margin="0,0,8,8">
-                                        <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    </Border>
-                                    <ui:Button x:Name="RecordHotkeyButton" Command="{Binding RecordHotkeyCommand}" Margin="0,0,8,8" MinHeight="40" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" ToolTip="点击后直接按组合键，无需输入名称">
-                                        <TextBlock>
-                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="录入快捷键" /><Style.Triggers><DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True"><Setter Property="Text" Value="等待按键…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
-                                        </TextBlock>
-                                    </ui:Button>
-                                    <ui:Button Content="取消录入" Command="{Binding CancelHotkeyRecordingCommand}" Margin="0,0,8,8" MinHeight="40" Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}" />
-                                    <ui:Button Content="恢复默认" Command="{Binding ResetHotkeyCommand}" Margin="0,0,0,8" MinHeight="40" ToolTip="填入 Ctrl+Shift+Z，保存后生效" />
-                                </WrapPanel>
-                                <TextBlock Text="{Binding HotkeyHint}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" />
-                            </StackPanel>
-                        </GroupBox>
-
-                        <!-- 2. Open Dictionary 离线词典 -->
-                        <GroupBox Header="离线词典" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
+<GroupBox x:Name="LookupSettingsGroup" Header="查词与翻译" Style="{StaticResource SettingsSectionStyle}"><StackPanel><TextBlock Text="单词优先查询离线词典；未命中的单词与句子使用所选在线快译。AI 由你主动调用。" TextWrapping="Wrap" Margin="0,0,0,12" /><Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="在线快译" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
+                                    <ComboBox Grid.Column="1"
+                                              SelectedValue="{Binding MachineTranslationProvider, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag"
+                                              MinHeight="36" Padding="10,4" FontSize="13"
+                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                              BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                              VerticalContentAlignment="Center">
+                                        <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
+                                        <ComboBoxItem Content="谷歌翻译" Tag="google" />
+                                    </ComboBox>
+                                </Grid><Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="目标语言" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <ui:TextBox Grid.Column="1" Text="{Binding ExplainLanguage, UpdateSourceTrigger=LostFocus}"
+                                             MinHeight="36" Padding="10,6" FontSize="13"
+                                             Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
+                                             BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
+                                             VerticalContentAlignment="Center" />
+                                </Grid><TextBlock Text="离线词典" FontWeight="SemiBold" Margin="0,16,0,12" />
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                     <TextBlock Text="状态：" FontWeight="Medium" />
                                     <TextBlock Text="{Binding DictStatusText}" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
@@ -1665,17 +1669,10 @@
                                         离线词典基于 <Run Text="ahpxex/open-dictionary" FontWeight="SemiBold" /> 项目发行文件，数据源自 English Wiktionary 及贡献者与 Wiktextract 项目，遵循 CC BY-SA 4.0 知识共享许可协议。本桌面应用代码与词典数据独立授权。
                                     </TextBlock>
                                 </Border>
-                            </StackPanel>
-                        </GroupBox>
-
-                        <!-- 3. 翻译服务 -->
-                        <GroupBox Header="翻译服务" Style="{StaticResource SettingsSectionStyle}">
+                            </StackPanel></GroupBox>
+<GroupBox x:Name="AiSettingsGroup" Header="AI 详解" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
-                                <TextBlock Text="离线词典未命中、查词整句或手动翻译原句时，都会使用此处选择的快速翻译服务。AI 仅在点击「AI 详解」或快译失败后选择「改用 AI」时调用。"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           FontSize="{StaticResource CaptionFontSize}"
-                                           TextWrapping="Wrap"
-                                           Margin="0,0,0,12" />
+                                <TextBlock Text="填写连接配置后可直接测试；点击保存配置后生效。" TextWrapping="Wrap" Margin="0,0,0,12" />
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160" />
@@ -1708,36 +1705,9 @@
                                     </WrapPanel>
                                 </Grid>
 
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="快速翻译" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
-                                    <ComboBox Grid.Column="1"
-                                              SelectedValue="{Binding MachineTranslationProvider, UpdateSourceTrigger=PropertyChanged}"
-                                              SelectedValuePath="Tag"
-                                              MinHeight="36" Padding="10,4" FontSize="13"
-                                              Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
-                                              BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
-                                              VerticalContentAlignment="Center">
-                                        <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
-                                        <ComboBoxItem Content="谷歌翻译" Tag="google" />
-                                    </ComboBox>
-                                </Grid>
 
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="释义语言" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding ExplainLanguage, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{StaticResource TextPrimaryBrush}" Background="{StaticResource SurfaceBrush}"
-                                             BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid>
+
+
 
                             <Expander Header="AI 连接配置" Margin="0,16,0,0"><StackPanel Margin="0,12,0,0"><Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
@@ -1810,9 +1780,7 @@
                                         Margin="160,4,0,0"
                                         Cursor="Hand" ><TextBlock><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="测试 AI 连接" /><Style.Triggers><DataTrigger Binding="{Binding IsTestingAi}" Value="True"><Setter Property="Text" Value="正在测试…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></ui:Button></StackPanel></Expander></StackPanel>
                         </GroupBox>
-
-                        <!-- 4. WebDAV 多端词库同步 -->
-                        <GroupBox x:Name="WebDavSettingsGroup" Header="WebDAV 多端词库同步（可选）" Style="{StaticResource SettingsSectionStyle}">
+<GroupBox x:Name="WebDavSettingsGroup" Header="词库与同步" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
                                 <TextBlock Text="各端配置相同的 HTTPS WebDAV 地址与文件路径，即可同步词条、语境、编辑和删除。服务器需支持强 ETag 条件写入；遇到并发写入或同版本编辑冲突时会停止上传，保留两端内容。"
                                            Foreground="{StaticResource TextSecondaryBrush}"
@@ -1925,9 +1893,7 @@
                                 </WrapPanel>
                             </StackPanel>
                         </GroupBox>
-
-                        <!-- 4. Anki 同步 -->
-                        <GroupBox x:Name="AnkiSettingsGroup" Header="Anki 外部拓展（可选）" Style="{StaticResource SettingsSectionStyle}">
+<GroupBox x:Name="AnkiSettingsGroup" Header="Anki" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
                                 <TextBlock Text="生词库已内置卡片自测复习。如果你同时使用 Anki 桌面版，可开启后台自动同步。" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,0,0,10" />
                                 <ui:ToggleSwitch Content="启用 Anki 后台自动同步（关闭后仅保存在本地生词库）" IsChecked="{Binding AnkiEnabled}" Margin="0,0,0,10" />
@@ -1978,17 +1944,28 @@
                                              VerticalContentAlignment="Center" />
                                 </Grid><ui:ToggleSwitch Content="将例句中的单词替换为填空" IsChecked="{Binding AnkiClozeContext}" Margin="160,4,0,8" /></StackPanel></Expander></StackPanel>
                         </GroupBox>
-
-                        <!-- 5. 交互行为 -->
-                        <GroupBox Header="交互行为" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
+<GroupBox x:Name="InteractionSettingsGroup" Header="操作与显示" Style="{StaticResource SettingsSectionStyle}"><StackPanel>
                                 <CheckBox Content="收藏后自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupAfterSave}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" Margin="0,0,0,8" />
                                 <CheckBox Content="点击浮窗外部时自动关闭查词浮窗（钉住时保持打开）" IsChecked="{Binding ClosePopupOnDeactivate}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" />
-                            </StackPanel>
-                        </GroupBox>
-
-                        <!-- 6. 关于与更新 -->
-                        <GroupBox Header="关于与更新" Style="{StaticResource SettingsSectionStyle}">
+                            <TextBlock Text="取词快捷键（保存后生效）" FontWeight="SemiBold" Margin="0,20,0,12" />
+                                <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,12">
+                                    <Run Text="当前生效：" /><Run Text="{Binding AppliedHotkey, Mode=OneWay}" FontWeight="SemiBold" />
+                                </TextBlock>
+                                <WrapPanel>
+                                    <Border Background="{StaticResource AccentSubtleBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16,9" MinWidth="140" Margin="0,0,8,8">
+                                        <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    </Border>
+                                    <ui:Button x:Name="RecordHotkeyButton" Command="{Binding RecordHotkeyCommand}" Margin="0,0,8,8" MinHeight="40" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" ToolTip="点击后直接按组合键，无需输入名称">
+                                        <TextBlock>
+                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="录入快捷键" /><Style.Triggers><DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True"><Setter Property="Text" Value="等待按键…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                        </TextBlock>
+                                    </ui:Button>
+                                    <ui:Button Content="取消录入" Command="{Binding CancelHotkeyRecordingCommand}" Margin="0,0,8,8" MinHeight="40" Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}" />
+                                    <ui:Button Content="恢复默认" Command="{Binding ResetHotkeyCommand}" Margin="0,0,0,8" MinHeight="40" ToolTip="填入 Ctrl+Shift+Z，保存后生效" />
+                                </WrapPanel>
+                                <TextBlock Text="{Binding HotkeyHint}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" />
+                            </StackPanel></GroupBox>
+<GroupBox x:Name="AboutSettingsGroup" Header="关于" Style="{StaticResource SettingsSectionStyle}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
@@ -2067,11 +2044,11 @@
 <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" MaxHeight="66" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" Margin="0" /></StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <ui:Button x:Name="DiscardSettingsButton" Content="放弃修改" Command="{Binding DiscardChangesCommand}" Style="{StaticResource QuietActionButton}" Margin="0,0,8,0" Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" />
-                        <ui:Button x:Name="SettingsSaveButton" Style="{StaticResource PrimaryActionButton}" ToolTip="保存设置（Ctrl+S）；切换页面会保留未保存的修改" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" Padding="18,9">
+                        <ui:Button x:Name="SettingsSaveButton" Style="{StaticResource PrimaryActionButton}" ToolTip="保存配置（Ctrl+S）；切换页面会保留未保存的修改" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" Padding="18,9">
                             <TextBlock>
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="保存设置" />
+                                        <Setter Property="Text" Value="保存配置" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSaving}" Value="True"><Setter Property="Text" Value="正在保存…" /></DataTrigger>
                                         </Style.Triggers>

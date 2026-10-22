@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
@@ -32,41 +32,16 @@ public sealed class MachineTranslationService : IMachineTranslationService
             return string.Empty;
 
         var target = ResolveTargetCodes(targetLanguage);
-        var first = string.Equals(provider, "google", StringComparison.OrdinalIgnoreCase)
-            ? "google"
-            : "microsoft";
-        var second = first == "microsoft" ? "google" : "microsoft";
-
-        Exception? firstError = null;
         try
         {
-            return first == "microsoft"
-                ? await TranslateMicrosoftAsync(text, target.Microsoft, ct).ConfigureAwait(false)
-                : await TranslateGoogleAsync(text, target.Google, ct).ConfigureAwait(false);
+            return string.Equals(provider, "google", StringComparison.OrdinalIgnoreCase)
+                ? await TranslateGoogleAsync(text, target.Google, ct).ConfigureAwait(false)
+                : await TranslateMicrosoftAsync(text, target.Microsoft, ct).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
-            firstError = ex;
-        }
-
-        try
-        {
-            return second == "microsoft"
-                ? await TranslateMicrosoftAsync(text, target.Microsoft, ct).ConfigureAwait(false)
-                : await TranslateGoogleAsync(text, target.Google, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-        {
-            throw new InvalidOperationException(
-                $"免费机翻不可用：{firstError?.Message ?? ex.Message}", ex);
+            throw new InvalidOperationException($"在线快译不可用：{ex.Message}", ex);
         }
     }
 

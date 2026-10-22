@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
@@ -249,6 +249,8 @@ hr#answer {
         _settingsService = settingsService;
         _logger = logger;
     }
+
+    public Task<int> CheckVersionAtAsync(string url, CancellationToken ct = default) => InvokeAsync<int>("version", null, ct, url);
 
     public async Task<int> CheckVersionAsync(CancellationToken ct = default)
     {
@@ -586,9 +588,9 @@ hr#answer {
         };
     }
 
-    private async Task<T?> InvokeAsync<T>(string action, object? @params, CancellationToken ct)
+    private async Task<T?> InvokeAsync<T>(string action, object? @params, CancellationToken ct, string? endpoint = null)
     {
-        var url = _settingsService.Current.Anki.Url;
+        var url = endpoint ?? _settingsService.Current.Anki.Url;
         if (string.IsNullOrWhiteSpace(url))
         {
             url = "http://127.0.0.1:8765";

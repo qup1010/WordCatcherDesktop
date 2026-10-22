@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using WordCatcher.App.Services;
 using WordCatcher.App.ViewModels;
@@ -29,9 +29,11 @@ public class InteractionTests
         public bool Fail;
         public int Writes;
         public int Triggers;
+        public string? TestedUrl;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             "get_Current" => Settings,
+            "CheckVersionAtAsync" => TestAnki((string)args![0]!),
             "add_SettingsChanged" or "remove_SettingsChanged" => null,
             "GetApiKeyAsync" => Task.FromResult("test-key"),
             "SetApiKeyAsync" => Task.CompletedTask,
@@ -42,6 +44,7 @@ public class InteractionTests
             "TriggerSync" => Trigger(),
             _ => throw new NotSupportedException(method.Name)
         };
+        private Task<int> TestAnki(string url) { TestedUrl = url; return Task.FromResult(6); }
         private Task Save(AppSettings value)
         {
             if (Fail) throw new IOException();
@@ -173,13 +176,87 @@ public class InteractionTests
     }
 
     [Fact]
-    public async Task EditedAnkiAddressIsNotTestedAgainstStaleSettings()
+    public async Task EditedAnkiAddressIsTestedWithoutSavingDraft()
     {
-        var (vm, _) = Settings();
+        var settings = DispatchProxy.Create<ISettingsService, Proxy>();
+        var anki = DispatchProxy.Create<IAnkiClient, Proxy>();
+        using var hotkey = new HotkeyManager();
+        var vm = new SettingsViewModel(settings, DispatchProxy.Create<ISecretStore, Proxy>(),
+            DispatchProxy.Create<IOfflineDictionaryService, Proxy>(), null!, anki, null!, hotkey);
         await vm.InitializeAsync();
         vm.AnkiUrl = "http://localhost:1234";
         await vm.TestAnkiConnectionCommand.ExecuteAsync(null);
-        Assert.Contains("请先保存", vm.StatusMessage);
+        Assert.Equal(vm.AnkiUrl, ((Proxy)anki).TestedUrl);
+        Assert.Equal(0, ((Proxy)settings).Writes);
+        Assert.Contains("连接成功", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task OrdinaryPreferencesSaveWithoutCommittingConnectionDrafts()
+    {
+        var (vm, service) = Settings();
+        await vm.InitializeAsync();
+        vm.ApiModel = "unfinished-model";
+        vm.AnkiDeckName = "unfinished-deck";
+        vm.MachineTranslationProvider = "google";
+        vm.ClosePopupAfterSave = !vm.ClosePopupAfterSave;
+        await vm.PreferenceSaveTask;
+        Assert.Equal("google", service.Settings.Translation.MachineTranslationProvider);
+        Assert.Equal(vm.ClosePopupAfterSave, service.Settings.Ui.ClosePopupAfterSave);
+        Assert.NotEqual(vm.ApiModel, service.Settings.ActiveTranslation.Model);
+        Assert.NotEqual(vm.AnkiDeckName, service.Settings.Anki.DeckName);
+        Assert.True(vm.HasUnsavedChanges);
+        await vm.DiscardChangesCommand.ExecuteAsync(null);
+        Assert.Equal("google", vm.MachineTranslationProvider);
+        Assert.False(vm.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task FailedPreferenceSaveRemainsDirtyUntilExplicitRetry()
+    {
+        var (vm, service) = Settings();
+        await vm.InitializeAsync();
+        service.Fail = true;
+        vm.MachineTranslationProvider = "google";
+        await vm.PreferenceSaveTask;
+        Assert.True(vm.HasUnsavedChanges);
+        Assert.Contains("未保存", vm.DraftStatusText);
+        Assert.Equal("microsoft", service.Settings.Translation.MachineTranslationProvider);
+        // An unrelated connection edit must not hide the failed preference write.
+        var original = vm.AnkiDeckName;
+        vm.AnkiDeckName = "draft";
+        vm.AnkiDeckName = original;
+        Assert.True(vm.HasUnsavedChanges);
+        service.Fail = false;
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.Equal("google", service.Settings.Translation.MachineTranslationProvider);
+        Assert.False(vm.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task FailedPreferencesCanBeDiscarded()
+    {
+        var (vm, service) = Settings();
+        await vm.InitializeAsync();
+        service.Fail = true;
+        vm.ExplainLanguage = "English";
+        await vm.PreferenceSaveTask;
+        await vm.DiscardChangesCommand.ExecuteAsync(null);
+        Assert.Equal(service.Settings.ExplainLanguage, vm.ExplainLanguage);
+        Assert.False(vm.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task AiProfileSwitchDoesNotChangeQuickTranslationProvider()
+    {
+        var (vm, service) = Settings();
+        service.Settings.TranslationProfiles = [new TranslationProfile { Id = "one", MachineTranslationProvider = "microsoft" }, new TranslationProfile { Id = "two", MachineTranslationProvider = "microsoft" }];
+        service.Settings.ActiveTranslationProfileId = "one";
+        service.Settings.Translation.MachineTranslationProvider = "google";
+        await vm.InitializeAsync();
+        vm.ActiveAiProfileId = "two";
+        Assert.Equal("google", vm.MachineTranslationProvider);
+        Assert.Equal(0, service.Writes);
     }
 
     [Fact]

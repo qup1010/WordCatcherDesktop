@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
@@ -82,7 +82,7 @@ public sealed class LookupService : IStreamingLookupService
 
         var settings = _settingsService?.Current;
         var explainLanguage = settings?.ExplainLanguage ?? "简体中文";
-        var provider = settings?.ActiveTranslation.MachineTranslationProvider ?? "microsoft";
+        var provider = settings?.Translation.MachineTranslationProvider ?? "microsoft";
         var cacheKey = System.Text.Json.JsonSerializer.Serialize(new
         {
             mode = useAi ? "ai" : "mt",
@@ -207,7 +207,7 @@ public sealed class LookupService : IStreamingLookupService
                 translated = await _machineTranslation.TranslateAsync(
                     text,
                     settings?.ExplainLanguage ?? "简体中文",
-                    settings?.ActiveTranslation.MachineTranslationProvider ?? "microsoft",
+                    settings?.Translation.MachineTranslationProvider ?? "microsoft",
                     ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

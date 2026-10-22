@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
@@ -147,18 +147,59 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private string EditorState() => JsonSerializer.Serialize(new
     {
-        Hotkey, ExplainLanguage, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
-        ActiveAiProfileId, AiProfileName, MachineTranslationProvider, ApiKey, AnkiEnabled,
+        Hotkey, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
+        ActiveAiProfileId, AiProfileName, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
         WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
-        ClosePopupAfterSave, ClosePopupOnDeactivate, Profiles = AiProfiles, Keys = _profileApiKeys
+        Profiles = AiProfiles, Keys = _profileApiKeys
     });
+
+    public Task PreferenceSaveTask { get; private set; } = Task.CompletedTask;
+    private void RefreshUnsavedChanges()
+    {
+        var current = _settingsService.Current;
+        HasUnsavedChanges = EditorState() != _savedEditorState
+            || ExplainLanguage.Trim() != current.ExplainLanguage
+            || MachineTranslationProvider != current.Translation.MachineTranslationProvider
+            || ClosePopupAfterSave != current.Ui.ClosePopupAfterSave
+            || ClosePopupOnDeactivate != current.Ui.ClosePopupOnDeactivate;
+    }
+
+    private void SavePreferences()
+    {
+        var language = ExplainLanguage.Trim();
+        if (string.IsNullOrWhiteSpace(language)) { StatusMessage = "请填写目标语言。"; return; }
+        var provider = MachineTranslationProvider;
+        var closeAfterSave = ClosePopupAfterSave;
+        var closeOnDeactivate = ClosePopupOnDeactivate;
+        var previous = PreferenceSaveTask;
+        PreferenceSaveTask = PersistAsync();
+        async Task PersistAsync()
+        {
+            await previous.ConfigureAwait(true);
+            try
+            {
+                var current = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
+                current.ExplainLanguage = language;
+                current.Translation.MachineTranslationProvider = provider;
+                current.Ui.ClosePopupAfterSave = closeAfterSave;
+                current.Ui.ClosePopupOnDeactivate = closeOnDeactivate;
+                await _settingsService.SaveSettingsAsync(current).ConfigureAwait(true);
+                StatusMessage = "普通偏好已保存。";
+            }
+            catch (Exception) { StatusMessage = "普通偏好保存失败，请点击保存配置重试；输入内容已保留。"; }
+            finally { RefreshUnsavedChanges(); }
+        }
+    }
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
         if (!_initializing && _savedEditorState != null && e.PropertyName != null && EditableProperties.Contains(e.PropertyName))
-            HasUnsavedChanges = EditorState() != _savedEditorState;
+        {
+            RefreshUnsavedChanges();
+            if (e.PropertyName is nameof(ExplainLanguage) or nameof(MachineTranslationProvider) or nameof(ClosePopupAfterSave) or nameof(ClosePopupOnDeactivate)) SavePreferences();
+        }
     }
 
     [ObservableProperty] private bool _isSaving;
@@ -176,7 +217,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _dictionaryInstallCancellation?.Cancel();
         DictProgressText = "正在取消…";
     }
-    [ObservableProperty] private string _statusMessage = "修改后点击保存，设置即可生效。";
+    [ObservableProperty] private string _statusMessage = "普通偏好即时保存；连接配置与快捷键需点击保存。";
 
     [ObservableProperty] private bool _isCheckingForUpdates;
     [ObservableProperty] private bool _hasCheckedForUpdates;
@@ -311,6 +352,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             _profileEditorReady = false;
             ActiveAiProfileId = active.Id;
             LoadProfile(active);
+            MachineTranslationProvider = s.Translation.MachineTranslationProvider;
             _editingProfileId = active.Id;
             _profileEditorReady = true;
 
@@ -354,6 +396,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         HasUnsavedChanges = false;
         try
         {
+            await PreferenceSaveTask.ConfigureAwait(true);
+            HasUnsavedChanges = false;
             await InitializeAsync().ConfigureAwait(true);
             StatusMessage = "未保存的修改已放弃，已恢复当前生效的设置。";
         }
@@ -465,7 +509,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         else
         {
             DictStatusText = "未安装离线词典";
-            DictDetailsText = "安装后短词优先本地查询；未命中或长句先使用免费机翻，仍不可用时再回退 AI。";
+            DictDetailsText = "安装后单词优先查询本地词典；未命中或输入句子时使用在线快译，AI 由你主动调用。";
         }
     }
 
@@ -482,6 +526,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         var hotkeyChanged = !string.Equals(oldHotkey, Hotkey.Trim(), StringComparison.OrdinalIgnoreCase);
         try
         {
+            await PreferenceSaveTask.ConfigureAwait(true);
             if (hotkeyChanged && !_hotkeyManager.Register(Hotkey.Trim()))
             {
                 _hotkeyManager.Register(oldHotkey);
@@ -500,6 +545,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             s.ActiveTranslationProfileId = active.Id;
             // Keep the legacy property in sync for older settings readers and existing files.
             s.Translation = CloneSettings(active);
+            s.Translation.MachineTranslationProvider = MachineTranslationProvider;
 
             s.Dictionary.DownloadUrl = DictDownloadUrl.Trim();
 
@@ -562,8 +608,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (ApiTimeoutSeconds <= 0) return "请求超时必须大于 0 秒。";
         if (AnkiEnabled && (!IsWebUrl(AnkiUrl) || string.IsNullOrWhiteSpace(AnkiDeckName) || string.IsNullOrWhiteSpace(AnkiNoteTypeName)))
             return "请填写有效的 Anki 地址、牌组名称和笔记类型。";
-        if (WebDavEnabled && (!IsWebUrl(WebDavUrl) || string.IsNullOrWhiteSpace(WebDavRemotePath)))
-            return "启用 WebDAV 同步时，请填写有效的服务器地址和同步文件路径。";
+        if (WebDavEnabled && (!(Uri.TryCreate(WebDavUrl.Trim(), UriKind.Absolute, out var webDavUri) && webDavUri.Scheme == "https") || string.IsNullOrWhiteSpace(WebDavRemotePath)))
+            return "启用 WebDAV 同步时，请填写 HTTPS 服务器地址和同步文件路径。";
         return null;
     }
 
@@ -616,9 +662,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ApiBaseUrl = profile.BaseUrl;
         ApiModel = profile.Model;
         ApiTimeoutSeconds = profile.TimeoutSeconds;
-        MachineTranslationProvider = string.Equals(profile.MachineTranslationProvider, "google", StringComparison.OrdinalIgnoreCase)
-            ? "google"
-            : "microsoft";
+
     }
 
     private void SaveEditorToProfile(string? profileId)
@@ -633,9 +677,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         profile.BaseUrl = ApiBaseUrl.Trim();
         profile.Model = ApiModel.Trim();
         profile.TimeoutSeconds = ApiTimeoutSeconds > 0 ? ApiTimeoutSeconds : 30;
-        profile.MachineTranslationProvider = MachineTranslationProvider.Trim().ToLowerInvariant() is "google"
-            ? "google"
-            : "microsoft";
         profile.Name = string.IsNullOrWhiteSpace(AiProfileName)
             ? profile.Name
             : AiProfileName.Trim();
@@ -772,16 +813,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private async Task TestAnkiConnectionAsync()
     {
         if (IsTestingAnki) return;
-        if (!string.Equals(AnkiUrl.Trim(), _settingsService.Current.Anki.Url, StringComparison.Ordinal))
-        {
-            StatusMessage = "Anki 地址已修改，请先保存再测试连接。";
-            return;
-        }
+        if (!IsWebUrl(AnkiUrl)) { StatusMessage = "请填写有效的 Anki 地址。"; return; }
         StatusMessage = "正在测试 Anki 连接…";
         IsTestingAnki = true;
         try
         {
-            var version = await _ankiClient.CheckVersionAsync().ConfigureAwait(true);
+            var version = await _ankiClient.CheckVersionAtAsync(AnkiUrl.Trim()).ConfigureAwait(true);
             StatusMessage = $"AnkiConnect 连接成功，API 版本 {version}。";
         }
         catch (Exception ex)

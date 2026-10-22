@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,11 +33,11 @@ public sealed partial class SyncViewModel : ObservableObject
     public string WebDavError => _webDav?.LastError ?? "";
     public string WebDavLastSuccess => _webDav?.LastSyncedAtUtc is { } time
         ? $"上次成功：{time.ToLocalTime():yyyy-MM-dd HH:mm:ss}" : "尚无成功同步记录";
-    public string WebDavTitle => !_settingsService.Current.WebDav.Enabled ? "WebDAV 未启用"
-        : IsWebDavBusy ? "正在同步云端词库…"
-        : !string.IsNullOrEmpty(WebDavError) ? HasWebDavConflict ? "有冲突待处理" : "同步失败"
-        : (_webDav?.HasPendingChanges ?? false) ? "有待同步修改"
-        : (_webDav?.HasVerifiedSnapshot ?? false) ? "已同步到云端" : "等待核对云端词库";
+    public string WebDavTitle => !_settingsService.Current.WebDav.Enabled ? "未启用"
+        : IsWebDavBusy ? "同步中"
+        : !string.IsNullOrEmpty(WebDavError) ? HasWebDavConflict ? "有冲突" : "同步失败"
+        : (_webDav?.HasPendingChanges ?? false) ? "待同步"
+        : (_webDav?.HasVerifiedSnapshot ?? false) ? "已同步" : "待同步";
     public string WebDavDescription => !_settingsService.Current.WebDav.Enabled ? "词条保存在本机。启用 WebDAV 后可与其他设备同步。"
         : _webDav?.FailureKind switch
         {

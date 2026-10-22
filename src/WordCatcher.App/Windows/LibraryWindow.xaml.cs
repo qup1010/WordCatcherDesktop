@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -417,6 +417,12 @@ public partial class LibraryWindow : Window
     {
         MainTabs.SelectedItem = SettingsTab;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => AnkiSettingsGroup.BringIntoView()));
+    }
+
+    private void SettingsSection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name } && FindName(name) is FrameworkElement section)
+            section.BringIntoView();
     }
 
     private void OpenWebDavSettings_Click(object sender, RoutedEventArgs e)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,6 +75,8 @@ public sealed class LookupServiceTests
 
         settings.Current.ExplainLanguage = "English";
         settings.Current.Translation.MachineTranslationProvider = "google";
+        settings.Current.TranslationProfiles = [new TranslationProfile { Id = "ai-profile", MachineTranslationProvider = "microsoft" }];
+        settings.Current.ActiveTranslationProfileId = "ai-profile";
         var mtFirst = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
         var mtSecond = await service.TranslateSentenceAsync("We sat on the bank.", "bank");
         Assert.Equal("机翻整句结果", mtFirst);
