@@ -12,6 +12,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly Icon _applicationIcon;
     private readonly HotkeyManager _hotkeyManager;
     private readonly IAnkiSyncQueue _syncQueue;
+    private Action? _notificationAction;
 
     public event Action? OpenLibraryRequested;
     public event Action? OpenSettingsRequested;
@@ -33,6 +34,12 @@ public sealed class TrayIconManager : IDisposable
         };
 
         _notifyIcon.DoubleClick += (s, e) => OpenLibraryRequested?.Invoke();
+        _notifyIcon.BalloonTipClicked += (_, _) =>
+        {
+            var action = _notificationAction;
+            _notificationAction = null;
+            action?.Invoke();
+        };
 
         var menu = new ContextMenuStrip();
 
@@ -77,8 +84,9 @@ public sealed class TrayIconManager : IDisposable
         _notifyIcon.ContextMenuStrip = menu;
     }
 
-    public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info)
+    public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, Action? onClick = null)
     {
+        _notificationAction = onClick;
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
     }
 

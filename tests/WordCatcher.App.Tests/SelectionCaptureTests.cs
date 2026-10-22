@@ -168,6 +168,66 @@ public class SelectionCaptureTests
     }
 
     [Fact]
+    public async Task SlowCopyBeyondOneSecondSucceedsWithoutSendingAnotherCopy()
+    {
+        var platform = new FakePlatform { CopyDelay = TimeSpan.FromMilliseconds(1250) };
+        var result = await new SelectionCaptureService(platform).CaptureSelectionAsync();
+        Assert.Equal("ocean", result!.SelectedText);
+        Assert.Equal(1, platform.Copies);
+        Assert.Equal("original", platform.Clipboard);
+    }
+
+    [Fact]
+    public async Task SwitchingWindowWhileWaitingForCopyStopsCapture()
+    {
+        var platform = new FakePlatform { UpdateOnCopy = false };
+        var capture = new SelectionCaptureService(platform).CaptureSelectionAsync();
+        platform.Current = false;
+        var error = await Assert.ThrowsAsync<CaptureException>(() => capture);
+        Assert.Equal(CaptureFailure.SourceChanged, error.Failure);
+        Assert.Equal("original", platform.Clipboard);
+        Assert.Equal(0, platform.Restores);
+    }
+
+    [Fact]
+    public async Task CancellationWhileWaitingForCopyReleasesCaptureLock()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var platform = new FakePlatform { UpdateOnCopy = false };
+        var service = new SelectionCaptureService(platform);
+        var capture = service.CaptureSelectionAsync(cancellation.Token);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => capture);
+        Assert.Equal("original", platform.Clipboard);
+        platform.UpdateOnCopy = true;
+        Assert.NotNull(await service.CaptureSelectionAsync());
+    }
+
+    [Fact]
+    public async Task BlockedUiaWorkerDoesNotBlockClipboardWorker()
+    {
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var uia = NativeSelectionCapturePlatform.ExecuteInStaAsync(() =>
+        {
+            entered.SetResult();
+            release.Wait();
+            return true;
+        }, useUiaWorker: true);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var clipboard = NativeSelectionCapturePlatform.ExecuteInStaAsync(() => true);
+            Assert.True(await clipboard.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+        finally
+        {
+            release.Set();
+            await uia.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
     public async Task TooLongUiaSelectionDoesNotTouchClipboard()
     {
         var platform = new FakePlatform { Uia = new(new string('a', 5001), "", 0) };
@@ -230,7 +290,21 @@ public class SelectionCaptureTests
     private sealed class FakePlatform : ISelectionCapturePlatform
     {
         public uint Sequence = 10;
-        public uint ClipboardSequence => Sequence;
+        public uint ClipboardSequence
+        {
+            get
+            {
+                if (_copyTimer != null && _copyTimer.Elapsed >= CopyDelay)
+                {
+                    _copyTimer = null;
+                    Sequence++;
+                    Clipboard = CopiedText;
+                }
+                return Sequence;
+            }
+        }
+        public TimeSpan CopyDelay;
+        private System.Diagnostics.Stopwatch? _copyTimer;
         public string? Clipboard = "original";
         public string CopiedText = "ocean";
         public SelectionSnapshot? Uia;
@@ -267,7 +341,11 @@ public class SelectionCaptureTests
         {
             if (CopyError.HasValue) throw new CaptureException(CopyError.Value);
             Copies++;
-            if (UpdateOnCopy) { Sequence++; Clipboard = CopiedText; }
+            if (UpdateOnCopy)
+            {
+                if (CopyDelay > TimeSpan.Zero) _copyTimer = System.Diagnostics.Stopwatch.StartNew();
+                else { Sequence++; Clipboard = CopiedText; }
+            }
         }
         public Task<ClipboardRead> ReadCopiedTextAsync(CaptureSource source, uint expectedSequence)
         {

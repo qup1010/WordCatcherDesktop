@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using Microsoft.Extensions.Logging;
 using WordCatcher.App.Interop;
+using WordCatcher.Core.Models;
 
 namespace WordCatcher.App.Services;
 
@@ -27,7 +28,7 @@ public sealed class HotkeyManager : IDisposable
         _logger = logger;
     }
 
-    public bool Register(string hotkeyText = "Alt+Q")
+    public bool Register(string hotkeyText = AppSettings.DefaultHotkey)
     {
         if (!TryParseHotkey(hotkeyText, out var modifiers, out var vk)) return false;
         if (_isRegistered && modifiers == _registeredModifiers && vk == _registeredKey) return true;

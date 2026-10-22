@@ -10,7 +10,7 @@
 
 ```text
 在任意应用选中文字
-  → 按全局快捷键 Alt+Q
+  → 按全局快捷键 Ctrl+Shift+Z
   → 程序复制并读取选区
   → 短词优先查询 Open Dictionary 离线词典
   → 未命中或长文本再调用在线翻译
@@ -28,7 +28,7 @@
 MVP 完成后应满足：
 
 1. 应用启动后常驻系统托盘，不显示多余主窗口。
-2. 在记事本、Word、常见 PDF 阅读器、微信和 VS Code 中选中文字后，按 `Alt+Q` 可以获取文字。
+2. 在记事本、Word、常见 PDF 阅读器、微信和 VS Code 中选中文字后，按 `Ctrl+Shift+Z` 可以获取文字。
 3. 获取成功后，在当前鼠标附近显示翻译卡片。
 4. 英文单词优先使用 `ahpxex/open-dictionary` 离线查询，不调用在线 API；未命中或选中长文本时回退在线翻译。
 5. 支持下载或从本地文件安装官方 `distribution.sqlite.gz` / `distribution.sqlite` 词典工件。
@@ -477,7 +477,7 @@ Open Dictionary 的数据工件依据 CC BY-SA 4.0 发布，是 Wiktionary 的�
 
 ```json
 {
-  "hotkey": "Alt+Q",
+  "hotkey": "Ctrl+Shift+Z",
   "explainLanguage": "简体中文",
   "translation": {
     "baseUrl": "https://api.openai.com/v1",
@@ -508,7 +508,7 @@ API Key 不得明文写入 JSON。使用 Windows DPAPI（`ProtectedData`，Curre
 
 使用 Win32 `RegisterHotKey` / `UnregisterHotKey`：
 
-- 默认 `Alt+Q`。
+- 默认 `Ctrl+Shift+Z`。
 - 使用 `MOD_NOREPEAT` 防止按住按键连续触发。
 - 通过隐藏窗口或主窗口 `HwndSource.AddHook` 处理 `WM_HOTKEY`。
 - 注册失败时明确提示快捷键被占用，并允许用户修改。

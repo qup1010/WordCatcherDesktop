@@ -111,7 +111,7 @@ internal sealed class NativeClipboardBackup : IClipboardBackup
 
     internal static void Open(IntPtr owner)
     {
-        for (var attempt = 0; attempt < 5; attempt++)
+        for (var attempt = 0; attempt < 20; attempt++)
         {
             if (NativeMethods.OpenClipboard(owner)) return;
             Thread.Sleep(25);

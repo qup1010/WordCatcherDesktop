@@ -36,7 +36,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IWebDavSyncService? _webDavSyncService;
 
     [ObservableProperty]
-    private string _hotkey = "Alt+Q";
+    private string _hotkey = AppSettings.DefaultHotkey;
 
     [ObservableProperty]
     private bool _dictInstalled;
@@ -216,8 +216,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void ResetHotkey()
     {
         CancelHotkeyRecording();
-        Hotkey = "Alt+Q";
-        HotkeyHint = "已填入默认 Alt+Q，点击保存后生效。";
+        Hotkey = AppSettings.DefaultHotkey;
+        HotkeyHint = $"已填入默认 {AppSettings.DefaultHotkey}，点击保存后生效。";
     }
 
     public void CaptureHotkey(Key key, ModifierKeys modifiers)
@@ -555,7 +555,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private string? ValidateEditor()
     {
-        if (!HotkeyManager.TryParseHotkey(Hotkey, out _, out _)) return "快捷键格式无效，例如 Alt+Q、Ctrl+Shift+D 或 Alt+F8。";
+        if (!HotkeyManager.TryParseHotkey(Hotkey, out _, out _)) return "快捷键格式无效，例如 Ctrl+Shift+Z、Ctrl+Shift+D 或 Alt+F8。";
         if (string.IsNullOrWhiteSpace(ExplainLanguage)) return "请填写释义语言。";
         if (!IsWebUrl(ApiBaseUrl)) return "AI Base URL 必须是有效的 HTTP 或 HTTPS 地址。";
         if (string.IsNullOrWhiteSpace(ApiModel)) return "请填写 AI 模型名称。";

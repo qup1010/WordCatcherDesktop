@@ -18,6 +18,7 @@ public class LookupViewModelTests
         public Func<CaptureResult, Task<TranslationResult>> Lookup = _ => Task.FromResult(Digital());
         public Func<string, string?, Task<string>> TranslateSentence = (_, _) => Task.FromResult("手动翻译的原句意思");
         public Func<string, string?, Task<string>> TranslateSentenceWithAi = (_, _) => Task.FromResult("AI 译句");
+        public CancellationToken SentenceToken;
         public Func<SaveCardCommand, Task<(Word, Occurrence, SyncJob)>> Save = _ => Task.FromResult((new Word(), new Occurrence(), new SyncJob()));
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public AppSettings Settings = new() { Ui = new() { ClosePopupAfterSave = false } };
@@ -27,8 +28,8 @@ public class LookupViewModelTests
         {
             "FindWordAsync" => Task.FromResult(ExistingWord),
             "LookupAsync" => Lookup((CaptureResult)args![0]!),
-            "TranslateSentenceAsync" => TranslateSentence((string)args![0]!, (string?)args[1]),
-            "TranslateSentenceWithAiAsync" => TranslateSentenceWithAi((string)args![0]!, (string?)args[1]),
+            "TranslateSentenceAsync" => TranslateSentenceRequest(args!, false),
+            "TranslateSentenceWithAiAsync" => TranslateSentenceRequest(args!, true),
             "SaveAsync" => Save((SaveCardCommand)args![0]!),
             "GetWordsAsync" => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
             "GetOccurrencesByWordIdAsync" => Task.FromResult<IReadOnlyList<Occurrence>>([]),
@@ -37,6 +38,12 @@ public class LookupViewModelTests
             _ => throw new NotSupportedException(method.Name)
         };
         private object? Enqueue(string id) { Queued.Add(id); return null; }
+        private Task<string> TranslateSentenceRequest(object?[] args, bool useAi)
+        {
+            SentenceToken = (CancellationToken)args[2]!;
+            return useAi ? TranslateSentenceWithAi((string)args[0]!, (string?)args[1])
+                : TranslateSentence((string)args[0]!, (string?)args[1]);
+        }
     }
 
     private sealed class FakeSpeechService : ISpeechService
@@ -236,6 +243,45 @@ public class LookupViewModelTests
         Assert.Equal(savedStatus, vm.SavedStatusText);
         Assert.Contains("新增语境", savedStatus);
         Assert.Contains("朗读不可用", vm.ActionStatusText);
+    }
+
+    [Fact]
+    public async Task RetryAfterAiSentenceFailureKeepsUsingAi()
+    {
+        var (vm, lookup, _, _) = Create();
+        var calls = 0;
+        lookup.TranslateSentenceWithAi = (_, _) => ++calls == 1
+            ? Task.FromException<string>(new IOException("temporary error"))
+            : Task.FromResult("AI retry result");
+        lookup.TranslateSentence = (_, _) => throw new InvalidOperationException("Unexpected quick translation");
+        await vm.StartLookupAsync(Capture() with { Sentence = "The digital camera." });
+        await vm.UseAiSentenceTranslationCommand.ExecuteAsync(null);
+        Assert.True(vm.SentenceTranslationFailed);
+        Assert.Equal("重试 AI", vm.TranslateSentenceButtonText);
+        await vm.TranslateSentenceCommand.ExecuteAsync(null);
+        Assert.Equal(2, calls);
+        Assert.Equal("AI retry result", vm.ContextTranslation);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LeavingLookupCancelsSentenceRequestAndIgnoresLateResult(bool close)
+    {
+        var (vm, lookup, _, _) = Create();
+        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lookup.TranslateSentence = (_, _) => pending.Task;
+        await vm.StartLookupAsync(Capture() with { Sentence = "The digital camera." });
+        var translate = vm.TranslateSentenceCommand.ExecuteAsync(null);
+        var token = lookup.SentenceToken;
+        if (close) vm.CancelLookup();
+        else await vm.StartLookupAsync(Capture("other"));
+        Assert.True(token.IsCancellationRequested);
+        pending.SetResult("late result");
+        await translate;
+        Assert.NotEqual("late result", vm.ContextTranslation);
+        Assert.False(vm.IsTranslatingSentence);
+        Assert.False(vm.SentenceTranslationFailed);
     }
 
     [Fact]

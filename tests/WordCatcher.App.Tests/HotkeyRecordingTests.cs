@@ -44,10 +44,10 @@ public class HotkeyRecordingTests
         vm.CaptureHotkey(Key.F8, ModifierKeys.Alt);
         Assert.False(vm.IsRecordingHotkey);
         Assert.Equal("Alt+F8", vm.Hotkey);
-        Assert.Equal("Alt+Q", vm.AppliedHotkey);
+        Assert.Equal("Ctrl+Shift+Z", vm.AppliedHotkey);
         Assert.Equal(0, service.Writes);
         vm.ResetHotkeyCommand.Execute(null);
-        Assert.Equal("Alt+Q", vm.Hotkey);
+        Assert.Equal("Ctrl+Shift+Z", vm.Hotkey);
     }
 
     [Theory]

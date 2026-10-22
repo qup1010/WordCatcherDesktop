@@ -176,6 +176,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private CaptureResult? _currentCapture;
     private TranslationResult? _currentTranslation;
     private CancellationTokenSource? _lookupCancellation;
+    private CancellationTokenSource? _sentenceCancellation;
     private long _lookupVersion;
 
     public LookupViewModel(
@@ -197,6 +198,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
     public async Task StartLookupAsync(CaptureResult capture, bool forceAi = false, bool bypassCache = false, TranslationResult? historyResult = null)
     {
+        _sentenceCancellation?.Cancel();
         var keepEdits = _currentTranslation != null && _currentCapture?.SelectedText == capture.SelectedText
             && _currentCapture?.Sentence == capture.Sentence && _currentCapture?.SentenceOffset == capture.SentenceOffset
             && _currentCapture?.SourceUri == capture.SourceUri;
@@ -358,6 +360,8 @@ public sealed partial class LookupViewModel : ObservableObject
     public void CancelLookup()
     {
         ++_lookupVersion;
+        _sentenceCancellation?.Cancel();
+        IsTranslatingSentence = false;
         var lookup = _lookupCancellation;
         _lookupCancellation = null;
         lookup?.Cancel();
@@ -370,7 +374,7 @@ public sealed partial class LookupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task TranslateSentenceAsync() => TranslateSentenceCoreAsync(useAi: false);
+    private Task TranslateSentenceAsync() => TranslateSentenceCoreAsync(useAi: SentenceTranslationFailed && LastSentenceTranslationUsedAi);
 
     [RelayCommand]
     private Task UseAiSentenceTranslationAsync() => TranslateSentenceCoreAsync(useAi: true);
@@ -384,6 +388,8 @@ public sealed partial class LookupViewModel : ObservableObject
         var targetSentence = OriginalSentence;
         var targetSelection = SelectedText;
         var translationAtStart = EditTranslation;
+        using var cancellation = new CancellationTokenSource();
+        _sentenceCancellation = cancellation;
         IsTranslatingSentence = true;
         SentenceTranslationFailed = false;
         LastSentenceTranslationUsedAi = useAi;
@@ -391,8 +397,8 @@ public sealed partial class LookupViewModel : ObservableObject
         try
         {
             var translated = useAi
-                ? await _lookupService.TranslateSentenceWithAiAsync(targetSentence, targetSelection).ConfigureAwait(true)
-                : await _lookupService.TranslateSentenceAsync(targetSentence, targetSelection).ConfigureAwait(true);
+                ? await _lookupService.TranslateSentenceWithAiAsync(targetSentence, targetSelection, cancellation.Token).ConfigureAwait(true)
+                : await _lookupService.TranslateSentenceAsync(targetSentence, targetSelection, cancellation.Token).ConfigureAwait(true);
             if (version != _lookupVersion)
                 return;
             if (string.IsNullOrWhiteSpace(translated))
@@ -415,6 +421,7 @@ public sealed partial class LookupViewModel : ObservableObject
                 CanSave = true;
             }
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
             if (version == _lookupVersion)
@@ -425,6 +432,7 @@ public sealed partial class LookupViewModel : ObservableObject
         }
         finally
         {
+            if (ReferenceEquals(_sentenceCancellation, cancellation)) _sentenceCancellation = null;
             if (version == _lookupVersion)
             {
                 IsTranslatingSentence = false;

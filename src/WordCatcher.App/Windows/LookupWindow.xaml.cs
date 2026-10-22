@@ -31,10 +31,12 @@ public partial class LookupWindow : Window
         _viewModel.RequestClose += OnRequestClose;
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         Deactivated += Window_Deactivated;
+        SizeChanged += (_, _) => KeepInsideWorkArea();
         DpiChanged += (_, e) => Dispatcher.BeginInvoke(new Action(() =>
         {
             var screen = System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle);
             ApplyDisplayConstraints(screen.WorkingArea.Width, screen.WorkingArea.Height, e.NewDpi.DpiScaleX);
+            KeepInsideWorkArea();
         }));
     }
 
@@ -144,6 +146,20 @@ public partial class LookupWindow : Window
         MaxHeight = fit.MaxHeight;
     }
 
+    private void KeepInsideWorkArea()
+    {
+        if (_isClosing || !IsLoaded || !IsVisible) return;
+        var handle = new WindowInteropHelper(this).Handle;
+        var area = System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
+        var scale = VisualTreeHelper.GetDpi(this);
+        // SizeToContent grows as translations arrive or details expand.
+        // Keep the whole card accessible, including its bottom actions.
+        Left = Math.Clamp(Left, area.Left / scale.DpiScaleX,
+            Math.Max(area.Left / scale.DpiScaleX, area.Right / scale.DpiScaleX - ActualWidth));
+        Top = Math.Clamp(Top, area.Top / scale.DpiScaleY,
+            Math.Max(area.Top / scale.DpiScaleY, area.Bottom / scale.DpiScaleY - ActualHeight));
+    }
+
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
@@ -159,6 +175,8 @@ public partial class LookupWindow : Window
         }
         else if (e.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
+            // Let editors and selectable result text copy only the user's selection.
+            if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return;
             if (_viewModel.CopyResultCommand.CanExecute(null))
             {
                 _viewModel.CopyResultCommand.Execute(null);

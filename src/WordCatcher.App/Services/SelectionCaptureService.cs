@@ -48,7 +48,7 @@ public sealed class SelectionCaptureService : ISelectionCaptureService
             {
                 EnsureSource(source);
                 ct.ThrowIfCancellationRequested();
-                if (timer.ElapsedMilliseconds >= 1000)
+                if (timer.ElapsedMilliseconds >= 3000)
                     throw new CaptureException(CaptureFailure.CopyTimeout);
                 await Task.Delay(25, ct).ConfigureAwait(false);
             }

@@ -16,12 +16,16 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
     private static readonly SemaphoreSlim UiaLock = new(1, 1);
     private static readonly BlockingCollection<Action> StaWorkQueue = new();
     private static readonly Thread StaWorkerThread = CreatePersistentStaWorker();
+    // 外部 UIA provider 可能长时间阻塞；不能占用剪贴板兜底使用的线程。
+    private static readonly BlockingCollection<Action> UiaWorkQueue = new();
+    private static readonly Thread UiaWorkerThread = CreatePersistentStaWorker(UiaWorkQueue, "WordCatcher_UIA_STA");
 
-    private static Thread CreatePersistentStaWorker()
+    private static Thread CreatePersistentStaWorker(BlockingCollection<Action>? queue = null, string name = "WordCatcher_Capture_STA")
     {
+        queue ??= StaWorkQueue;
         var thread = new Thread(() =>
         {
-            foreach (var work in StaWorkQueue.GetConsumingEnumerable())
+            foreach (var work in queue.GetConsumingEnumerable())
             {
                 try
                 {
@@ -34,7 +38,7 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
             }
         })
         {
-            Name = "WordCatcher_Capture_STA",
+            Name = name,
             IsBackground = true
         };
         thread.SetApartmentState(ApartmentState.STA);
@@ -70,7 +74,7 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
         while (ModifiersHeld())
         {
             ct.ThrowIfCancellationRequested();
-            if (timer.ElapsedMilliseconds >= 500) throw new CaptureException(CaptureFailure.ModifiersHeld);
+            if (timer.ElapsedMilliseconds >= 1500) throw new CaptureException(CaptureFailure.ModifiersHeld);
             await Task.Delay(25, ct).ConfigureAwait(false);
         }
     }
@@ -91,7 +95,7 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
     {
         // 慢/挂起的外部 provider 最多保留一个后台调用，不为每次热键新建挂起线程。
         if (!await UiaLock.WaitAsync(0).ConfigureAwait(false)) return null;
-        try { return await ExecuteInStaAsync(() => ReadSelection(source, expectedText)).ConfigureAwait(false); }
+        try { return await ExecuteInStaAsync(() => ReadSelection(source, expectedText), true).ConfigureAwait(false); }
         finally { UiaLock.Release(); }
     }
 
@@ -190,12 +194,14 @@ internal sealed class NativeSelectionCapturePlatform : ISelectionCapturePlatform
         }
     }
 
-    private static Task<T> ExecuteInStaAsync<T>(Func<T> action)
+    internal static Task<T> ExecuteInStaAsync<T>(Func<T> action, bool useUiaWorker = false)
     {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (StaWorkerThread.IsAlive)
+        var worker = useUiaWorker ? UiaWorkerThread : StaWorkerThread;
+        var queue = useUiaWorker ? UiaWorkQueue : StaWorkQueue;
+        if (worker.IsAlive)
         {
-            StaWorkQueue.Add(() =>
+            queue.Add(() =>
             {
                 try
                 {

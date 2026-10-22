@@ -6,7 +6,8 @@ namespace WordCatcher.Core.Models;
 
 public sealed class AppSettings
 {
-    public string Hotkey { get; set; } = "Alt+Q";
+    public const string DefaultHotkey = "Ctrl+Shift+Z";
+    public string Hotkey { get; set; } = DefaultHotkey;
     public string ExplainLanguage { get; set; } = "简体中文";
     public TranslationSettings Translation { get; set; } = new();
     public List<TranslationProfile> TranslationProfiles { get; set; } = new();
