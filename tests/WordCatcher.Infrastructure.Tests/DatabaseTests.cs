@@ -343,6 +343,33 @@ FROM words w CROSS JOIN (SELECT 1 AS n UNION ALL SELECT 2) c;";
     }
 
     [Fact]
+    public async Task LibrarySearchFindsNotesEditsAndCountsUniqueWordsBeforePaging()
+    {
+        await _runner.MigrateAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            var capture = new CaptureResult($"word{i}", i == 2 ? "reader" : "chrome", "book", new(0, 0),
+                i == 2 ? DateTimeOffset.UtcNow.AddDays(-20) : DateTimeOffset.UtcNow, Sentence: $"context {i}");
+            var translation = new TranslationResult($"word{i}", "", "", "base", "", null, LookupSource.OpenDictionary, null, null);
+            var (_, occurrence, _) = await _repo.SaveAsync(new(capture, translation));
+            if (i != 2) await _repo.UpdateOccurrenceEditsAsync(occurrence.Id, new("edited meaning", "edited translation", "note 100%_literal"));
+            if (i == 0) await _repo.SaveAsync(new(capture with { Sentence = "another context" }, translation));
+        }
+        var page = await _repo.GetFilteredWordsAsync("100%_", WordFilter.WithNote, limit: 1, sourceProcess: "chrome", sort: 1);
+        var first = Assert.Single(page);
+        Assert.Equal("word0", first.DisplayWord);
+        Assert.Equal(2, first.MatchingWordCount);
+        Assert.Equal(2, first.OccurrenceCount);
+        Assert.Equal("word1", Assert.Single(await _repo.GetFilteredWordsAsync("edited meaning", WordFilter.WithNote, 1, 1, sort: 1)).DisplayWord);
+        Assert.Equal(2, (await _repo.GetWordsAsync("edited translation")).Count);
+        Assert.Empty(await _repo.GetWordsAsync("100X_"));
+        Assert.Equal("word2", Assert.Single(await _repo.GetFilteredWordsAsync(null, WordFilter.WithoutNote)).DisplayWord);
+        Assert.Equal(2, (await _repo.GetFilteredWordsAsync(null, WordFilter.Recent)).Count);
+        await _repo.MoveWordToTrashAsync(first.Id);
+        Assert.Equal(1, Assert.Single(await _repo.GetWordsAsync("100%_")).MatchingWordCount);
+    }
+
+    [Fact]
     public async Task SavingDeletedWordRestoresIdentityWithoutLosingOldContext()
     {
         await _runner.MigrateAsync();

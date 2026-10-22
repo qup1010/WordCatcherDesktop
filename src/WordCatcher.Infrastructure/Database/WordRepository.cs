@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -460,30 +461,51 @@ ON CONFLICT(occurrence_id) DO UPDATE SET
         => GetFilteredWordsAsync(query, WordFilter.All, limit, offset, ct);
 
     public async Task<IReadOnlyList<Word>> GetFilteredWordsAsync(string? query, WordFilter filter,
-        int limit = 100, int offset = 0, CancellationToken ct = default)
+        int limit = 100, int offset = 0, CancellationToken ct = default, string? sourceProcess = null, int sort = 0)
     {
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
-SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc
+SELECT id, normalized_word, display_word, language, reading, part_of_speech, definition, memory_hook, created_at_utc, updated_at_utc,
+    COUNT(*) OVER(), (SELECT COUNT(*) FROM occurrences c WHERE c.word_id = w.id)
 FROM words w
 WHERE deleted_at_utc IS NULL
-AND ($q = '' OR normalized_word LIKE $pattern OR display_word LIKE $pattern OR definition LIKE $pattern
+AND ($q = '' OR normalized_word LIKE $pattern ESCAPE '\' OR display_word LIKE $pattern ESCAPE '\' OR definition LIKE $pattern ESCAPE '\'
     OR EXISTS (SELECT 1 FROM occurrences o WHERE o.word_id = w.id
-        AND (o.sentence LIKE $pattern OR o.context_translation LIKE $pattern)))
+        AND (o.sentence LIKE $pattern ESCAPE '\' OR o.context_translation LIKE $pattern ESCAPE '\'
+          OR json_extract(o.user_edits_json, '$.Note') LIKE $pattern ESCAPE '\'
+          OR COALESCE(json_extract(o.user_edits_json, '$.Definition'), json_extract(NULLIF(o.learning_json, ''), '$.Definition')) LIKE $pattern ESCAPE '\'
+          OR json_extract(o.user_edits_json, '$.ContextTranslation') LIKE $pattern ESCAPE '\')))
+AND ($source = '' OR EXISTS (SELECT 1 FROM occurrences s WHERE s.word_id = w.id AND s.source_process LIKE $sourcePattern ESCAPE '\'))
 AND ($filter = 0
     OR ($filter = 1 AND EXISTS (SELECT 1 FROM sync_jobs j WHERE j.word_id = w.id AND j.status IN ('Pending', 'Syncing', 'Retryable')))
-    OR ($filter = 2 AND EXISTS (SELECT 1 FROM sync_jobs j WHERE j.word_id = w.id AND j.status = 'Failed')))
-ORDER BY updated_at_utc DESC, id ASC
+    OR ($filter = 2 AND EXISTS (SELECT 1 FROM sync_jobs j WHERE j.word_id = w.id AND j.status = 'Failed'))
+    OR ($filter = 3 AND EXISTS (SELECT 1 FROM occurrences r WHERE r.word_id = w.id AND julianday(r.captured_at_utc) >= julianday($recent)))
+    OR ($filter = 4 AND EXISTS (SELECT 1 FROM occurrences n WHERE n.word_id = w.id AND trim(COALESCE(json_extract(n.user_edits_json, '$.Note'), '')) <> ''))
+    OR ($filter = 5 AND NOT EXISTS (SELECT 1 FROM occurrences n WHERE n.word_id = w.id AND trim(COALESCE(json_extract(n.user_edits_json, '$.Note'), '')) <> '')))
+ORDER BY CASE WHEN $sort = 1 THEN display_word END COLLATE NOCASE ASC,
+    CASE WHEN $sort = 2 THEN COALESCE((SELECT MAX(julianday(r.captured_at_utc)) FROM occurrences r WHERE r.word_id = w.id), julianday(created_at_utc)) END DESC,
+    CASE WHEN $sort = 0 THEN updated_at_utc END DESC, id ASC
 LIMIT $limit OFFSET $offset;";
         cmd.Parameters.AddWithValue("$q", query?.Trim() ?? string.Empty);
-        cmd.Parameters.AddWithValue("$pattern", $"%{query?.Trim()}%");
+        static string Pattern(string? value) => "%" + (value?.Trim() ?? "").Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+        cmd.Parameters.AddWithValue("$pattern", Pattern(query));
+        cmd.Parameters.AddWithValue("$source", sourceProcess?.Trim() ?? "");
+        cmd.Parameters.AddWithValue("$sourcePattern", Pattern(sourceProcess));
+        cmd.Parameters.AddWithValue("$recent", DateTimeOffset.UtcNow.AddDays(-7).ToString("o"));
+        cmd.Parameters.AddWithValue("$sort", Math.Clamp(sort, 0, 2));
         cmd.Parameters.AddWithValue("$filter", (int)filter);
         cmd.Parameters.AddWithValue("$limit", limit);
         cmd.Parameters.AddWithValue("$offset", offset);
         var list = new List<Word>();
         await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-        while (await reader.ReadAsync(ct).ConfigureAwait(false)) list.Add(ReadWord(reader));
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var word = ReadWord(reader);
+            word.MatchingWordCount = reader.GetInt32(10);
+            word.OccurrenceCount = reader.GetInt32(11);
+            list.Add(word);
+        }
         return list;
     }
 
@@ -1354,6 +1376,46 @@ WHERE word_id = $id;";
         }
     }
 
+    public async Task ResolveSyncConflictAsync(WebDavConflict conflict, bool keepLocal, CancellationToken ct = default)
+    {
+        await DatabaseMutationLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var snapshot = JsonNode.Parse(await ExportSyncJsonCoreAsync(ct).ConfigureAwait(false))!;
+            var current = snapshot["records"]!.AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == conflict.RecordId);
+            var expected = JsonNode.Parse(conflict.LocalRecordJson)!;
+            var remote = JsonNode.Parse(conflict.RemoteRecordJson)!;
+            if (current == null || !JsonNode.DeepEquals(current, expected))
+                throw new InvalidOperationException("本地记录在查看冲突后又有修改，请重新同步并查看最新差异。");
+            if (remote["id"]?.GetValue<string>() != conflict.RecordId)
+                throw new InvalidOperationException("冲突记录标识不一致，请重新同步。");
+
+            string deviceId;
+            await using (var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false))
+            await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct).ConfigureAwait(false))
+            {
+                deviceId = await GetOrCreateSyncDeviceIdAsync(connection, transaction, ct).ConfigureAwait(false);
+                await transaction.CommitAsync(ct).ConfigureAwait(false);
+            }
+            var chosen = (keepLocal ? current : remote).DeepClone();
+            var vector = SyncVersionVector.Increment(SyncVersionVector.Merge(
+                SyncVersionVector.Parse(current["versionVector"]!.ToJsonString()),
+                SyncVersionVector.Parse(remote["versionVector"]!.ToJsonString())), deviceId);
+            chosen["versionVector"] = JsonNode.Parse(SyncVersionVector.Serialize(vector));
+            var revision = checked(Math.Max(current["revision"]!.GetValue<int>(), remote["revision"]!.GetValue<int>()) + 1);
+            chosen["revision"] = revision;
+            chosen["card"]!["recordRevision"] = revision;
+            var timestamp = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Math.Max(
+                current["wordMeta"]?["updatedAt"]?.GetValue<long>() ?? 0,
+                remote["wordMeta"]?["updatedAt"]?.GetValue<long>() ?? 0)) + 1;
+            chosen["updatedAt"] = timestamp;
+            if (chosen["wordMeta"] is JsonObject meta) meta["updatedAt"] = timestamp;
+            var envelope = new JsonObject { ["format"] = "word-catcher-learning", ["version"] = 3, ["records"] = new JsonArray(chosen) };
+            await MergeSyncJsonCoreAsync(envelope.ToJsonString(), ct).ConfigureAwait(false);
+        }
+        finally { DatabaseMutationLock.Release(); }
+    }
+
     private async Task<string> ExportSyncJsonCoreAsync(CancellationToken ct)
     {
         await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
@@ -1601,15 +1663,15 @@ ORDER BY updated_at_utc DESC;";
                     }
 
                     if (order == VersionVectorOrder.Equal && !sameContent)
-                        throw new InvalidOperationException("同一记录在两端具有相同因果版本但内容不同，已停止同步并保留两端内容。");
+                        throw new SyncConflictException(rem.RecordId!, "同一记录在两端具有相同因果版本但内容不同，请选择保留的内容。");
                     if (order == VersionVectorOrder.Concurrent && !sameContent)
-                        throw new InvalidOperationException("检测到两端离线期间并发修改了同一记录，已停止同步并保留两端内容，请先处理冲突。");
+                        throw new SyncConflictException(rem.RecordId!, "两端离线期间修改了同一语境，请选择保留的内容。");
                 }
 
                 if (localWord != null && rem.WordMeta != null
                     && localWord.UpdatedAtUtc.ToUnixTimeMilliseconds() == rem.WordMeta.UpdatedAtUtc.ToUnixTimeMilliseconds()
                     && !SameWordMeta(localWord, rem.WordMeta))
-                    throw new InvalidOperationException("同一词条摘要在两端具有相同时间戳但内容不同，已停止同步并保留两端内容。");
+                    throw new SyncConflictException(rem.RecordId!, "同一词条摘要在两端具有相同时间戳但内容不同，请选择保留的内容。");
 
                 if (local.OccurrenceId != null && localWord != null && rem.WordMeta != null
                     && rem.WordMeta.UpdatedAtUtc.ToUnixTimeMilliseconds() > localWord.UpdatedAtUtc.ToUnixTimeMilliseconds()

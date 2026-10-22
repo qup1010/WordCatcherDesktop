@@ -447,6 +447,59 @@ UPDATE app_meta SET value = '3' WHERE key = 'schema_version';";
         Assert.Contains("500", error.Message);
     }
 
+    [Fact]
+    public async Task EditDuringUploadRemainsPendingUntilNextSync()
+    {
+        await Init();
+        var settings = new Settings();
+        settings.Current.WebDav.Url = "https://dav.example.test/dav";
+        settings.Current.WebDav.AutoSync = false;
+        WebDavSyncService? service = null;
+        var editDuringUpload = true;
+        var handler = new Handler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Put && editDuringUpload)
+            {
+                editDuringUpload = false;
+                service!.ScheduleAutoSync();
+            }
+            return Task.FromResult(new HttpResponseMessage(request.Method == HttpMethod.Get
+                ? HttpStatusCode.NotFound : HttpStatusCode.OK));
+        });
+        using (service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret()))
+        {
+            service.ScheduleAutoSync();
+            Assert.True(service.HasPendingChanges);
+            await service.SyncAsync(forcePush: true);
+            Assert.True(service.HasPendingChanges);
+            Assert.False(service.IsSyncing);
+            await service.SyncAsync(forcePush: true);
+            Assert.False(service.HasPendingChanges);
+            Assert.True(service.HasVerifiedSnapshot);
+            Assert.NotNull(service.LastSyncedAtUtc);
+        }
+    }
+
+    [Fact]
+    public async Task ManualAuthenticationFailurePublishesOneFailureAndKeepsPendingWork()
+    {
+        await Init();
+        var settings = new Settings();
+        settings.Current.WebDav.Url = "https://dav.example.test/dav";
+        settings.Current.WebDav.AutoSync = false;
+        var handler = new Handler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)));
+        using var service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
+        var failures = 0;
+        service.SyncFailed += _ => failures++;
+        service.ScheduleAutoSync();
+        await Assert.ThrowsAnyAsync<Exception>(() => service.SyncAsync());
+        Assert.Equal(1, failures);
+        Assert.Equal(WebDavFailureKind.Authentication, service.FailureKind);
+        Assert.True(service.HasPendingChanges);
+        Assert.False(service.IsSyncing);
+        Assert.Null(service.LastSyncedAtUtc);
+    }
+
     private sealed class Secret : ISecretStore
     {
         public Task<string> GetApiKeyAsync(CancellationToken ct = default) => Task.FromResult("test");

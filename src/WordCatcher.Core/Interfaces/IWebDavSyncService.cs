@@ -9,6 +9,13 @@ public interface IWebDavSyncService
 {
     DateTimeOffset? LastSyncedAtUtc { get; }
     string LastError { get; }
+    bool IsSyncing { get; }
+    bool HasPendingChanges { get; }
+    bool HasVerifiedSnapshot { get; }
+    WebDavFailureKind FailureKind { get; }
+    WebDavConflict? Conflict { get; }
+    event Action? StatusChanged;
+    Task ResolveConflictAsync(bool keepLocal, CancellationToken ct = default);
     event Action? SyncCompleted;
     event Action<string>? SyncFailed;
 

@@ -4,5 +4,8 @@ public enum WordFilter
 {
     All,
     Pending,
-    Failed
+    Failed,
+    Recent,
+    WithNote,
+    WithoutNote
 }

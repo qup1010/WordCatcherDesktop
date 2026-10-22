@@ -4,6 +4,8 @@ namespace WordCatcher.Core.Models;
 
 public sealed class Word
 {
+    [System.Text.Json.Serialization.JsonIgnore] public int? MatchingWordCount { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public int OccurrenceCount { get; set; }
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string NormalizedWord { get; set; } = string.Empty;
     public string DisplayWord { get; set; } = string.Empty;

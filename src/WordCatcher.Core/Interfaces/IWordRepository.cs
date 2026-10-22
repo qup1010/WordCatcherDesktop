@@ -10,10 +10,12 @@ public interface IWordRepository
 {
     Task<(Word Word, Occurrence Occurrence, SyncJob SyncJob)> SaveAsync(SaveCardCommand command, CancellationToken ct = default);
     Task<IReadOnlyList<Word>> GetWordsAsync(string? query = null, int limit = 100, int offset = 0, CancellationToken ct = default);
-    Task<IReadOnlyList<Word>> GetFilteredWordsAsync(string? query, WordFilter filter, int limit = 100, int offset = 0, CancellationToken ct = default);
+    Task<IReadOnlyList<Word>> GetFilteredWordsAsync(string? query, WordFilter filter, int limit = 100, int offset = 0, CancellationToken ct = default, string? sourceProcess = null, int sort = 0);
     Task<Word?> FindWordAsync(string text, CancellationToken ct = default);
     Task MoveWordToTrashAsync(string wordId, CancellationToken ct = default);
     Task RestoreWordAsync(string wordId, CancellationToken ct = default);
+    Task ResolveSyncConflictAsync(WebDavConflict conflict, bool keepLocal, CancellationToken ct = default)
+        => throw new NotSupportedException();
     Task<Word?> GetWordByIdAsync(string id, CancellationToken ct = default);
     Task<Occurrence?> GetOccurrenceByIdAsync(string id, CancellationToken ct = default);
     Task<IReadOnlyList<Occurrence>> GetOccurrencesByWordIdAsync(string wordId, CancellationToken ct = default);

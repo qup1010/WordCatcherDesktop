@@ -65,7 +65,7 @@ public sealed class SyncRegressionTests : IDisposable
         var payload = await Payload();
         Record(payload)["edits"]!["definition"] = "远端独立编辑";
         Record(payload)["updatedAt"] = DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _repo.MergeSyncJsonAsync(payload.ToJsonString()));
+        await Assert.ThrowsAsync<SyncConflictException>(() => _repo.MergeSyncJsonAsync(payload.ToJsonString()));
         Assert.Equal("本地释义", (await _repo.GetOccurrenceByIdAsync(occurrence.Id))!.Definition);
     }
 
@@ -79,8 +79,39 @@ public sealed class SyncRegressionTests : IDisposable
         remoteRecord["edits"] = new JsonObject { ["definition"] = "远端离线编辑" };
         AdvanceRemoteVector(remoteRecord);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _repo.MergeSyncJsonAsync(remote.ToJsonString()));
+        await Assert.ThrowsAsync<SyncConflictException>(() => _repo.MergeSyncJsonAsync(remote.ToJsonString()));
         Assert.Equal("本地离线编辑", (await _repo.GetOccurrenceByIdAsync(occurrence.Id))!.Definition);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConflictChoiceMergesBothHistoriesAndSurvivesRemoteReplay(bool keepLocal)
+    {
+        var (_, occurrence, _) = await Save();
+        var remote = await Payload();
+        Record(remote)["edits"] = new JsonObject { ["definition"] = "远端编辑", ["note"] = "" };
+        AdvanceRemoteVector(Record(remote));
+        await _repo.UpdateOccurrenceEditsAsync(occurrence.Id, new("本地编辑", null, ""));
+        var local = Record(await Payload());
+        await _repo.ResolveSyncConflictAsync(new(occurrence.Id, local.ToJsonString(), Record(remote).ToJsonString()), keepLocal);
+        await _repo.MergeSyncJsonAsync(remote.ToJsonString());
+        Assert.Equal(keepLocal ? "本地编辑" : "远端编辑", (await _repo.GetOccurrenceByIdAsync(occurrence.Id))!.Definition);
+        Assert.Equal(1, Record(await Payload())["versionVector"]!["remote-device"]!.GetValue<long>());
+        Assert.False((await _repo.MergeSyncJsonAsync(await _repo.ExportSyncJsonAsync())).NeedsPush);
+    }
+
+    [Fact]
+    public async Task ConflictChoiceRejectsEditsMadeAfterPreview()
+    {
+        var (_, occurrence, _) = await Save();
+        var local = Record(await Payload());
+        var remote = local.DeepClone();
+        remote["edits"] = new JsonObject { ["definition"] = "远端编辑" };
+        await _repo.UpdateOccurrenceEditsAsync(occurrence.Id, new("刚刚保存", null, ""));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _repo.ResolveSyncConflictAsync(
+            new(occurrence.Id, local.ToJsonString(), remote.ToJsonString()), false));
+        Assert.Equal("刚刚保存", (await _repo.GetOccurrenceByIdAsync(occurrence.Id))!.Definition);
     }
 
     [Fact]

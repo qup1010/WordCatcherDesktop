@@ -7,6 +7,10 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
@@ -27,7 +31,20 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
     private readonly object _debounceLock = new();
     private CancellationTokenSource? _debounceCts;
 
-    public DateTimeOffset? LastSyncedAtUtc { get; private set; }
+    private long _localRevision;
+    private long _syncedRevision;
+    private string? _verifiedTarget;
+    private string? _lastSuccessTarget;
+    private DateTimeOffset? _lastSuccessTime;
+    private readonly string? _statusPath;
+    private string? _conflictTarget;
+    public bool IsSyncing { get; private set; }
+    public bool HasPendingChanges => Interlocked.Read(ref _localRevision) != Interlocked.Read(ref _syncedRevision);
+    public bool HasVerifiedSnapshot => _verifiedTarget == TargetIdentity();
+    public WebDavFailureKind FailureKind { get; private set; }
+    public WebDavConflict? Conflict { get; private set; }
+    public event Action? StatusChanged;
+    public DateTimeOffset? LastSyncedAtUtc => _lastSuccessTarget == TargetIdentity() ? _lastSuccessTime : null;
     public string LastError { get; private set; } = string.Empty;
     public event Action? SyncCompleted;
     public event Action<string>? SyncFailed;
@@ -37,14 +54,67 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
         IWordRepository wordRepository,
         ISettingsService settingsService,
         ISecretStore secretStore,
-        ILogger<WebDavSyncService>? logger = null)
+        ILogger<WebDavSyncService>? logger = null,
+        string? statusPath = null)
     {
         _httpClient = httpClient;
         _wordRepository = wordRepository;
         _settingsService = settingsService;
         _secretStore = secretStore;
         _logger = logger;
+        _statusPath = statusPath;
+        try
+        {
+            if (statusPath != null && File.Exists(statusPath))
+            {
+                var saved = JsonSerializer.Deserialize<SyncJournal>(File.ReadAllText(statusPath));
+                _lastSuccessTarget = saved?.Target;
+                _lastSuccessTime = saved?.Time;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        { _logger?.LogDebug(ex, "Could not read sync status"); }
     }
+
+    private sealed record SyncJournal(string Target, DateTimeOffset Time);
+    private string TargetIdentity()
+    {
+        var settings = _settingsService.Current.WebDav;
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new[] { settings.Url.Trim(), settings.RemotePath.Trim(), settings.Username.Trim() }))));
+    }
+    private void NotifyStatus()
+    {
+        if (StatusChanged == null) return;
+        foreach (Action listener in StatusChanged.GetInvocationList())
+            try { listener(); } catch (Exception ex) { _logger?.LogWarning(ex, "Sync status listener failed"); }
+    }
+    private void RecordSuccess(string target, DateTimeOffset time)
+    {
+        _lastSuccessTarget = target;
+        _lastSuccessTime = time;
+        if (_statusPath == null) return;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_statusPath)!);
+            File.WriteAllText(_statusPath + ".tmp", JsonSerializer.Serialize(new SyncJournal(target, time)));
+            File.Move(_statusPath + ".tmp", _statusPath, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { _logger?.LogWarning(ex, "Could not save sync status"); }
+    }
+    private static WebDavFailureKind Classify(Exception ex) => ex switch
+    {
+        SyncConflictException => WebDavFailureKind.Conflict,
+        HttpRequestException { StatusCode: HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden } => WebDavFailureKind.Authentication,
+        HttpRequestException or OperationCanceledException => WebDavFailureKind.Network,
+        JsonException => WebDavFailureKind.Configuration,
+        _ when ex.Message.Contains("401/403", StringComparison.Ordinal) => WebDavFailureKind.Authentication,
+        _ when ex.Message.Contains("其他设备", StringComparison.Ordinal) || ex.Message.Contains("冲突", StringComparison.Ordinal) => WebDavFailureKind.Conflict,
+        _ when ex.Message.Contains("HTTPS", StringComparison.Ordinal) || ex.Message.Contains("ETag", StringComparison.Ordinal)
+            || ex.Message.Contains("格式", StringComparison.Ordinal) || ex.Message.Contains("请先填写", StringComparison.Ordinal) => WebDavFailureKind.Configuration,
+        _ => WebDavFailureKind.Other
+    };
 
     public static (string BaseUrl, string FileUrl, IReadOnlyList<string> DirectoryUrls) ResolveTarget(
         string rawBaseUrl,
@@ -180,9 +250,17 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
     public async Task<WebDavSyncResult> SyncAsync(bool forcePush = false, CancellationToken ct = default)
     {
         await _syncLock.WaitAsync(ct).ConfigureAwait(false);
+        var startedRevision = Interlocked.Read(ref _localRevision);
+        var target = TargetIdentity();
+        IsSyncing = true;
+        Conflict = null;
+        LastError = string.Empty;
+        FailureKind = WebDavFailureKind.None;
+        NotifyStatus();
         try
         {
-            var webdav = _settingsService.Current.WebDav;
+            var configured = _settingsService.Current.WebDav;
+            var webdav = new WebDavSettings { Url = configured.Url, RemotePath = configured.RemotePath, Username = configured.Username };
             var (_, fileUrl, directoryUrls) = ResolveTarget(webdav.Url, webdav.RemotePath);
             var password = await ReadPasswordAsync(ct).ConfigureAwait(false);
 
@@ -209,7 +287,20 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
                     if (string.IsNullOrWhiteSpace(remoteJson))
                         throw new InvalidOperationException("远端同步文件为空，已停止同步以保留远端数据。");
                     // Once a remote snapshot is fetched, a later edit must not cancel its merge.
-                    var merged = await _wordRepository.MergeSyncJsonAsync(remoteJson, CancellationToken.None).ConfigureAwait(false);
+                    (int Added, int Updated, int Removed, int Total, bool NeedsPush) merged;
+                    try { merged = await _wordRepository.MergeSyncJsonAsync(remoteJson, CancellationToken.None).ConfigureAwait(false); }
+                    catch (SyncConflictException ex)
+                    {
+                        var local = JsonNode.Parse(await _wordRepository.ExportSyncJsonAsync(CancellationToken.None).ConfigureAwait(false))!["records"]!
+                            .AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == ex.RecordId);
+                        var remote = JsonNode.Parse(remoteJson)!["records"]!.AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == ex.RecordId);
+                        if (local != null && remote != null)
+                        {
+                            Conflict = new(ex.RecordId, local.ToJsonString(), remote.ToJsonString());
+                            _conflictTarget = target;
+                        }
+                        throw;
+                    }
                     added = merged.Added;
                     updated = merged.Updated;
                     removed = merged.Removed;
@@ -267,25 +358,41 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
             }
 
             var syncedAt = DateTimeOffset.UtcNow;
-            LastSyncedAtUtc = syncedAt;
+            RecordSuccess(target, syncedAt);
+            if (target == TargetIdentity())
+            {
+                _verifiedTarget = target;
+                Interlocked.Exchange(ref _syncedRevision, startedRevision);
+            }
             LastError = string.Empty;
             SyncCompleted?.Invoke();
             return new WebDavSyncResult(added, updated, removed, total, pushed, syncedAt);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _verifiedTarget = null;
+            throw;
+        }
+        catch (Exception ex)
         {
             LastError = ex.Message;
+            FailureKind = Classify(ex);
             _logger?.LogWarning(ex, "WebDAV synchronization failed");
+            SyncFailed?.Invoke(ex.Message);
             throw;
         }
         finally
         {
+            IsSyncing = false;
             _syncLock.Release();
+            NotifyStatus();
         }
     }
 
     public void ScheduleAutoSync()
     {
+        Interlocked.Increment(ref _localRevision);
+        NotifyStatus();
         var webdav = _settingsService.Current.WebDav;
         if (!webdav.Enabled || !webdav.AutoSync || string.IsNullOrWhiteSpace(webdav.Url))
             return;
@@ -311,9 +418,7 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
         catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            LastError = ex.Message;
             _logger?.LogWarning(ex, "Background auto WebDAV sync failed");
-            SyncFailed?.Invoke(ex.Message);
         }
         finally
         {
@@ -324,6 +429,36 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
             }
             cts.Dispose();
         }
+    }
+
+    public async Task ResolveConflictAsync(bool keepLocal, CancellationToken ct = default)
+    {
+        await _syncLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (Conflict == null) throw new InvalidOperationException("请先同步并查看最新冲突。");
+            if (_conflictTarget != TargetIdentity()) throw new InvalidOperationException("同步目标已更改，请重新同步后处理冲突。");
+            IsSyncing = true;
+            NotifyStatus();
+            await _wordRepository.ResolveSyncConflictAsync(Conflict, keepLocal, ct).ConfigureAwait(false);
+            Interlocked.Increment(ref _localRevision);
+            Conflict = null;
+            LastError = string.Empty;
+            FailureKind = WebDavFailureKind.None;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LastError = ex.Message;
+            FailureKind = Classify(ex);
+            throw;
+        }
+        finally
+        {
+            IsSyncing = false;
+            _syncLock.Release();
+            NotifyStatus();
+        }
+        await SyncAsync(forcePush: true, ct).ConfigureAwait(false);
     }
 
     private static void SetWriteCondition(HttpRequestMessage request, string? etag, bool missing)
