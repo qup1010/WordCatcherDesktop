@@ -11,6 +11,48 @@ namespace WordCatcher.App.Tests;
 public class LibraryViewModelTests
 {
     [Fact]
+    public async Task PartialBatchDeletionAndUndoRemainRetryable()
+    {
+        var (vm, repo) = Create();
+        var deleted = new List<string>();
+        repo.Trash = id => { if (id == "three") throw new IOException(); deleted.Add(id); return Task.CompletedTask; };
+        vm.SetSelectedWords(new[] { new Word { Id = "one" }, new Word { Id = "two" }, new Word { Id = "three" } });
+        await vm.DeleteSelectedCommand.ExecuteAsync(null);
+        Assert.Equal(new[] { "one", "two" }, deleted);
+        Assert.True(vm.CanUndoDelete);
+        Assert.Contains("2 / 3", vm.DeleteStatusText);
+        var restored = new List<string>();
+        repo.Restore = id => { if (id == "one") throw new IOException(); restored.Add(id); return Task.CompletedTask; };
+        await vm.UndoDeleteCommand.ExecuteAsync(null);
+        Assert.True(vm.CanUndoDelete);
+        Assert.Equal(new[] { "two" }, restored);
+        repo.Restore = id => { restored.Add(id); return Task.CompletedTask; };
+        await vm.UndoDeleteCommand.ExecuteAsync(null);
+        Assert.False(vm.CanUndoDelete);
+        Assert.Equal(new[] { "two", "one" }, restored);
+    }
+
+    [Fact]
+    public async Task LibraryViewRemembersFiltersAndSortWithoutPersistingSearchText()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"library-view-{Guid.NewGuid():N}.json");
+        try
+        {
+            new LibraryViewPreferences(4, 1, "chrome").Save(path);
+            var repo = DispatchProxy.Create<IWordRepository, RepositoryProxy>();
+            var vm = new LibraryViewModel(repo, new WordCollectionEvents(), preferencesPath: path);
+            Assert.Equal(4, vm.SelectedFilterIndex);
+            Assert.Equal(1, vm.SelectedSortIndex);
+            Assert.Equal("chrome", vm.SourceFilter);
+            Assert.Empty(vm.SearchQuery);
+            await vm.InitializeAsync();
+            Assert.False(vm.HasLoadError);
+            Assert.Equal(new LibraryViewPreferences(4, 1, "chrome"), LibraryViewPreferences.Load(path));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public async Task DelayedSentenceTranslationDoesNotOverwriteANewerDraft()
     {
         var repository = DispatchProxy.Create<IWordRepository, RepositoryProxy>();

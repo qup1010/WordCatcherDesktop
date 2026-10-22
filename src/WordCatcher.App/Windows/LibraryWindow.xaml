@@ -405,7 +405,7 @@
                                                    Icon="{ui:SymbolIcon Search24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
-                            <ui:NavigationViewItem x:Name="SyncNavigationItem" ToolTip="Anki 外部同步拓展（Ctrl+3）" Content="Anki 拓展" Tag="Sync"
+                            <ui:NavigationViewItem x:Name="SyncNavigationItem" ToolTip="WebDAV 与 Anki 同步（Ctrl+3）" Content="同步状态" Tag="Sync"
                                                    Icon="{ui:SymbolIcon ArrowSync24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
@@ -566,7 +566,7 @@
                                         <MultiDataTrigger>
                                             <MultiDataTrigger.Conditions>
                                                 <Condition Binding="{Binding Words.Count}" Value="0" />
-                                                <Condition Binding="{Binding SearchQuery}" Value="" /><Condition Binding="{Binding SelectedFilterIndex}" Value="0" /><Condition Binding="{Binding CanUndoDelete}" Value="False" />
+                                                <Condition Binding="{Binding SourceFilter}" Value="" /><Condition Binding="{Binding SearchQuery}" Value="" /><Condition Binding="{Binding SelectedFilterIndex}" Value="0" /><Condition Binding="{Binding CanUndoDelete}" Value="False" />
                                                 <Condition Binding="{Binding IsLoading}" Value="False" /><Condition Binding="{Binding HasLoadError}" Value="False" />
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Collapsed" />
@@ -604,7 +604,7 @@
                                 <StackPanel Grid.Row="0"><Grid Grid.Row="0" Margin="0,0,0,10" IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}">
                                     <ui:TextBox x:Name="SearchBox"
                                              Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="搜索单词、释义或语境"
+                                             PlaceholderText="搜索单词、释义、备注或原句"
                                              ClearButtonEnabled="False"
                                              MinHeight="36"
                                              Padding="32,6,32,6"
@@ -640,9 +640,20 @@
                                     </ui:Button>
                                 </Grid><ComboBox SelectedIndex="{Binding SelectedFilterIndex}" IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}" MinHeight="34" Margin="0,0,0,12" AutomationProperties.Name="按同步状态筛选生词">
 <ComboBoxItem Content="全部词条" /><ComboBoxItem Content="待同步" /><ComboBoxItem Content="同步失败" />
-</ComboBox></StackPanel>
+<ComboBoxItem Content="最近 7 天收藏" /><ComboBoxItem Content="有备注" /><ComboBoxItem Content="无备注" />
+</ComboBox>
+                                    <ui:TextBox Text="{Binding SourceFilter, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="来源应用，如 chrome、WeChat" MinHeight="34" Margin="0,0,0,8" AutomationProperties.Name="按来源应用过滤" />
+                                    <ComboBox SelectedIndex="{Binding SelectedSortIndex}" MinHeight="34" Margin="0,0,0,8" AutomationProperties.Name="词条排序">
+                                        <ComboBoxItem Content="最近更新" /><ComboBoxItem Content="单词 A–Z" /><ComboBoxItem Content="最近收藏" />
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding ResultCountText}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
+</StackPanel>
 
                                 <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding BatchSelectionText}" VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0" />
+                                        <ui:Button Content="删除所选" Command="{Binding DeleteSelectedCommand}" Style="{StaticResource QuietActionButton}" Padding="8,4" />
+                                    </WrapPanel>
                                     <ProgressBar Height="3" IsIndeterminate="True" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8" />
                                     <WrapPanel Margin="0,0,0,8">
                                         <CheckBox Content="紧凑列表" IsChecked="{Binding IsCompact}" VerticalAlignment="Center" Margin="0,0,12,0" />
@@ -667,6 +678,8 @@
                                 <!-- Words ListBox -->
                                 <Grid Grid.Row="1">
                                     <ListBox x:Name="WordList"
+                                             SelectionMode="Extended"
+                                             SelectionChanged="WordList_SelectionChanged"
                                              ItemsSource="{Binding Words}"
                                              IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}"
                                              VirtualizingPanel.IsVirtualizing="True"
@@ -693,6 +706,7 @@
                                                                        FontSize="{StaticResource CaptionFontSize}"
                                                                        Foreground="{StaticResource TextSecondaryBrush}"
                                                                        Margin="6,1,0,0" />
+                                                            <TextBlock Text="{Binding OccurrenceCount, StringFormat=· {0} 条语境}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="6,2,0,0" />
                                                             <Border Background="{StaticResource AccentSubtleBrush}"
                                                                     CornerRadius="3"
                                                                     Padding="4,1"
@@ -1303,7 +1317,7 @@
                                         <MultiDataTrigger>
                                             <MultiDataTrigger.Conditions>
                                                 <Condition Binding="{Binding Words.Count}" Value="0" />
-                                                <Condition Binding="{Binding SearchQuery}" Value="" /><Condition Binding="{Binding SelectedFilterIndex}" Value="0" /><Condition Binding="{Binding CanUndoDelete}" Value="False" />
+                                                <Condition Binding="{Binding SourceFilter}" Value="" /><Condition Binding="{Binding SearchQuery}" Value="" /><Condition Binding="{Binding SelectedFilterIndex}" Value="0" /><Condition Binding="{Binding CanUndoDelete}" Value="False" />
                                                 <Condition Binding="{Binding IsLoading}" Value="False" /><Condition Binding="{Binding HasLoadError}" Value="False" />
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Visible" />
@@ -1349,7 +1363,7 @@
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE895;" FontFamily="Segoe Fluent Icons" FontSize="16" Margin="0,0,11,0" />
-                        <TextBlock Text="Anki 同步" />
+                        <TextBlock Text="同步状态" />
                     </StackPanel>
                 </TabItem.Header>
                 <Grid TextElement.FontWeight="Normal" TextElement.Foreground="{StaticResource TextSecondaryBrush}">
@@ -1363,8 +1377,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Anki 外部拓展" Style="{StaticResource PageTitleStyle}" />
-                            <TextBlock Text="生词默认保存在本地生词库并支持直接复习；如需同步至 Anki，可在此管理同步状态"
+                            <TextBlock Text="同步状态" Style="{StaticResource PageTitleStyle}" />
+                            <TextBlock Text="查看云端词库与 Anki 的同步进度，重试失败任务或处理内容冲突"
                                        Style="{StaticResource PageSubtitleStyle}" />
                         </StackPanel>
                         <ui:Button Grid.Column="1" Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryActionButton}" VerticalAlignment="Center"
@@ -1379,6 +1393,41 @@
 
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel HorizontalAlignment="Stretch">
+                            <Border x:Name="WebDavSyncCard" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="WebDAV · 多端词库" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <TextBlock Text="{Binding WebDavTitle}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding WebDavDescription}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                    <TextBlock Text="{Binding WebDavLastSuccess}" FontSize="12" Margin="0,6,0,0" />
+                                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0" Visibility="{Binding IsWebDavBusy, Converter={StaticResource BoolToVis}}" />
+                                    <WrapPanel Margin="0,12,0,0">
+                                        <ui:Button Content="同步 / 重试" Command="{Binding RetryWebDavCommand}" Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,0" />
+                                        <ui:Button Content="打开 WebDAV 设置" Click="OpenWebDavSettings_Click" Style="{StaticResource QuietActionButton}" />
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding WebDavActionMessage}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding WebDavActionMessage, Converter={StaticResource StringToVis}}" />
+                                    <Expander Header="错误详情" Margin="0,8,0,0" Visibility="{Binding WebDavError, Converter={StaticResource StringToVis}}">
+                                        <TextBox Text="{Binding WebDavError, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" />
+                                    </Expander>
+                                    <StackPanel Margin="0,16,0,0" Visibility="{Binding HasWebDavConflict, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="选择将应用整条语境及下方词条摘要。删除与保留也按所选版本处理；其余冲突需逐条处理。" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding ConflictRecordId, StringFormat=记录：{0}}" FontSize="11" Margin="0,4,0,8" TextWrapping="Wrap" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="本地版本" FontWeight="SemiBold" />
+                                                <TextBox Text="{Binding LocalConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="280" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
+                                                <ui:Button Content="保留本地并继续同步" Command="{Binding KeepLocalConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="云端版本" FontWeight="SemiBold" />
+                                                <TextBox Text="{Binding RemoteConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="280" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
+                                                <ui:Button Content="保留云端并继续同步" Command="{Binding KeepRemoteConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="Anki · 外部拓展" FontWeight="SemiBold" Margin="0,0,0,8" />
                             <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1553,7 +1602,7 @@
                                         </TextBlock>
                                     </ui:Button>
                                     <ui:Button Content="取消录入" Command="{Binding CancelHotkeyRecordingCommand}" Margin="0,0,8,8" MinHeight="40" Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}" />
-                                    <ui:Button Content="恢复默认" Command="{Binding ResetHotkeyCommand}" Margin="0,0,0,8" MinHeight="40" ToolTip="填入 Alt+Q，保存后生效" />
+                                    <ui:Button Content="恢复默认" Command="{Binding ResetHotkeyCommand}" Margin="0,0,0,8" MinHeight="40" ToolTip="填入 Ctrl+Shift+Z，保存后生效" />
                                 </WrapPanel>
                                 <TextBlock Text="{Binding HotkeyHint}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" />
                             </StackPanel>

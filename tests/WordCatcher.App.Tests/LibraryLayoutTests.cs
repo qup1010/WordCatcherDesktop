@@ -181,7 +181,12 @@ public class LibraryLayoutTests
                 vm.Words.Add(word);
                 vm.Words.Add(new Word { DisplayWord = "perspective", Reading = "/pəˈspektɪv/", PartOfSpeech = "noun", Definition = "观点；视角" });
                 vm.SelectedWord = word;
+                vm.MatchingWordCount = 2;
+                word.OccurrenceCount = 1;
                 vm.Occurrences.Add(new Occurrence { Sentence = "It was pure serendipity that we found this book.", ContextTranslation = "找到这本书完全是意外之喜。", SourceProcess = "Reader" });
+                var contexts = vm.Occurrences.ToArray();
+                ((LibraryViewModelTests.RepositoryProxy)repo).ReadOccurrences = id =>
+                    Task.FromResult<IReadOnlyList<Occurrence>>(id == word.Id ? contexts : Array.Empty<Occurrence>());
                 var (settingsVm, settingsService) = InteractionTests.Settings();
                 settingsVm.InitializeAsync().GetAwaiter().GetResult();
                 var syncRepo = DispatchProxy.Create<IWordRepository, InteractionTests.Proxy>();
@@ -203,6 +208,16 @@ public class LibraryLayoutTests
                         var lookupPage = (WordLookupView)window.FindName("LookupPage");
                         Assert.Equal(Visibility.Visible, ((FrameworkElement)lookupPage.FindName("LookupEmptyState")).Visibility);
                         Assert.Equal(Visibility.Collapsed, ((FrameworkElement)lookupPage.FindName("LookupResultScroll")).Visibility);
+                    }
+                    if (page == "LibraryTab")
+                    {
+                        var list = (ListBox)window.FindName("WordList");
+                        list.SelectAll();
+                        Assert.Equal(2, vm.SelectedWords.Count);
+                        Assert.True(vm.DeleteSelectedCommand.CanExecute(null));
+                        list.UnselectAll();
+                        list.SelectedItem = word;
+                        root.UpdateLayout();
                     }
                     var bitmap = new RenderTargetBitmap(width, 700, 96, 96, PixelFormats.Pbgra32);
                     bitmap.Render(root);

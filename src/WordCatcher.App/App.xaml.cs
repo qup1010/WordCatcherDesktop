@@ -184,7 +184,10 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IAnkiClient, AnkiConnectClient>();
         services.AddSingleton<AnkiSyncWorker>();
         services.AddSingleton<IAnkiSyncQueue>(sp => sp.GetRequiredService<AnkiSyncWorker>());
-        services.AddSingleton<WebDavSyncService>();
+        services.AddSingleton(sp => new WebDavSyncService(sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<IWordRepository>(), sp.GetRequiredService<ISettingsService>(),
+            sp.GetRequiredService<ISecretStore>(), sp.GetService<ILogger<WebDavSyncService>>(),
+            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WordCatcher", "sync-status.json")));
         services.AddSingleton<IWebDavSyncService>(sp => sp.GetRequiredService<WebDavSyncService>());
 
         // Win32 Capture & Hotkey & Tray
@@ -196,7 +199,11 @@ public partial class App : System.Windows.Application
         // ViewModels
         services.AddTransient<LookupViewModel>();
         services.AddSingleton<WordLookupViewModel>();
-        services.AddSingleton<LibraryViewModel>();
+        services.AddSingleton(sp => new LibraryViewModel(
+            sp.GetRequiredService<IWordRepository>(), sp.GetRequiredService<WordCollectionEvents>(),
+            sp.GetRequiredService<ISpeechService>(), sp.GetRequiredService<IWebDavSyncService>(),
+            sp.GetRequiredService<ILookupService>(),
+            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WordCatcher", "library-view.json")));
         services.AddSingleton<SyncViewModel>();
         services.AddSingleton<SettingsViewModel>();
 
@@ -216,7 +223,8 @@ public partial class App : System.Windows.Application
         }
         catch (CaptureException ex)
         {
-            _trayManager?.ShowNotification("取词未完成", ex.Message, System.Windows.Forms.ToolTipIcon.Warning);
+            _trayManager?.ShowNotification("取词未完成", ex.Message + "\n点击此通知，打开查词页手动粘贴。",
+                System.Windows.Forms.ToolTipIcon.Warning, () => _libraryWindow?.ShowLookup());
             return;
         }
         catch (OperationCanceledException) { return; }
@@ -231,7 +239,6 @@ public partial class App : System.Windows.Application
         // and refresh the result in place for every subsequent capture.
         if (_activeLookupWindow is { IsVisible: true, IsPinned: true } pinnedWindow)
         {
-            pinnedWindow.Activate();
             await pinnedWindow.StartLookupAsync(capture).ConfigureAwait(true);
             return;
         }

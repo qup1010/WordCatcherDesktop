@@ -23,6 +23,23 @@ public sealed partial class LibraryViewModel : ObservableObject
     private readonly ISpeechService? _speechService;
     private readonly IWebDavSyncService? _webDavSyncService;
     private readonly ILookupService? _lookupService;
+    private readonly string? _preferencesPath;
+    public ObservableCollection<Word> SelectedWords { get; } = new();
+    [ObservableProperty] private int _matchingWordCount;
+    public string ResultCountText => $"共 {MatchingWordCount} 个匹配词条 · 已显示 {Words.Count} 个";
+    partial void OnMatchingWordCountChanged(int value) => OnPropertyChanged(nameof(ResultCountText));
+    [ObservableProperty] private int _selectedSortIndex;
+    [ObservableProperty] private string _sourceFilter = string.Empty;
+    partial void OnSelectedSortIndexChanged(int value) => _ = SearchAsync();
+    partial void OnSourceFilterChanged(string value) => OnSearchQueryChanged(SearchQuery);
+    public string BatchSelectionText => $"已选 {SelectedWords.Count} 个 · Ctrl / Shift 多选";
+    public void SetSelectedWords(IEnumerable<Word> words)
+    {
+        SelectedWords.Clear();
+        foreach (var word in words) SelectedWords.Add(word);
+        OnPropertyChanged(nameof(BatchSelectionText));
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
+    }
     private const int PageSize = 100;
     private int _loadVersion;
     private int _occurrenceVersion;
@@ -60,13 +77,22 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsEditingContext));
         OnPropertyChanged(nameof(ShowContextSentenceActions));
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        DeleteWordCommand.NotifyCanExecuteChanged();
+        UndoDeleteCommand.NotifyCanExecuteChanged();
         RefreshAfterEditing();
     }
-    partial void OnIsSavingContextChanged(bool value) => RefreshAfterEditing();
+    partial void OnIsSavingContextChanged(bool value)
+    {
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        DeleteWordCommand.NotifyCanExecuteChanged();
+        UndoDeleteCommand.NotifyCanExecuteChanged();
+        RefreshAfterEditing();
+    }
 
     private void RefreshAfterEditing()
     {
-        if (!IsEditing && !IsEditingContext && !IsSavingContext && _refreshPending)
+        if (!IsEditing && !IsEditingContext && !IsSavingContext && !IsChangingCollection && _refreshPending)
         {
             _refreshPending = false;
             _ = LoadWordsAsync();
@@ -394,16 +420,20 @@ public sealed partial class LibraryViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(DeleteWordCommand))]
     [NotifyCanExecuteChangedFor(nameof(UndoDeleteCommand))]
     [NotifyCanExecuteChangedFor(nameof(StartEditCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     private bool _isChangingCollection;
-    private bool CanChangeCollection => !IsChangingCollection && !IsEditing;
+    partial void OnIsChangingCollectionChanged(bool value) { if (!value) RefreshAfterEditing(); }
+    private bool CanChangeCollection => !IsChangingCollection && !IsEditing && !IsEditingContext && !IsSavingContext;
 
-    private readonly Stack<(string Id, string Name)> _deletedWords = new();
+    private readonly Stack<List<(string Id, string Name)>> _deletedWords = new();
     [ObservableProperty] private bool _canUndoDelete;
     [ObservableProperty] private string _deleteStatusText = string.Empty;
     [ObservableProperty] private int _selectedFilterIndex;
-    partial void OnSelectedFilterIndexChanged(int value) { if (!IsEditing) _ = SearchAsync(); }
+    partial void OnSelectedFilterIndexChanged(int value) => _ = SearchAsync();
 
-    [ObservableProperty] private bool _isLoading;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    private bool _isLoading;
     [ObservableProperty] private bool _hasLoadError;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CancelEditCommand))]
@@ -482,18 +512,24 @@ public sealed partial class LibraryViewModel : ObservableObject
         WordCollectionEvents wordCollectionEvents,
         ISpeechService? speechService = null,
         IWebDavSyncService? webDavSyncService = null,
-        ILookupService? lookupService = null)
+        ILookupService? lookupService = null,
+        string? preferencesPath = null)
     {
         _wordRepository = wordRepository;
         _speechService = speechService;
         _webDavSyncService = webDavSyncService;
         _lookupService = lookupService;
+        _preferencesPath = preferencesPath;
+        var preferences = LibraryViewPreferences.Load(preferencesPath);
+        _selectedFilterIndex = Math.Clamp(preferences.Filter, 0, 5);
+        _selectedSortIndex = Math.Clamp(preferences.Sort, 0, 2);
+        _sourceFilter = preferences.Source ?? "";
         wordCollectionEvents.CollectionChanged += OnWordSaved;
     }
 
     private void OnWordSaved()
     {
-        if (IsEditing || IsEditingContext || IsSavingContext)
+        if (IsEditing || IsEditingContext || IsSavingContext || IsChangingCollection)
         {
             _refreshPending = true;
             return;
@@ -507,6 +543,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         StartEditCommand.NotifyCanExecuteChanged();
         DeleteWordCommand.NotifyCanExecuteChanged();
         UndoDeleteCommand.NotifyCanExecuteChanged();
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
         RefreshAfterEditing();
     }
 
@@ -526,6 +563,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         if (IsEditing || IsEditingContext || IsSavingContext)
         {
+            _refreshPending = true;
             IsLoading = false;
             return;
         }
@@ -535,10 +573,11 @@ public sealed partial class LibraryViewModel : ObservableObject
         StatusMessage = "正在加载词条…";
         try
         {
-            var list = SelectedFilterIndex == 0
+            var list = SelectedFilterIndex == 0 && SelectedSortIndex == 0 && string.IsNullOrWhiteSpace(SourceFilter)
                 ? await _wordRepository.GetWordsAsync(SearchQuery, limit: PageSize + 1, offset: append ? Words.Count : 0).ConfigureAwait(true)
                 : await _wordRepository.GetFilteredWordsAsync(SearchQuery, (WordFilter)SelectedFilterIndex,
-                    limit: PageSize + 1, offset: append ? Words.Count : 0).ConfigureAwait(true);
+                    limit: PageSize + 1, offset: append ? Words.Count : 0,
+                    sourceProcess: SourceFilter, sort: SelectedSortIndex).ConfigureAwait(true);
             if (version != _loadVersion) return;
             var selectedId = SelectedWord?.Id;
             if (append)
@@ -551,8 +590,12 @@ public sealed partial class LibraryViewModel : ObservableObject
                 SelectedWord = Words.FirstOrDefault(w => w.Id == selectedId) ?? Words.FirstOrDefault();
             }
             HasMore = list.Count > PageSize;
-            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 ? "还没有收藏的词条" : "没有匹配的词条";
-            StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · 按最近更新排序";
+            MatchingWordCount = list.FirstOrDefault()?.MatchingWordCount ?? Words.Count;
+            OnPropertyChanged(nameof(ResultCountText));
+            EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 && string.IsNullOrWhiteSpace(SourceFilter) ? "还没有收藏的词条" : "没有匹配的词条";
+            StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · {new[] { "最近更新", "单词 A–Z", "最近收藏" }[Math.Clamp(SelectedSortIndex, 0, 2)]}";
+            try { new LibraryViewPreferences(SelectedFilterIndex, SelectedSortIndex, SourceFilter).Save(_preferencesPath); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { StatusMessage += " · 视图偏好保存失败"; }
         }
         catch (Exception)
         {
@@ -669,7 +712,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         try
         {
             await _wordRepository.MoveWordToTrashAsync(word.Id).ConfigureAwait(true);
-            _deletedWords.Push((word.Id, word.DisplayWord));
+            _deletedWords.Push(new() { (word.Id, word.DisplayWord) });
             CanUndoDelete = true;
             DeleteStatusText = $"已删除「{word.DisplayWord}」及其语境记录，可撤销。";
             if (SelectedWord?.Id == word.Id) SelectedWord = null;
@@ -685,18 +728,64 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         if (!CanChangeCollection || !_deletedWords.TryPeek(out var deleted)) return;
         IsChangingCollection = true;
+        var restored = 0;
+        var firstId = deleted[0].Id;
         try
         {
-            await _wordRepository.RestoreWordAsync(deleted.Id).ConfigureAwait(true);
+            while (deleted.Count > 0)
+            {
+                await _wordRepository.RestoreWordAsync(deleted[^1].Id).ConfigureAwait(true);
+                deleted.RemoveAt(deleted.Count - 1);
+                restored++;
+            }
             _deletedWords.Pop();
             CanUndoDelete = _deletedWords.Count > 0;
-            DeleteStatusText = $"已恢复「{deleted.Name}」及全部语境记录。";
-            await LoadWordsAsync().ConfigureAwait(true);
-            SelectedWord = Words.FirstOrDefault(word => word.Id == deleted.Id) ?? SelectedWord;
-            _webDavSyncService?.ScheduleAutoSync();
+            DeleteStatusText = $"已恢复 {restored} 个词条及全部语境记录。";
         }
-        catch (Exception) { DeleteStatusText = "恢复失败，请重试；记录仍保留。"; }
-        finally { IsChangingCollection = false; }
+        catch (Exception) { DeleteStatusText = $"恢复失败：已恢复 {restored} 个，剩余 {deleted.Count} 个可再次撤销。"; }
+        finally
+        {
+            if (restored > 0)
+            {
+                await LoadWordsAsync().ConfigureAwait(true);
+                SelectedWord = Words.FirstOrDefault(word => word.Id == firstId) ?? SelectedWord;
+                _webDavSyncService?.ScheduleAutoSync();
+            }
+            IsChangingCollection = false;
+        }
+    }
+
+    private bool CanDeleteSelected() => CanChangeCollection && !IsLoading && SelectedWords.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
+    private async Task DeleteSelectedAsync()
+    {
+        if (!CanDeleteSelected()) return;
+        var selected = SelectedWords.DistinctBy(w => w.Id).ToArray();
+        var deleted = new List<(string Id, string Name)>();
+        IsChangingCollection = true;
+        try
+        {
+            foreach (var word in selected)
+            {
+                await _wordRepository.MoveWordToTrashAsync(word.Id).ConfigureAwait(true);
+                deleted.Add((word.Id, word.DisplayWord));
+            }
+            DeleteStatusText = $"已删除 {deleted.Count} 个词条及其语境，可整批撤销。";
+        }
+        catch (Exception) { DeleteStatusText = $"删除中断：已删除 {deleted.Count} / {selected.Length} 个，已删除部分可撤销。"; }
+        finally
+        {
+            if (deleted.Count > 0)
+            {
+                _deletedWords.Push(deleted);
+                CanUndoDelete = true;
+                SetSelectedWords(Array.Empty<Word>());
+                await LoadWordsAsync().ConfigureAwait(true);
+                _webDavSyncService?.ScheduleAutoSync();
+            }
+            IsChangingCollection = false;
+        }
     }
 
     private bool CanCopyWord() => SelectedWord != null;

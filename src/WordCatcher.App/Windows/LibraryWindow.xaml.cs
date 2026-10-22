@@ -232,7 +232,7 @@ public partial class LibraryWindow : Window
 
     public void ShowBackgroundWebDavFailure(string message)
     {
-        _libraryVm.StatusMessage = $"自动 WebDAV 同步失败：{message}";
+        _libraryVm.StatusMessage = $"WebDAV 同步失败：{message} 可在「同步状态」中处理。";
     }
 
     private bool? _compactLayout;
@@ -251,7 +251,7 @@ public partial class LibraryWindow : Window
         foreach (var (item, title) in new[]
         {
             (LibraryNavigationItem, "生词库"), (LookupNavigationItem, "查词"),
-            (SyncNavigationItem, "Anki 同步"), (SettingsNavigationItem, "设置")
+            (SyncNavigationItem, "同步状态"), (SettingsNavigationItem, "设置")
         })
         {
             item.Content = compact ? null : title;
@@ -362,6 +362,19 @@ public partial class LibraryWindow : Window
         if (IsLoaded && !_libraryVm.IsEditing) _ = _libraryVm.InitializeAsync();
     }
 
+    private void WordList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source == WordList && _libraryVm != null)
+            _libraryVm.SetSelectedWords(System.Linq.Enumerable.OfType<WordCatcher.Core.Models.Word>(WordList.SelectedItems));
+    }
+
+    public void ShowLookup()
+    {
+        MainTabs.SelectedItem = LookupTab;
+        ShowAndActivate();
+        Dispatcher.BeginInvoke(new Action(() => LookupPage.FocusQuery()));
+    }
+
     public void ShowSync()
     {
         MainTabs.SelectedItem = SyncTab;
@@ -404,6 +417,12 @@ public partial class LibraryWindow : Window
     {
         MainTabs.SelectedItem = SettingsTab;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => AnkiSettingsGroup.BringIntoView()));
+    }
+
+    private void OpenWebDavSettings_Click(object sender, RoutedEventArgs e)
+    {
+        MainTabs.SelectedItem = SettingsTab;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => WebDavSettingsGroup.BringIntoView()));
     }
 
     public void ShowSettings()

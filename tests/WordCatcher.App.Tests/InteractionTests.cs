@@ -32,6 +32,7 @@ public class InteractionTests
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             "get_Current" => Settings,
+            "add_SettingsChanged" or "remove_SettingsChanged" => null,
             "GetApiKeyAsync" => Task.FromResult("test-key"),
             "SetApiKeyAsync" => Task.CompletedTask,
             "get_IsInstalled" => false,
