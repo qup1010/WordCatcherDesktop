@@ -31,8 +31,9 @@ public sealed partial class SyncViewModel : ObservableObject
     public bool IsWebDavBusy => _webDavActionRunning || (_webDav?.IsSyncing ?? false);
     public bool HasWebDavConflict => _webDav?.Conflict != null;
     public string WebDavError => _webDav?.LastError ?? "";
+    public bool IsWebDavEnabled => _settingsService.Current.WebDav.Enabled;
     public string WebDavLastSuccess => _webDav?.LastSyncedAtUtc is { } time
-        ? $"上次成功：{time.ToLocalTime():yyyy-MM-dd HH:mm:ss}" : "尚无成功同步记录";
+        ? $"上次同步：{time.ToLocalTime():yyyy-MM-dd HH:mm:ss}" : string.Empty;
     public string WebDavTitle => !_settingsService.Current.WebDav.Enabled ? "未启用"
         : IsWebDavBusy ? "同步中"
         : !string.IsNullOrEmpty(WebDavError) ? HasWebDavConflict ? "有冲突" : "同步失败"
@@ -76,7 +77,7 @@ public sealed partial class SyncViewModel : ObservableObject
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess()) { dispatcher.BeginInvoke(new Action(RefreshWebDavState)); return; }
         foreach (var name in new[] { nameof(IsWebDavBusy), nameof(HasWebDavConflict), nameof(WebDavError), nameof(WebDavLastSuccess),
-            nameof(WebDavTitle), nameof(WebDavDescription), nameof(LocalConflictText), nameof(RemoteConflictText), nameof(ConflictRecordId) })
+            nameof(IsWebDavEnabled), nameof(WebDavTitle), nameof(WebDavDescription), nameof(LocalConflictText), nameof(RemoteConflictText), nameof(ConflictRecordId) })
             OnPropertyChanged(name);
         RetryWebDavCommand.NotifyCanExecuteChanged();
         KeepLocalConflictCommand.NotifyCanExecuteChanged();
@@ -130,6 +131,15 @@ public sealed partial class SyncViewModel : ObservableObject
     public bool HasHistory => SyncJobs.Count > 0;
     public bool NeedsSetup => PageState == SyncPageState.Disabled;
     public bool HasActionableIssues => IsAnkiEnabled && IssueCount > 0;
+    public string AnkiStatusLabel => PageState switch
+    {
+        SyncPageState.Disabled => "未启用",
+        SyncPageState.Attention => $"{IssueCount} 项需处理",
+        SyncPageState.Waiting => "待同步",
+        SyncPageState.Complete => "已同步",
+        _ => "暂无记录"
+    };
+    public string AnkiSummary => IsAnkiEnabled && HasHistory ? $"已同步 {SyncedCount} · 待同步 {WaitingCount} · 需处理 {IssueCount}" : string.Empty;
     public string StateGlyph => PageState switch
     {
         SyncPageState.Disabled => "\uE713",
@@ -140,7 +150,7 @@ public sealed partial class SyncViewModel : ObservableObject
     };
     public string StateTitle => PageState switch
     {
-        SyncPageState.Disabled => "仅使用本地生词库（Anki 拓展未启用）",
+        SyncPageState.Disabled => "Anki 同步未启用",
         SyncPageState.Attention => $"{IssueCount} 项同步需要处理",
         SyncPageState.Waiting => "正在等待同步",
         SyncPageState.Complete => "已同步到 Anki",
@@ -148,7 +158,9 @@ public sealed partial class SyncViewModel : ObservableObject
     };
     public string StateDescription => PageState switch
     {
-        SyncPageState.Disabled => "收藏的词条与语境均保存在本地生词库，可直接在「生词库」中进行卡片复习。如需同步至 Anki，可在设置中开启。",
+        SyncPageState.Disabled => WaitingCount + IssueCount > 0
+            ? $"有 {WaitingCount + IssueCount} 项尚未同步，开启 Anki 同步后可继续处理。收藏已保存在生词库中。"
+            : "将收藏的词条制作成 Anki 卡片，可在设置中开启。",
         SyncPageState.Attention => "收藏已保存在本地。请检查 Anki 连接或同步设置后重试。",
         SyncPageState.Waiting => "收藏已保存在本地，Anki 会在后台继续同步。",
         SyncPageState.Complete => "当前记录均已同步，无需其他操作。",
@@ -189,6 +201,8 @@ public sealed partial class SyncViewModel : ObservableObject
             : SyncedCount > 0 ? SyncPageState.Complete
             : SyncPageState.Empty;
         OnPropertyChanged(nameof(StateTitle));
+        OnPropertyChanged(nameof(AnkiStatusLabel));
+        OnPropertyChanged(nameof(AnkiSummary));
         OnPropertyChanged(nameof(StateDescription));
         OnPropertyChanged(nameof(StateGlyph));
         OnPropertyChanged(nameof(WaitingCount));

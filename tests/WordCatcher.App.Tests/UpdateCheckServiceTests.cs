@@ -37,17 +37,29 @@ public sealed class UpdateCheckServiceTests
         Assert.Equal($"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}", result.ReleaseUrl);
         Assert.Equal($"{UpdateCheckService.RepositoryUrl}/releases/download/{latestTag}/{UpdateCheckService.InstallerAssetName}", result.InstallerDownloadUrl);
         Assert.True(result.IsUpdateAvailable);
+        Assert.Equal("https://api.github.com/repos/qup1010/WordCatcherDesktop/releases/latest", handler.Request!.RequestUri!.AbsoluteUri);
         Assert.Equal("WordCatcherDesktop", handler.Request!.Headers.UserAgent.First().Product!.Name);
     }
 
-    private sealed class ReleaseHandler(string latestTag) : HttpMessageHandler
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    public async Task RateLimitShowsAnActionableMessage(HttpStatusCode status)
+    {
+        using var client = new HttpClient(new ReleaseHandler("v0.3.4", status));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new UpdateCheckService(client).CheckAsync());
+        Assert.Contains("稍后重试", error.Message);
+        Assert.Contains("下载页面", error.Message);
+    }
+
+    private sealed class ReleaseHandler(string latestTag, HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
     {
         public HttpRequestMessage? Request { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Request = request;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return Task.FromResult(new HttpResponseMessage(status)
             {
                 Content = new StringContent(
                     $"{{\"tag_name\":\"{latestTag}\",\"html_url\":\"{UpdateCheckService.RepositoryUrl}/releases/tag/{latestTag}\",\"assets\":[{{\"name\":\"{UpdateCheckService.InstallerAssetName}\",\"browser_download_url\":\"{UpdateCheckService.RepositoryUrl}/releases/download/{latestTag}/{UpdateCheckService.InstallerAssetName}\"}}]}}")

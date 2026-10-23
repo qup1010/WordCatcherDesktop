@@ -55,7 +55,29 @@ public sealed class WordLookupLayoutTests
                 using var narrowFile = File.Create(Path.Combine(Path.GetTempPath(), "wordcatcher-WordLookup-560.png"));
                 narrowEncoder.Save(narrowFile);
 
+                lookupVm.HasError = true;
+                lookupVm.ErrorMessage = "重新生成失败，已保留原结果。";
+                view.UpdateLayout();
+                var error = (FrameworkElement)view.FindName("LookupErrorPanel");
+                var result = (FrameworkElement)view.FindName("LookupResultScroll");
+                Assert.True(error.ActualHeight > 0);
+                Assert.True(result.ActualHeight > 0);
+                Assert.True(result.TransformToAncestor(view).Transform(new Point()).Y >=
+                    error.TransformToAncestor(view).Transform(new Point()).Y + error.ActualHeight - 1);
+                var recovery = new RenderTargetBitmap(560, 620, 96, 96, PixelFormats.Pbgra32);
+                recovery.Render(view);
+                var recoveryEncoder = new PngBitmapEncoder();
+                recoveryEncoder.Frames.Add(BitmapFrame.Create(recovery));
+                using (var recoveryFile = File.Create(Path.Combine(Path.GetTempPath(), "wordcatcher-LookupRecovery-560.png"))) recoveryEncoder.Save(recoveryFile);
+                lookupVm.HasError = false;
+
                 var input = Assert.IsType<TextBox>(view.FindName("QueryBox"));
+                input.Text = string.Empty;
+                view.UpdateLayout();
+                var placeholder = (FrameworkElement)input.Template.FindName("Placeholder", input);
+                var placeholderX = placeholder.TransformToAncestor(input).Transform(new Point()).X;
+                var caretX = input.GetRectFromCharacterIndex(0).X;
+                Assert.True(Math.Abs(caretX - placeholderX) <= 2, $"Caret {caretX}, placeholder {placeholderX}");
                 input.Text = "digital 数字化";
                 input.SelectAll();
                 Assert.Equal(input.Text, input.SelectedText);
@@ -79,6 +101,19 @@ public sealed class WordLookupLayoutTests
                 Assert.Equal(Visibility.Collapsed, contextPanel.Visibility);
                 var columns = (Grid)view.FindName("ResultColumns");
                 Assert.Equal(0, columns.ColumnDefinitions[1].ActualWidth);
+
+                lookupVm.History.Add(new WordCatcher.Core.Interfaces.QueryHistoryItem(
+                    new WordCatcher.Core.Models.CaptureResult("digital", "WordCatcher", "查词页面", new(0, 0), DateTimeOffset.Now),
+                    new WordCatcher.Core.Models.TranslationResult("digital", "", "adj.", "数字的；数码的", "", null, default, null, null)));
+                var history = (Expander)view.FindName("LookupHistoryExpander");
+                history.IsExpanded = true;
+                view.UpdateLayout();
+                var historyBitmap = new RenderTargetBitmap(880, 620, 96, 96, PixelFormats.Pbgra32);
+                historyBitmap.Render(view);
+                var historyEncoder = new PngBitmapEncoder();
+                historyEncoder.Frames.Add(BitmapFrame.Create(historyBitmap));
+                using var historyFile = File.Create(Path.Combine(Path.GetTempPath(), "wordcatcher-LookupHistory-880.png"));
+                historyEncoder.Save(historyFile);
             }
             catch (Exception ex) { failure = ex; }
         });

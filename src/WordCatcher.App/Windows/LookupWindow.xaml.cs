@@ -18,6 +18,7 @@ public partial class LookupWindow : Window
     private readonly LookupViewModel _viewModel;
     private readonly ISettingsService? _settingsService;
     private bool _isClosing;
+    private string? _resultContext;
 
     public bool IsPinned => PinToggle.IsChecked == true;
 
@@ -62,7 +63,11 @@ public partial class LookupWindow : Window
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(LookupViewModel.HasResult) && _viewModel.HasResult)
-            ResultScroll.ScrollToTop();
+        {
+            var context = _viewModel.SelectedText + "\n" + _viewModel.OriginalSentence;
+            if (_resultContext != context) ResultScroll.ScrollToTop();
+            _resultContext = context;
+        }
     }
 
     private void OnRequestClose()
@@ -111,7 +116,9 @@ public partial class LookupWindow : Window
         UpdateLayout();
 
         var width = ActualWidth > 0 ? ActualWidth : Width;
-        var height = ActualHeight > 0 ? ActualHeight : Math.Min(DesiredSize.Height, MaxHeight);
+        // Reserve reading space before streaming starts so later content grows
+        // inside the same work-area bounds instead of pushing the window upward.
+        var height = Math.Min(480, MaxHeight);
 
         double left = dipX + 16;
         double top = dipY + 16;
@@ -134,6 +141,7 @@ public partial class LookupWindow : Window
 
         Left = left;
         Top = top;
+        MaxHeight = Math.Min(MaxHeight, workArea.Bottom - top);
     }
 
     private void ApplyDisplayConstraints(double workWidth, double workHeight, double scale)

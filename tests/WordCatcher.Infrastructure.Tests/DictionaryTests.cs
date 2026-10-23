@@ -89,6 +89,25 @@ public class DictionaryTests : IDisposable
     }
 
     [Fact]
+    public void FormatEntry_PutsPartOfSpeechWithCoreMeaningsAheadOfLessCommonGroups()
+    {
+        var result = OfflineDictionaryService.FormatEntry(new DistributionEntryV5
+        {
+            Headword = "sample",
+            PosGroups = new List<DictionaryPosGroupV5>
+            {
+                new() { Pos = "adverb", Meanings = new() { new() { Priority = "common", ShortGloss = "一般如此" } } },
+                new() { Pos = "preposition", Meanings = new() { new() { Priority = "core", ShortGloss = "主要用法" } } },
+                new() { Pos = "noun", ProperName = true, Meanings = new() { new() { Priority = "core", ShortGloss = "姓氏" } } }
+            }
+        });
+
+        Assert.Equal(new[] { "prep.", "adv.", "n." }, result.PosGroups!.Select(group => group.Pos));
+        Assert.Equal("prep.", result.PartOfSpeech);
+        Assert.StartsWith("prep. 主要用法", result.Definition);
+    }
+
+    [Fact]
     public void FormatEntry_FallsBackToRareMeanings_WhenNoCoreOrCommonMeaningsExist()
     {
         var entry = new DistributionEntryV5
@@ -229,11 +248,11 @@ public class DictionaryTests : IDisposable
             ]
         };
         var result = OfflineDictionaryService.FormatEntry(entry);
-        Assert.Equal(new[] { "n.", "v.", "adj.", "adv.", "name.", "n." }, result.PosGroups!.Select(g => g.Pos));
+        Assert.Equal(new[] { "n.", "adv.", "v.", "adj.", "name.", "n." }, result.PosGroups!.Select(g => g.Pos));
         Assert.Equal("n.", result.PartOfSpeech);
         Assert.Equal(new[] { "core1", "core2", "duplicate", "common", "extra", "rare" }, result.PosGroups![0].Meanings.Select(m => m.SenseId));
         Assert.Equal("代理人；作用者；常用义", result.PosGroups![0].QuickSummary);
-        Assert.Equal("n. 代理人；作用者；常用义\nv. 动词义\nadj. 形容词摘要\nadv. 副词义\nname. 姓氏\nn. 专名", result.Definition);
+        Assert.Equal("n. 代理人；作用者；常用义\nadv. 副词义\nv. 动词义\nadj. 形容词摘要\nname. 姓氏\nn. 专名", result.Definition);
         Assert.Equal("name", entry.PosGroups[0].Pos);
         Assert.Equal("rare", entry.PosGroups[1].Meanings[0].SenseId);
     }
@@ -343,6 +362,26 @@ VALUES ($id, $lang, $norm, $json);";
             insertCmd.Parameters.AddWithValue("$norm", "cat");
             insertCmd.Parameters.AddWithValue("$json", JsonSerializer.Serialize(catEntry));
             await insertCmd.ExecuteNonQueryAsync();
+
+            var childrenEntry = new DistributionEntryV5
+            {
+                Headword = "Children",
+                PosGroups = new() { new() { Pos = "name", ProperName = true, Meanings = new() { new() { Priority = "core", ShortGloss = "姓氏" } } } }
+            };
+            insertCmd.Parameters["$id"].Value = "2";
+            insertCmd.Parameters["$norm"].Value = "children";
+            insertCmd.Parameters["$json"].Value = JsonSerializer.Serialize(childrenEntry);
+            await insertCmd.ExecuteNonQueryAsync();
+
+            var childEntry = new DistributionEntryV5
+            {
+                Headword = "child",
+                PosGroups = new() { new() { Pos = "noun", Meanings = new() { new() { Priority = "core", ShortGloss = "孩子" } } } }
+            };
+            insertCmd.Parameters["$id"].Value = "3";
+            insertCmd.Parameters["$norm"].Value = "child";
+            insertCmd.Parameters["$json"].Value = JsonSerializer.Serialize(childEntry);
+            await insertCmd.ExecuteNonQueryAsync();
         }
         SqliteConnection.ClearAllPools();
 
@@ -380,6 +419,13 @@ VALUES ($id, $lang, $norm, $json);";
         Assert.Equal("cat", catRes.Word);
         Assert.Equal("/kæt/", catRes.Reading);
         Assert.Contains("猫科动物，家猫", catRes.Definition);
+
+        // A title case proper name can exist at the exact plural form. Prefer
+        // the regular learner entry when the inflected form has no learner senses.
+        var childrenRes = await service.LookupAsync("children");
+        Assert.NotNull(childrenRes);
+        Assert.Equal("child", childrenRes.Word);
+        Assert.Contains("孩子", childrenRes.Definition);
 
         // Inflected form query ("cats" should hit "cat" via Lemmatizer)
         var catsRes = await service.LookupAsync("cats");

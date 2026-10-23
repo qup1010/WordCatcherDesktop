@@ -42,6 +42,44 @@ public sealed class SyncRegressionTests : IDisposable
     }
 
     [Fact]
+    public async Task UndoNewCollectionKeepsTombstoneAndRemovesPendingJob()
+    {
+        var (word, occurrence, job) = await Save();
+        Assert.True(occurrence.WasCreated);
+        await _repo.UndoNewOccurrenceAsync(occurrence.Id);
+        Assert.Null(await _repo.GetWordByIdAsync(word.Id));
+        Assert.Null(await _repo.GetSyncJobByIdAsync(job.Id));
+        var record = Record(await Payload());
+        Assert.NotNull(record["deletedAt"]);
+        Assert.Equal(2, record["revision"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task UndoRejectsLaterEditsAndDuplicateSaveIsNotNew()
+    {
+        var (_, occurrence, _) = await Save();
+        var (_, duplicate, _) = await Save();
+        Assert.False(duplicate.WasCreated);
+        await _repo.UpdateOccurrenceEditsAsync(occurrence.Id, new("修改后的释义", null, "笔记"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _repo.UndoNewOccurrenceAsync(occurrence.Id));
+        Assert.Equal("修改后的释义", (await _repo.GetOccurrenceByIdAsync(occurrence.Id))!.Definition);
+    }
+
+    [Fact]
+    public async Task UndoOnlyRemovesTheNewContextOfAnExistingWord()
+    {
+        var (word, first, _) = await Save();
+        var (_, second, _) = await _repo.SaveAsync(new(
+            new CaptureResult("bank", "reader", "Book", new(0, 0), DateTimeOffset.UtcNow,
+                "I went to the bank.", 14, "https://example.test"),
+            new TranslationResult("bank", "", "n.", "银行", "我去了银行。", null, LookupSource.Ai, null, null)));
+        await _repo.UndoNewOccurrenceAsync(second.Id);
+        Assert.NotNull(await _repo.GetWordByIdAsync(word.Id));
+        Assert.Equal(first.Id, Assert.Single(await _repo.GetOccurrencesByWordIdAsync(word.Id)).Id);
+        Assert.Equal(2, (await Payload())["records"]!.AsArray().Count);
+    }
+
+    [Fact]
     public async Task SharedProtocolFixturePreservesIdsEmptyEditsAndDeletionAcrossRoundTrips()
     {
         await new SqliteMigrationRunner(_factory).MigrateAsync();

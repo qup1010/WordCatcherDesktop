@@ -13,6 +13,21 @@ namespace WordCatcher.App.Tests;
 
 public class LookupViewModelTests
 {
+    [Fact]
+    public void SavedMeaningPresentationUsesSourceAndSuppressesDuplicates()
+    {
+        var occurrence = new Occurrence { LearningResult = Digital(), WordDefinition = Digital().Definition };
+        Assert.Equal("词典释义", occurrence.DefinitionLabel);
+        Assert.Empty(occurrence.AdditionalDefinition);
+        occurrence.Edits = new LearningEdits("我的补充解释", null, string.Empty);
+        Assert.Equal("我的释义", occurrence.DefinitionLabel);
+        Assert.Equal("我的补充解释", occurrence.AdditionalDefinition);
+        var empty = new Occurrence();
+        Assert.False(empty.HasExplanation);
+        occurrence.LearningResult = Digital() with { Source = LookupSource.Ai };
+        Assert.Equal("AI 原句解析", occurrence.ExplanationLabel);
+    }
+
     public class ServiceProxy : DispatchProxy
     {
         public Func<CaptureResult, Task<TranslationResult>> Lookup = _ => Task.FromResult(Digital());
@@ -24,6 +39,8 @@ public class LookupViewModelTests
         public AppSettings Settings = new() { Ui = new() { ClosePopupAfterSave = false } };
         public List<string> Queued = [];
         public Word? ExistingWord;
+        public string? UndoneId;
+        private Task Undo(string id) { UndoneId = id; return Task.CompletedTask; }
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             "FindWordAsync" => Task.FromResult(ExistingWord),
@@ -31,6 +48,7 @@ public class LookupViewModelTests
             "TranslateSentenceAsync" => TranslateSentenceRequest(args!, false),
             "TranslateSentenceWithAiAsync" => TranslateSentenceRequest(args!, true),
             "SaveAsync" => Save((SaveCardCommand)args![0]!),
+            "UndoNewOccurrenceAsync" => Undo((string)args![0]!),
             "GetWordsAsync" => ReadWords((string?)args![0], (int)args[1]!, (int)args[2]!),
             "GetOccurrencesByWordIdAsync" => Task.FromResult<IReadOnlyList<Occurrence>>([]),
             "get_Current" => Settings,
@@ -73,6 +91,49 @@ public class LookupViewModelTests
         var settings = DispatchProxy.Create<ISettingsService, ServiceProxy>();
         return (new LookupViewModel(lookup, repo, queue, settings, speechService ?? new SpeechService(), wordCollectionEvents ?? new WordCollectionEvents()),
             (ServiceProxy)lookup, (ServiceProxy)repo, (ServiceProxy)queue);
+    }
+
+    [Fact]
+    public async Task UndoNewCollectionRestoresSaveAction()
+    {
+        var (vm, _, repo, _) = Create();
+        repo.Save = _ => Task.FromResult((new Word(), new Occurrence { Id = "new-context", WasCreated = true }, new SyncJob()));
+        await vm.StartLookupAsync(Capture());
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(vm.CanUndoSave);
+        await vm.UndoSaveCommand.ExecuteAsync(null);
+        Assert.Equal("new-context", repo.UndoneId);
+        Assert.False(vm.CanUndoSave);
+        Assert.True(vm.CanSave);
+        Assert.False(vm.IsSaved);
+    }
+
+    [Fact]
+    public async Task FailedRegenerationPreservesCompletedResultAndEdits()
+    {
+        var (vm, lookup, _, _) = Create();
+        await vm.StartLookupAsync(Capture());
+        var original = vm.Definition;
+        vm.EditDefinition = "我的释义";
+        lookup.Lookup = _ => Task.FromException<TranslationResult>(new IOException("网络中断"));
+        await vm.ForceAiCommand.ExecuteAsync(null);
+        Assert.True(vm.HasError);
+        Assert.True(vm.HasResult);
+        Assert.Equal(original, vm.Definition);
+        Assert.Equal("我的释义", vm.EditDefinition);
+        Assert.True(vm.CanUseQuickFallback);
+    }
+
+    [Fact]
+    public async Task SaveFailureOffersRetryWithoutLosingResult()
+    {
+        var (vm, _, repo, _) = Create();
+        await vm.StartLookupAsync(Capture());
+        repo.Save = _ => Task.FromException<(Word, Occurrence, SyncJob)>(new IOException());
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal("重试保存", vm.SaveButtonText);
+        Assert.True(vm.CanSave);
+        Assert.True(vm.HasResult);
     }
 
     [Fact]

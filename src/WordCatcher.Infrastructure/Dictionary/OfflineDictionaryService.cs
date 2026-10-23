@@ -180,6 +180,7 @@ public sealed class OfflineDictionaryService : IOfflineDictionaryService, IDispo
 
             var headLang = NormalizeLanguageCode(Metadata?.HeadwordLanguage, "en");
 
+            TranslationResult? exactMatch = null;
             foreach (var candidate in candidates)
             {
                 DistributionEntryV5? entry = null;
@@ -205,11 +206,13 @@ LIMIT 1;";
 
                 if (entry != null)
                 {
-                    return FormatEntry(entry);
+                    var result = FormatEntry(entry);
+                    if (exactMatch == null) exactMatch = result;
+                    if (HasLearnerMeanings(result)) return result;
                 }
             }
 
-            return null;
+            return exactMatch;
         }
         finally
         {
@@ -227,7 +230,7 @@ LIMIT 1;";
         var definitions = new List<string>();
         string primaryPos = string.Empty;
 
-        foreach (var pg in entry.PosGroups.OrderBy(pg => IsProperName(pg) ? 1 : 0))
+        foreach (var pg in entry.PosGroups)
         {
             var formattedPos = FormatPosLabel(pg.Pos);
             var dictMeanings = new List<DictMeaning>();
@@ -255,11 +258,20 @@ LIMIT 1;";
             var ordered = dictMeanings.OrderBy(m => m.PriorityRank).Select((meaning, index) => meaning with { DisplayNumber = index + 1 }).ToList();
             var group = new DictPosGroup(formattedPos, pg.Summary, ordered, IsProperName(pg));
             mappedGroups.Add(group);
+        }
+
+        // The distribution may order groups alphabetically. Prefer groups with
+        // readable core senses; keep source order for ties and proper names last.
+        mappedGroups = mappedGroups.OrderBy(group => group.IsProperName ? 1 : 0)
+            .ThenBy(group => group.Meanings.Where(m => !string.IsNullOrWhiteSpace(m.Heading))
+                .Select(m => m.PriorityRank).DefaultIfEmpty(3).Min()).ToList();
+        foreach (var group in mappedGroups)
+        {
             var summary = group.QuickSummary;
             if (!string.IsNullOrWhiteSpace(summary))
             {
-                if (string.IsNullOrEmpty(primaryPos)) primaryPos = formattedPos;
-                definitions.Add(string.IsNullOrEmpty(formattedPos) ? summary : $"{formattedPos} {summary}");
+                if (string.IsNullOrEmpty(primaryPos)) primaryPos = group.Pos;
+                definitions.Add(string.IsNullOrEmpty(group.Pos) ? summary : $"{group.Pos} {summary}");
             }
         }
 
@@ -281,6 +293,10 @@ LIMIT 1;";
             SourceSchemaVersion: entry.SchemaVersion ?? "distribution_entry_v5",
             PosGroups: mappedGroups);
     }
+
+    private static bool HasLearnerMeanings(TranslationResult result) =>
+        result.PosGroups?.Any(group => !group.IsProperName && group.Meanings.Any(m =>
+            !string.IsNullOrWhiteSpace(m.Heading) && m.PriorityRank < 2)) == true;
 
     private static bool IsProperName(DictionaryPosGroupV5 group)
     {

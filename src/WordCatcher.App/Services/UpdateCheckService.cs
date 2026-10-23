@@ -21,7 +21,7 @@ public sealed class UpdateCheckService
 {
     public const string RepositoryUrl = "https://github.com/qup1010/WordCatcherDesktop";
     public const string InstallerAssetName = "WordCatcherDesktop-win-Setup.exe";
-    private const string LatestReleaseApiUrl = RepositoryUrl + "/releases/latest";
+    private const string LatestReleaseApiUrl = "https://api.github.com/repos/qup1010/WordCatcherDesktop/releases/latest";
 
     private readonly HttpClient _httpClient;
 
@@ -46,6 +46,8 @@ public sealed class UpdateCheckService
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound)
             throw new InvalidOperationException("GitHub 上还没有已发布的版本。");
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+            throw new InvalidOperationException("GitHub 暂时限制了更新检查，请稍后重试，或打开下载页面。");
 
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(requestToken).ConfigureAwait(false);

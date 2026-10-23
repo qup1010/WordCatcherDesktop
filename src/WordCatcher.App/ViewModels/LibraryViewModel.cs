@@ -26,12 +26,24 @@ public sealed partial class LibraryViewModel : ObservableObject
     private readonly string? _preferencesPath;
     public ObservableCollection<Word> SelectedWords { get; } = new();
     [ObservableProperty] private int _matchingWordCount;
-    public string ResultCountText => $"共 {MatchingWordCount} 个匹配词条 · 已显示 {Words.Count} 个";
+    public string ResultCountText => HasMore ? $"{MatchingWordCount} 个词条 · 已显示 {Words.Count}" : $"{MatchingWordCount} 个词条";
+    public int ActiveFilterCount => (SelectedFilterIndex > 0 ? 1 : 0) + (!string.IsNullOrWhiteSpace(SourceFilter) ? 1 : 0);
+    public string FilterButtonText => ActiveFilterCount > 0 ? $"筛选 · {ActiveFilterCount}" : "筛选";
+    public string FilterTagText => SelectedFilterIndex is > 0 and < 6 ? new[] { "", "待同步", "同步失败", "最近 7 天收藏", "有备注", "无备注" }[SelectedFilterIndex] + " ×" : string.Empty;
+    public string SourceTagText => string.IsNullOrWhiteSpace(SourceFilter) ? string.Empty : SourceFilter.Trim() + " ×";
+    private void RefreshFilterLabels()
+    {
+        OnPropertyChanged(nameof(FilterButtonText));
+        OnPropertyChanged(nameof(FilterTagText));
+        OnPropertyChanged(nameof(SourceTagText));
+    }
+    [RelayCommand] private void ClearStatusFilter() => SelectedFilterIndex = 0;
+    [RelayCommand] private void ClearSourceFilter() => SourceFilter = string.Empty;
     partial void OnMatchingWordCountChanged(int value) => OnPropertyChanged(nameof(ResultCountText));
     [ObservableProperty] private int _selectedSortIndex;
     [ObservableProperty] private string _sourceFilter = string.Empty;
     partial void OnSelectedSortIndexChanged(int value) => _ = SearchAsync();
-    partial void OnSourceFilterChanged(string value) => OnSearchQueryChanged(SearchQuery);
+    partial void OnSourceFilterChanged(string value) { RefreshFilterLabels(); OnSearchQueryChanged(SearchQuery); }
     public string BatchSelectionText => $"已选 {SelectedWords.Count} 个 · Ctrl / Shift 多选";
     public void SetSelectedWords(IEnumerable<Word> words)
     {
@@ -429,7 +441,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private bool _canUndoDelete;
     [ObservableProperty] private string _deleteStatusText = string.Empty;
     [ObservableProperty] private int _selectedFilterIndex;
-    partial void OnSelectedFilterIndexChanged(int value) => _ = SearchAsync();
+    partial void OnSelectedFilterIndexChanged(int value) { RefreshFilterLabels(); _ = SearchAsync(); }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
@@ -593,7 +605,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             MatchingWordCount = list.FirstOrDefault()?.MatchingWordCount ?? Words.Count;
             OnPropertyChanged(nameof(ResultCountText));
             EmptyMessage = string.IsNullOrWhiteSpace(SearchQuery) && SelectedFilterIndex == 0 && string.IsNullOrWhiteSpace(SourceFilter) ? "还没有收藏的词条" : "没有匹配的词条";
-            StatusMessage = HasMore ? $"已显示 {Words.Count} 个词条 · 可继续加载" : $"{Words.Count} 个词条 · {new[] { "最近更新", "单词 A–Z", "最近收藏" }[Math.Clamp(SelectedSortIndex, 0, 2)]}";
+            StatusMessage = string.Empty;
             try { new LibraryViewPreferences(SelectedFilterIndex, SelectedSortIndex, SourceFilter).Save(_preferencesPath); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { StatusMessage += " · 视图偏好保存失败"; }
         }
@@ -630,6 +642,10 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
     }
 
+    public string WordDefinitionLabel => Occurrences.FirstOrDefault(o =>
+        string.Equals(o.Definition.Trim(), SelectedWord?.Definition.Trim(), StringComparison.Ordinal))?.DefinitionLabel ?? "释义";
+    public string SavedSentencesTitle => Occurrences.Count > 1 ? $"收藏原句 · {Occurrences.Count}" : "收藏原句";
+
     private async Task LoadOccurrencesForWordAsync(string wordId)
     {
         var version = _occurrenceVersion;
@@ -637,7 +653,10 @@ public sealed partial class LibraryViewModel : ObservableObject
         {
             var list = await _wordRepository.GetOccurrencesByWordIdAsync(wordId).ConfigureAwait(true);
             if (version != _occurrenceVersion || SelectedWord?.Id != wordId) return;
+            foreach (var occurrence in list) occurrence.WordDefinition = SelectedWord.Definition;
             Occurrences = new ObservableCollection<Occurrence>(list);
+            OnPropertyChanged(nameof(WordDefinitionLabel));
+            OnPropertyChanged(nameof(SavedSentencesTitle));
         }
         catch (Exception)
         {

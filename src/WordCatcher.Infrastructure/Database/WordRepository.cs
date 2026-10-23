@@ -220,6 +220,7 @@ WHERE occurrence_id = $id AND deleted_at_utc IS NOT NULL;";
             }
             var occurrence = new Occurrence
             {
+                WasCreated = existingId == null,
                 Id = occurrenceId,
                 LearningResult = trans,
                 Edits = command.ReplaceEdits ? command.Edits : command.Edits ?? preservedEdits,
@@ -587,6 +588,43 @@ WHERE word_id = $id;";
                 await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
             throw;
         }
+    }
+
+    public async Task UndoNewOccurrenceAsync(string occurrenceId, CancellationToken ct = default)
+    {
+        await DatabaseMutationLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await using var connection = await _connectionFactory.CreateConnectionAsync(ct).ConfigureAwait(false);
+            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct).ConfigureAwait(false);
+            string wordId;
+            await using (var read = connection.CreateCommand())
+            {
+                read.Transaction = transaction;
+                read.CommandText = "SELECT word_id FROM sync_records_meta WHERE occurrence_id = $id AND revision = 1 AND deleted_at_utc IS NULL;";
+                read.Parameters.AddWithValue("$id", occurrenceId);
+                wordId = await read.ExecuteScalarAsync(ct).ConfigureAwait(false) as string
+                    ?? throw new InvalidOperationException("这条语境已有后续修改，请在生词库中处理。");
+            }
+            await EnsureSyncSnapshotsAsync(connection, wordId, ct, transaction).ConfigureAwait(false);
+            var occurrences = await ReadOccurrencesByWordIdAsync(connection, transaction, wordId, ct).ConfigureAwait(false);
+            await using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = @"
+UPDATE sync_records_meta SET deleted_at_utc = $now, updated_at_utc = $now, revision = revision + 1 WHERE occurrence_id = $id;
+DELETE FROM sync_jobs WHERE occurrence_id = $id;";
+            update.Parameters.AddWithValue("$id", occurrenceId);
+            update.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("o"));
+            await update.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            await AdvanceSyncVersionVectorsForOccurrenceAsync(connection, transaction, occurrenceId, ct).ConfigureAwait(false);
+            update.CommandText = occurrences.Count <= 1
+                ? "UPDATE words SET deleted_at_utc = $now, updated_at_utc = $now WHERE id = $word;"
+                : "DELETE FROM occurrences WHERE id = $id;";
+            update.Parameters.AddWithValue("$word", wordId);
+            await update.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
+        finally { DatabaseMutationLock.Release(); }
     }
 
     public async Task<Word?> GetWordByIdAsync(string id, CancellationToken ct = default)

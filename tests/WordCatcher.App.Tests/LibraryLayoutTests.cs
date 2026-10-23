@@ -53,6 +53,14 @@ public class LibraryLayoutTests
                 root.Arrange(new Rect(0, 0, 900, 700));
                 root.UpdateLayout();
                 var scroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
+                var pendingBar = (FrameworkElement)window.FindName("SettingsPendingBar");
+                Assert.Equal(Visibility.Collapsed, pendingBar.Visibility);
+                settings.ApiModel = "pending-model";
+                root.UpdateLayout();
+                Assert.Equal(Visibility.Visible, pendingBar.Visibility);
+                settings.DiscardChangesCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+                root.UpdateLayout();
+                Assert.Equal(Visibility.Collapsed, pendingBar.Visibility);
                 scroll.ScrollToEnd();
                 root.UpdateLayout();
                 Assert.True(scroll.ScrollableHeight > 0);
@@ -72,6 +80,46 @@ public class LibraryLayoutTests
                 Assert.Equal(Wpf.Ui.Controls.NavigationViewPaneDisplayMode.LeftMinimal,
                     ((Wpf.Ui.Controls.NavigationView)window.FindName("AppNavigation")).PaneDisplayMode);
                 RenderState(root, "wordcatcher-settings-compact.png", 640, 480);
+                foreach (var section in new[] { "LookupSettingsGroup", "AiSettingsGroup", "WebDavSettingsGroup", "AnkiSettingsGroup", "InteractionSettingsGroup", "AboutSettingsGroup" })
+                {
+                    ((FrameworkElement)window.FindName(section)).BringIntoView();
+                    root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    root.UpdateLayout();
+                    RenderState(root, $"wordcatcher-settings-{section}-640.png", 640, 480);
+                    var group = (FrameworkElement)window.FindName(section);
+                    SetExpanders(group, true);
+                    var frame = new System.Windows.Threading.DispatcherFrame();
+                    var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+                    timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+                    timer.Start();
+                    System.Windows.Threading.Dispatcher.PushFrame(frame);
+                    root.UpdateLayout();
+                    group.BringIntoView(new Rect(0, 0, 1, 1));
+                    root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    root.UpdateLayout();
+                    RenderState(root, $"wordcatcher-settings-{section}-expanded-640.png", 640, 480);
+                    group.BringIntoView(new Rect(0, Math.Max(0, group.ActualHeight - 1), 1, 1));
+                    root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    root.UpdateLayout();
+                    RenderState(root, $"wordcatcher-settings-{section}-bottom-640.png", 640, 480);
+                    SetExpanders(group, false);
+                }
+
+                var dictionaryPopup = (System.Windows.Controls.Primitives.Popup)window.FindName("DictionaryMorePopup");
+                var dictionaryPanel = (FrameworkElement)dictionaryPopup.Child;
+                dictionaryPanel.DataContext = settings;
+                dictionaryPanel.Measure(new Size(360, double.PositiveInfinity));
+                dictionaryPanel.Arrange(new Rect(0, 0, 360, dictionaryPanel.DesiredSize.Height));
+                dictionaryPanel.UpdateLayout();
+                RenderState(dictionaryPanel, "wordcatcher-dictionary-options.png", 360, (int)Math.Ceiling(dictionaryPanel.ActualHeight));
+                settings.RecordHotkeyCommand.Execute(null);
+                Assert.True(settings.IsRecordingHotkey);
+                ((FrameworkElement)window.FindName("InteractionSettingsGroup")).BringIntoView();
+                root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-hotkey-recording-640.png", 640, 480);
+                settings.CancelHotkeyRecordingCommand.Execute(null);
+                Assert.False(settings.IsRecordingHotkey);
 
                 root.Measure(new Size(1180, 700));
                 root.Arrange(new Rect(0, 0, 1180, 700));
@@ -269,6 +317,19 @@ public class LibraryLayoutTests
                 RenderState(root, "wordcatcher-LibraryEdit-900x600.png", 900, 600);
                 vm.CancelEditCommand.Execute(null);
 
+                vm.StartReviewCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+                root.Measure(new Size(900, 700));
+                root.Arrange(new Rect(0, 0, 900, 700));
+                root.UpdateLayout();
+                Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("WordDetailsPanel")).Visibility);
+                RenderState(root, "wordcatcher-LibraryReview-900.png", 900, 700);
+                vm.ToggleAnswerCommand.Execute(null);
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-LibraryReviewAnswer-900.png", 900, 700);
+                vm.ExitReviewCommand.Execute(null);
+                root.UpdateLayout();
+                Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("WordDetailsPanel")).Visibility);
+
                 // 导出完整词库不应取决于当前筛选是否匹配任何词条。
                 vm.Words.Clear();
                 root.Measure(new Size(900, 600));
@@ -347,5 +408,11 @@ public class LibraryLayoutTests
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(Path.Combine(Path.GetTempPath(), fileName));
         encoder.Save(file);
+    }
+
+    private static void SetExpanders(DependencyObject root, bool expanded)
+    {
+        if (root is Expander expander) expander.IsExpanded = expanded;
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>()) SetExpanders(child, expanded);
     }
 }

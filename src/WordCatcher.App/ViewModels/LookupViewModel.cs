@@ -49,6 +49,15 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty]
     private string _sentenceTranslationError = string.Empty;
     private bool _lastForceAi;
+    private string? _undoOccurrenceId;
+    private int _collectionVersion;
+    private bool _wasSavedBeforeCollection;
+    [ObservableProperty] private bool _canUndoSave;
+    [ObservableProperty] private bool _isUndoingSave;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SaveButtonText))]
+    private bool _saveFailed;
+    public bool CanUseQuickFallback => HasError && _lastForceAi && _currentCapture != null;
     public string LearningExpression => string.IsNullOrWhiteSpace(Analysis?.Expression) ? Word : Analysis.Expression;
     public bool HasAnalysis => Analysis != null;
     public bool HasLearningDetails => !string.IsNullOrWhiteSpace(Analysis?.KeyExplanation) || !string.IsNullOrWhiteSpace(Analysis?.UsageNote) || !string.IsNullOrWhiteSpace(Analysis?.Example);
@@ -58,7 +67,7 @@ public sealed partial class LookupViewModel : ObservableObject
     public bool CanUseAiSentenceTranslation => SentenceTranslationFailed && !LastSentenceTranslationUsedAi && !IsTranslatingSentence;
     public string TranslateSentenceButtonText => IsTranslatingSentence ? "翻译中…" : SentenceTranslationFailed ? (LastSentenceTranslationUsedAi ? "重试 AI" : "重试快译") : "翻译原句";
     partial void OnSourceChanged(LookupSource value) => OnPropertyChanged(nameof(AiButtonText));
-    partial void OnHasErrorChanged(bool value) => OnPropertyChanged(nameof(CanUseAiFallback));
+    partial void OnHasErrorChanged(bool value) { OnPropertyChanged(nameof(CanUseAiFallback)); OnPropertyChanged(nameof(CanUseQuickFallback)); }
     partial void OnAnalysisChanged(LearningAnalysis? value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(HasAnalysis)); OnPropertyChanged(nameof(HasLearningDetails)); }
     partial void OnWordChanged(string value) => OnPropertyChanged(nameof(LearningExpression));
     partial void OnHasSavedContextChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
@@ -152,7 +161,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
     public bool IsLongText => SelectedText.Length > 45 || SelectedText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 5;
     public bool HasSecondaryContent => !string.IsNullOrWhiteSpace(ContextTranslation) || !string.IsNullOrWhiteSpace(MemoryHook) || !string.IsNullOrWhiteSpace(OriginalSentence);
-    public string SaveButtonText => IsSaving ? "保存中…" : !CanSave && IsSaved ? "已收藏 ✓" : HasSavedContext ? "更新这条语境" : IsSaved ? "保存新语境" : "存入生词库";
+    public string SaveButtonText => IsSaving ? "保存中…" : SaveFailed ? "重试保存" : !CanSave && IsSaved ? "已收藏 ✓" : HasSavedContext ? "更新这条语境" : IsSaved ? "保存新语境" : "存入生词库";
     partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnSelectedTextChanged(string value) { OnPropertyChanged(nameof(IsLongText)); OnPropertyChanged(nameof(CanTranslateSentence)); }
@@ -205,6 +214,8 @@ public sealed partial class LookupViewModel : ObservableObject
         var previousEdits = keepEdits ? new LearningEdits(
             EditDefinition != _currentTranslation?.Definition ? EditDefinition : null,
             EditTranslation != _currentTranslation?.ContextTranslation ? EditTranslation : null, LearningNote) : null;
+        var previousSavedContext = HasSavedContext;
+        var previousSaved = IsSaved;
         _lastForceAi = forceAi;
         OnPropertyChanged(nameof(CanUseAiFallback));
         Analysis = null;
@@ -244,6 +255,9 @@ public sealed partial class LookupViewModel : ObservableObject
         HasResult = false;
         HasError = false;
         IsSaved = false;
+        SaveFailed = false;
+        CanUndoSave = false;
+        _undoOccurrenceId = null;
         IsSaving = false;
         ++_actionVersion;
         ActionStatusText = string.Empty;
@@ -344,6 +358,27 @@ public sealed partial class LookupViewModel : ObservableObject
                 HasResult = false;
                 CanSave = false;
                 ErrorMessage = ex.Message;
+                if (previousTranslation != null && keepEdits)
+                {
+                    _currentTranslation = previousTranslation;
+                    Word = previousTranslation.Word;
+                    Reading = previousTranslation.Reading;
+                    PartOfSpeech = previousTranslation.PartOfSpeech;
+                    Definition = previousTranslation.Definition;
+                    ContextTranslation = previousTranslation.ContextTranslation;
+                    MemoryHook = previousTranslation.MemoryHook;
+                    PosGroups = previousTranslation.PosGroups;
+                    Analysis = previousTranslation.Analysis;
+                    Source = previousTranslation.Source;
+                    EditDefinition = previousEdits?.Definition ?? previousTranslation.Definition;
+                    EditTranslation = previousEdits?.ContextTranslation ?? previousTranslation.ContextTranslation;
+                    LearningNote = previousEdits?.Note ?? string.Empty;
+                    HasSavedContext = previousSavedContext;
+                    IsSaved = previousSaved;
+                    HasResult = true;
+                    CanSave = true;
+                    UpdateStructuredDetails(false);
+                }
             }
         }
         finally
@@ -448,8 +483,10 @@ public sealed partial class LookupViewModel : ObservableObject
 
         CanSave = false;
         IsSaving = true;
+        SaveFailed = false;
         IsEditingDefinition = false;
         var wasSaved = IsSaved;
+        var collectionVersion = ++_collectionVersion;
         SavedStatusText = "正在保存到生词库…";
         var version = _lookupVersion;
 
@@ -467,14 +504,17 @@ public sealed partial class LookupViewModel : ObservableObject
             if (version != _lookupVersion) return;
 
             IsSaved = true;
+            _wasSavedBeforeCollection = wasSaved;
+            _undoOccurrenceId = occ.WasCreated ? occ.Id : null;
+            CanUndoSave = _undoOccurrenceId != null;
             IsSaving = false;
             SavedStatusText = HasSavedContext ? "已更新当前语境" : wasSaved ? "已新增语境记录" : "已存入生词库";
             SyncStatusText = _settingsService.Current.Anki.Enabled ? "已保存在本地，将在后台同步到 Anki" : string.Empty;
 
             if (_settingsService.Current.Ui.ClosePopupAfterSave)
             {
-                await Task.Delay(800).ConfigureAwait(true);
-                if (version == _lookupVersion && !KeepOpenAfterSave)
+                await Task.Delay(CanUndoSave ? 5000 : 800).ConfigureAwait(true);
+                if (version == _lookupVersion && collectionVersion == _collectionVersion && !KeepOpenAfterSave && !CanSave && !IsUndoingSave)
                     RequestClose?.Invoke();
             }
         }
@@ -483,8 +523,43 @@ public sealed partial class LookupViewModel : ObservableObject
             if (version != _lookupVersion) return;
             IsSaving = false;
             CanSave = true;
+            SaveFailed = true;
             SavedStatusText = $"保存失败: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private async Task UndoSaveAsync()
+    {
+        if (!CanUndoSave || _undoOccurrenceId == null || IsUndoingSave) return;
+        var id = _undoOccurrenceId;
+        ++_collectionVersion;
+        var version = _lookupVersion;
+        IsUndoingSave = true;
+        try
+        {
+            await _wordRepository.UndoNewOccurrenceAsync(id).ConfigureAwait(true);
+            _wordCollectionEvents.NotifyWordSaved();
+            if (version != _lookupVersion) return;
+            CanUndoSave = false;
+            _undoOccurrenceId = null;
+            IsSaved = _wasSavedBeforeCollection;
+            CanSave = true;
+            SavedStatusText = "已撤销本次本地收藏";
+            SyncStatusText = _settingsService.Current.Anki.Enabled ? "已发送到 Anki 的卡片可在 Anki 中删除。" : string.Empty;
+        }
+        catch (Exception ex)
+        {
+            if (version == _lookupVersion) SavedStatusText = $"撤销失败：{ex.Message}";
+        }
+        finally { IsUndoingSave = false; }
+    }
+
+    [RelayCommand]
+    private async Task QuickFallbackAsync()
+    {
+        if (_currentCapture != null)
+            await StartLookupAsync(_currentCapture, forceAi: false, bypassCache: true).ConfigureAwait(true);
     }
 
     [RelayCommand]

@@ -44,10 +44,19 @@ public class LibraryViewModelTests
             Assert.Equal(4, vm.SelectedFilterIndex);
             Assert.Equal(1, vm.SelectedSortIndex);
             Assert.Equal("chrome", vm.SourceFilter);
+            Assert.Equal("筛选 · 2", vm.FilterButtonText);
+            Assert.Equal("有备注 ×", vm.FilterTagText);
+            Assert.Equal("chrome ×", vm.SourceTagText);
             Assert.Empty(vm.SearchQuery);
             await vm.InitializeAsync();
             Assert.False(vm.HasLoadError);
             Assert.Equal(new LibraryViewPreferences(4, 1, "chrome"), LibraryViewPreferences.Load(path));
+            vm.ClearStatusFilterCommand.Execute(null);
+            Assert.Equal("筛选 · 1", vm.FilterButtonText);
+            Assert.Empty(vm.FilterTagText);
+            vm.ClearSourceFilterCommand.Execute(null);
+            Assert.Equal("筛选", vm.FilterButtonText);
+            Assert.Empty(vm.SourceTagText);
         }
         finally { File.Delete(path); }
     }

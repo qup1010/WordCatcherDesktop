@@ -39,7 +39,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _hotkey = AppSettings.DefaultHotkey;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DictionaryDownloadText))]
     private bool _dictInstalled;
+    public string DictionaryDownloadText => DictInstalled ? "重新下载词典" : "下载词典";
+    [ObservableProperty] private string _dictionaryCountText = string.Empty;
 
     [ObservableProperty]
     private string _dictStatusText = "未安装";
@@ -185,9 +188,9 @@ public sealed partial class SettingsViewModel : ObservableObject
                 current.Ui.ClosePopupAfterSave = closeAfterSave;
                 current.Ui.ClosePopupOnDeactivate = closeOnDeactivate;
                 await _settingsService.SaveSettingsAsync(current).ConfigureAwait(true);
-                StatusMessage = "普通偏好已保存。";
+                StatusMessage = "已自动保存。";
             }
-            catch (Exception) { StatusMessage = "普通偏好保存失败，请点击保存配置重试；输入内容已保留。"; }
+            catch (Exception) { StatusMessage = "自动保存失败，请点击「保存设置」重试。填写的内容已保留。"; }
             finally { RefreshUnsavedChanges(); }
         }
     }
@@ -217,7 +220,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _dictionaryInstallCancellation?.Cancel();
         DictProgressText = "正在取消…";
     }
-    [ObservableProperty] private string _statusMessage = "普通偏好即时保存；连接配置与快捷键需点击保存。";
+    [ObservableProperty] private string _statusMessage = string.Empty;
 
     [ObservableProperty] private bool _isCheckingForUpdates;
     [ObservableProperty] private bool _hasCheckedForUpdates;
@@ -231,7 +234,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public string AppliedHotkey => _settingsService.Current.Hotkey;
     [ObservableProperty] private bool _isRecordingHotkey;
-    [ObservableProperty] private string _hotkeyHint = "点击录入，然后按下你想使用的组合键。";
+    [ObservableProperty] private string _hotkeyHint = "选中文字后，按此组合键查词。";
     private bool _hotkeyWasEnabled;
 
     [RelayCommand]
@@ -399,7 +402,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             await PreferenceSaveTask.ConfigureAwait(true);
             HasUnsavedChanges = false;
             await InitializeAsync().ConfigureAwait(true);
-            StatusMessage = "未保存的修改已放弃，已恢复当前生效的设置。";
+            StatusMessage = "已放弃未保存的修改，自动保存的设置会保留。";
         }
         catch (Exception)
         {
@@ -492,6 +495,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public void RefreshDictStatus()
     {
+        DictionaryCountText = string.Empty;
         DictInstalled = _offlineDict.IsInstalled;
         if (DictInstalled)
         {
@@ -499,7 +503,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             DictStatusText = "已安装";
             if (meta != null)
             {
-                DictDetailsText = $"{meta.EntryCount:N0} 条词条 · 安装于 {meta.InstalledAtUtc.ToLocalTime():yyyy-MM-dd}";
+                DictionaryCountText = $"{meta.EntryCount:N0} 个词条";
+                DictDetailsText = $"{meta.EntryCount:N0} 个词条 · 安装于 {meta.InstalledAtUtc.ToLocalTime():yyyy-MM-dd}";
             }
             else
             {
@@ -509,7 +514,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         else
         {
             DictStatusText = "未安装离线词典";
-            DictDetailsText = "安装后单词优先查询本地词典；未命中或输入句子时使用在线快译，AI 由你主动调用。";
+            DictDetailsText = "下载后可离线查询单词。未收录的单词和句子使用在线翻译。";
         }
     }
 
@@ -594,7 +599,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception)
         {
             if (hotkeyChanged) _hotkeyManager.Register(oldHotkey);
-            StatusMessage = "设置未完整保存，请检查文件权限后重试；输入内容已保留。";
+            StatusMessage = "设置未完整保存，请重试。填写的内容已保留。";
         }
         finally { IsSaving = false; }
     }

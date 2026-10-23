@@ -8,6 +8,8 @@ namespace WordCatcher.Core.Interfaces;
 
 public interface IWordRepository
 {
+    Task UndoNewOccurrenceAsync(string occurrenceId, CancellationToken ct = default)
+        => throw new NotSupportedException();
     Task<(Word Word, Occurrence Occurrence, SyncJob SyncJob)> SaveAsync(SaveCardCommand command, CancellationToken ct = default);
     Task<IReadOnlyList<Word>> GetWordsAsync(string? query = null, int limit = 100, int offset = 0, CancellationToken ct = default);
     Task<IReadOnlyList<Word>> GetFilteredWordsAsync(string? query, WordFilter filter, int limit = 100, int offset = 0, CancellationToken ct = default, string? sourceProcess = null, int sort = 0);

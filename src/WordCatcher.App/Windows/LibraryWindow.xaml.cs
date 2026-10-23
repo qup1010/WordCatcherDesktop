@@ -419,6 +419,15 @@ public partial class LibraryWindow : Window
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => AnkiSettingsGroup.BringIntoView()));
     }
 
+    private void OpenActionMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.IsOpen = true;
+        }
+    }
+
     private void SettingsSection_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string name } && FindName(name) is FrameworkElement section)

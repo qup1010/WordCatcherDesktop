@@ -1,4 +1,4 @@
-<Window x:Class="WordCatcher.App.Windows.LookupWindow"
+﻿<Window x:Class="WordCatcher.App.Windows.LookupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -223,23 +223,26 @@
                 </Grid>
             </Grid>
             <Grid Grid.Row="1">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <StackPanel Margin="0,18" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
                     <ProgressBar IsIndeterminate="True" Height="3" Foreground="{StaticResource AccentBrush}" Background="{StaticResource AccentSubtleBrush}" />
                     <TextBlock Text="{Binding StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,10,0,0" HorizontalAlignment="Center" />
                 </StackPanel>
-                <StackPanel Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
+                <StackPanel x:Name="LookupErrorPanel" Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
                     <Border Background="{StaticResource DangerSurfaceBrush}" CornerRadius="8" Padding="12">
                         <StackPanel>
                             <TextBlock Text="查询未完成" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
                             <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,5,0,0" />
                         </StackPanel>
                     </Border>
-                    <ui:Button Content="重新查询" Command="{Binding RetryCommand}" Style="{StaticResource PopupButton}" HorizontalAlignment="Right" Margin="0,8,0,0" />
+                    <WrapPanel><ui:Button Content="重新查询" Command="{Binding RetryCommand}" Style="{StaticResource PopupButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
+                    <ui:Button Content="改用在线快译" Command="{Binding QuickFallbackCommand}" Visibility="{Binding CanUseQuickFallback, Converter={StaticResource BoolToVis}}" Style="{StaticResource QuietActionButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
                     <ui:Button Content="改用 AI 详解" Command="{Binding ForceAiCommand}"
                                Visibility="{Binding CanUseAiFallback, Converter={StaticResource BoolToVis}}"
-                               Style="{StaticResource QuietActionButton}" HorizontalAlignment="Right" Margin="0,6,0,0" />
-                </StackPanel>
-                <ScrollViewer x:Name="ResultScroll" MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+                               Style="{StaticResource QuietActionButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
+                </WrapPanel>
+</StackPanel>
+                <ScrollViewer Grid.Row="1" x:Name="ResultScroll" MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                     <StackPanel Margin="0,0,4,0">
                         <StackPanel Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
 <TextBlock Text="原文" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
@@ -350,7 +353,7 @@
                                        TextWrapping="Wrap" Margin="0,5,0,0"
                                        Visibility="{Binding SentenceTranslationError, Converter={StaticResource StringToVis}}" />
                         </StackPanel>
-                        <Expander Header="理解与用法" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
+                        <Expander Header="解析与例句" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
                                 <StackPanel Visibility="{Binding Analysis.KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
                                     <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
@@ -369,7 +372,7 @@
                         </Expander>
                         <Expander Header="编辑与笔记" Margin="0,4,0,10" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
-                                <TextBlock Text="语境释义" />
+                                <TextBlock Text="释义" />
                                 <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
                                 <TextBlock Text="原句翻译" />
                                 <ui:TextBox Text="{Binding EditTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
@@ -413,10 +416,14 @@
                         <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)">
                             <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}" /></ui:Button.Style>
                         </ui:Button>
-                        <ui:Button Grid.Column="2" Content="编辑" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前修改释义" />
-                        <ui:Button Grid.Column="3" Content="复制" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
+                        <ui:Button Grid.Column="2" Content="&#xE70F;" AutomationProperties.Name="编辑释义" FontFamily="Segoe Fluent Icons" Width="32" Padding="0" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前修改释义" />
+                        <ui:Button Grid.Column="3" Content="&#xE8C8;" AutomationProperties.Name="复制词条" FontFamily="Segoe Fluent Icons" Width="32" Padding="0" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
                     </Grid>
-                    <TextBlock Text="{Binding SavedStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}" />
+                    <Grid Margin="0,8,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding SavedStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <ui:Button Grid.Column="1" Content="撤销" Command="{Binding UndoSaveCommand}" Visibility="{Binding CanUndoSave, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsUndoingSave, Converter={StaticResource InverseBool}}" Style="{StaticResource QuietActionButton}" Padding="6,2" MinHeight="24" MinWidth="0" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource AccentBrush}" Background="Transparent" BorderThickness="0" ToolTip="撤销本次本地收藏" AutomationProperties.Name="撤销本地收藏" />
+                    </Grid>
                     <TextBlock Text="{Binding SyncStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding SyncStatusText, Converter={StaticResource StringToVis}}" />
                     <TextBlock Text="{Binding ActionStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding ActionStatusText, Converter={StaticResource StringToVis}}" />
                 </StackPanel>
