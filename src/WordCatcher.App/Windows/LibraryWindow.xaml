@@ -19,7 +19,7 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
-        FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
+        FontFamily="{DynamicResource UiFontFamily}"
         Background="{DynamicResource CanvasBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
@@ -255,7 +255,7 @@
                                                   RecognizesAccessKey="True"
                                                   Margin="0,0,0,12"
                                                   TextElement.FontSize="{StaticResource BodyFontSize}"
-                                                  TextElement.FontWeight="SemiBold"
+                                                  TextElement.FontWeight="Medium"
                                                   TextElement.Foreground="{StaticResource TextPrimaryBrush}" />
                                 <ContentPresenter Grid.Row="1"
                                                   Content="{TemplateBinding Content}"
@@ -643,7 +643,7 @@
                                         <Popup IsOpen="{Binding IsChecked, ElementName=LibraryFilterButton, Mode=TwoWay}" PlacementTarget="{Binding ElementName=LibraryFilterButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                             <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Width="290" Margin="0,4,0,0">
                                                 <StackPanel>
-                                                    <TextBlock Text="筛选词条" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                                    <TextBlock Text="筛选词条" FontWeight="Medium" Margin="0,0,0,12" />
                                                     <TextBlock Text="词条状态" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6" />
                                                     <ComboBox SelectedIndex="{Binding SelectedFilterIndex}" MinHeight="34" Margin="0,0,0,12" AutomationProperties.Name="按同步状态筛选生词">
                                                         <ComboBoxItem Content="全部词条" /><ComboBoxItem Content="待同步" /><ComboBoxItem Content="同步失败" /><ComboBoxItem Content="最近 7 天收藏" /><ComboBoxItem Content="有备注" /><ComboBoxItem Content="无备注" />
@@ -862,8 +862,8 @@
                                                             Visibility="{Binding IsAnswerRevealed, Converter={StaticResource BoolToVis}}">
                                                         <StackPanel>
                                                             <WrapPanel VerticalAlignment="Center" Margin="0,0,0,10">
-                                                                <TextBlock Text="{Binding ReviewEffectiveExpression}" FontFamily="Georgia, Cambria, Microsoft YaHei UI, serif" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-                                                                <TextBlock Text="{Binding CurrentReviewWord.Reading}" FontFamily="Georgia, Cambria, Segoe UI, serif" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                                <TextBlock Text="{Binding ReviewEffectiveExpression}" FontFamily="{StaticResource HeadwordFontFamily}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                                <TextBlock Text="{Binding CurrentReviewWord.Reading}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0"
                                                                            Visibility="{Binding CurrentReviewWord.Reading, Converter={StaticResource StringToVis}}" />
                                                                 <ui:Button Command="{Binding SpeakWordCommand}" Style="{StaticResource QuietActionButton}" Padding="8,4" Margin="10,0,0,0" ToolTip="朗读（快捷键 P）">
                                                                     <StackPanel Orientation="Horizontal">
@@ -880,7 +880,7 @@
                                                             <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="6" Padding="10,8" Margin="0,10,0,0"
                                                                     Visibility="{Binding ReviewEffectiveKeyExplanation, Converter={StaticResource StringToVis}}">
                                                                 <StackPanel>
-                                                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                     <TextBlock Text="{Binding ReviewEffectiveKeyExplanation}" FontSize="13" LineHeight="20" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                                                 </StackPanel>
                                                             </Border>
@@ -888,7 +888,7 @@
                                                             <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="10,8" Margin="0,8,0,0"
                                                                     Visibility="{Binding ReviewEffectiveNote, Converter={StaticResource StringToVis}}">
                                                                 <StackPanel>
-                                                                    <TextBlock Text="个人笔记" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                    <TextBlock Text="个人笔记" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                     <TextBlock Text="{Binding ReviewEffectiveNote}" FontSize="13" LineHeight="20" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                                                 </StackPanel>
                                                             </Border>
@@ -941,12 +941,12 @@
                                                 <!-- Header: Word, Reading, POS, Speak -->
                                                 <WrapPanel VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding SelectedWord.DisplayWord}"
-                                                               FontFamily="Georgia, Cambria, Microsoft YaHei UI, serif"
+                                                               FontFamily="{StaticResource HeadwordFontFamily}"
                                                                TextWrapping="Wrap" FontSize="28"
                                                                FontWeight="Bold"
                                                                Foreground="{StaticResource TextPrimaryBrush}" />
                                                     <TextBlock Text="{Binding SelectedWord.Reading}"
-                                                               FontFamily="Georgia, Cambria, Segoe UI, serif"
+                                                               FontFamily="{StaticResource PhoneticFontFamily}"
                                                                FontSize="15"
                                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                                Margin="10,0,0,0"
@@ -1045,7 +1045,7 @@
 
                                                                             <WrapPanel Margin="0,6,0,4" Visibility="{Binding SupplementaryExpression, Converter={StaticResource StringToVis}}">
                                                                                 <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="4" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center">
-                                                                                    <TextBlock Text="核心表达" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                                    <TextBlock Text="核心表达" FontSize="11" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                                 </Border>
                                                                                 <TextBlock Text="{Binding Expression}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
                                                                             </WrapPanel>
@@ -1075,7 +1075,7 @@
                                                                             <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="10,7" Margin="0,8,0,0"
                                                                                     Visibility="{Binding Note, Converter={StaticResource StringToVis}}">
                                                                                 <StackPanel>
-                                                                                    <TextBlock Text="个人笔记" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                                    <TextBlock Text="个人笔记" FontSize="11" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                                     <TextBlock Text="{Binding Note}" FontSize="12.5" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                                                                                 </StackPanel>
                                                                             </Border>
@@ -1083,15 +1083,15 @@
                                                                             <Expander Header="{Binding ExplanationLabel}" Visibility="{Binding HasExplanation, Converter={StaticResource BoolToVis}}" Margin="0,8,0,0">
                                                                                 <StackPanel Margin="0,6,0,0">
                                                                                     <StackPanel Visibility="{Binding KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,6">
-                                                                                        <TextBlock Text="语境解析" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                                        <TextBlock Text="语境解析" FontSize="11" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                                         <TextBlock Text="{Binding KeyExplanation}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0" />
                                                                                     </StackPanel>
                                                                                     <StackPanel Visibility="{Binding UsageNote, Converter={StaticResource StringToVis}}" Margin="0,0,0,6">
-                                                                                        <TextBlock Text="用法提示" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                                        <TextBlock Text="用法提示" FontSize="11" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                                         <TextBlock Text="{Binding UsageNote}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0" />
                                                                                     </StackPanel>
                                                                                     <StackPanel Visibility="{Binding Example, Converter={StaticResource StringToVis}}">
-                                                                                        <TextBlock Text="拓展例句" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                                                                        <TextBlock Text="拓展例句" FontSize="11" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
                                                                                         <TextBlock Text="{Binding Example}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0" />
                                                                                         <TextBlock Text="{Binding ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding ExampleTranslation, Converter={StaticResource StringToVis}}" />
                                                                                     </StackPanel>
@@ -1419,7 +1419,7 @@
                             <Border x:Name="WebDavSyncCard" Background="Transparent" Padding="0,8,0,24" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,24">
                                 <StackPanel>
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="词库同步" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="词库同步" FontSize="16" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" />
                                         <TextBlock Grid.Column="1" Text="{Binding WebDavTitle}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
                                     </Grid>
                                     <TextBlock Text="{Binding WebDavDescription}" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
@@ -1439,12 +1439,12 @@
                                         <Grid>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                             <StackPanel>
-                                                <TextBlock Text="本地版本" FontWeight="SemiBold" />
+                                                <TextBlock Text="本地版本" FontWeight="Medium" />
                                                 <TextBox Text="{Binding LocalConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="280" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
                                                 <ui:Button Content="保留本地并继续同步" Command="{Binding KeepLocalConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
-                                                <TextBlock Text="云端版本" FontWeight="SemiBold" />
+                                                <TextBlock Text="云端版本" FontWeight="Medium" />
                                                 <TextBox Text="{Binding RemoteConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="280" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
                                                 <ui:Button Content="保留云端并继续同步" Command="{Binding KeepRemoteConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
                                             </StackPanel>
@@ -1453,7 +1453,7 @@
                                 </StackPanel>
                             </Border>
                             <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <TextBlock Text="Anki 卡片同步" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                <TextBlock Text="Anki 卡片同步" FontSize="16" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Column="1" Text="{Binding AnkiStatusLabel}" VerticalAlignment="Center">
                                     <TextBlock.Style><Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
@@ -1469,7 +1469,7 @@
                             <TextBlock Text="{Binding AnkiSummary}" Visibility="{Binding AnkiSummary, Converter={StaticResource StringToVis}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,0" />
 
                             <StackPanel Margin="0,24,0,0" Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="需要处理的同步项" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                                <TextBlock Text="需要处理的同步项" FontSize="{StaticResource BodyFontSize}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
                                 <ItemsControl ItemsSource="{Binding IssueJobs}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -1583,7 +1583,7 @@
                                 </Grid><TextBlock Text="翻译服务和目标语言修改后自动保存。" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,4,0,0" /><Grid Margin="0,20,0,8">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                                        <TextBlock Text="离线词典" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="离线词典" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" />
                                         <WrapPanel Margin="0,5,0,0"><TextBlock Text="{Binding DictStatusText}" Foreground="{StaticResource TextSecondaryBrush}" /><TextBlock Text="{Binding DictionaryCountText}" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" /></WrapPanel>
                                     </StackPanel>
                                     <ui:Button Grid.Column="1" Content="{Binding DictionaryDownloadText}" Command="{Binding InstallDictFromUrlCommand}" IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}" Margin="0,0,8,0" VerticalAlignment="Center">
@@ -1945,7 +1945,7 @@
                                 <TextBlock Text="钉住时保持打开。修改后自动保存。" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,6,0,0" />
                             <Grid Margin="0,20,0,0" MinHeight="40">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="取词快捷键" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <TextBlock Text="取词快捷键" FontWeight="Medium" VerticalAlignment="Center" />
                                     <Border Grid.Column="1" Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="4" Padding="10,5" Margin="8,0" VerticalAlignment="Center">
                                         <TextBlock FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="{Binding Hotkey}" /><Style.Triggers><DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True"><Setter Property="Text" Value="请按组合键…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
                                     </Border>

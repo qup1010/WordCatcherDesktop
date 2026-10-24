@@ -22,7 +22,7 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
+        FontFamily="{DynamicResource UiFontFamily}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
@@ -163,8 +163,12 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border Style="{StaticResource SurfaceCardStyle}" Margin="10" CornerRadius="10">
-        <Border.Effect><DropShadowEffect BlurRadius="18" Opacity="0.14" ShadowDepth="4" Color="#334155" /></Border.Effect>
+    <Grid Margin="10">
+        <!-- Keep the shadow off the text subtree so its intermediate bitmap cannot soften glyphs. -->
+        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" IsHitTestVisible="False">
+            <Border.Effect><DropShadowEffect BlurRadius="18" Opacity="0.14" ShadowDepth="4" Color="#334155" /></Border.Effect>
+        </Border>
+        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" RenderOptions.ClearTypeHint="Enabled">
         <Grid Margin="16,14">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -187,9 +191,9 @@
                         MouseLeftButtonDown="DragSurface_MouseLeftButtonDown">
                     <StackPanel>
                         <TextBlock FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
-                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Georgia, Cambria, Microsoft YaHei UI, serif" /><Setter Property="FontSize" Value="24" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI, sans-serif" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="FontSize" Value="24" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                         </TextBlock>
-                        <TextBlock Text="{Binding Reading}" FontFamily="Georgia, Cambria, Segoe UI, serif" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
+                        <TextBlock Text="{Binding Reading}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
                         <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -231,7 +235,7 @@
                 <StackPanel x:Name="LookupErrorPanel" Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
                     <Border Background="{StaticResource DangerSurfaceBrush}" CornerRadius="8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="查询未完成" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+                            <TextBlock Text="查询未完成" FontWeight="Medium" Foreground="{StaticResource DangerBrush}" />
                             <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,5,0,0" />
                         </StackPanel>
                     </Border>
@@ -333,7 +337,7 @@
                         <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
                         <StackPanel Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
                             <Grid Margin="0,0,0,4">
-                                <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                                 <WrapPanel HorizontalAlignment="Right">
                                     <ui:Button Content="{Binding TranslateSentenceButtonText}"
                                                Command="{Binding TranslateSentenceCommand}"
@@ -356,15 +360,15 @@
                         <Expander Header="解析与例句" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
                                 <StackPanel Visibility="{Binding Analysis.KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
-                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
                                     <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
                                 </StackPanel>
                                 <StackPanel Visibility="{Binding Analysis.UsageNote, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
-                                    <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
                                     <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
                                 </StackPanel>
                                 <StackPanel Visibility="{Binding Analysis.Example, Converter={StaticResource StringToVis}}">
-                                    <TextBlock Text="拓展例句" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="拓展例句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
                                     <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
                                     <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Analysis.ExampleTranslation, Converter={StaticResource StringToVis}}" />
                                 </StackPanel>
@@ -382,14 +386,14 @@
                         </Expander>
 <Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="11,9" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                             <StackPanel>
-                                <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" />
                                 <TextBlock Text="{Binding ContextTranslation}" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </StackPanel>
                         </Border>
 <Border Background="{StaticResource AmberHookSurfaceBrush}" BorderBrush="{StaticResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,6">
-                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource AmberHookLabelBrush}" />
+                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AmberHookLabelBrush}" />
                                 <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource DisclosureToggleButton}" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}" AutomationProperties.Name="展开或收起记忆线索">
                                         <TextBlock>
                                             <TextBlock.Style>
@@ -429,5 +433,6 @@
                 </StackPanel>
             </Border>
         </Grid>
-    </Border>
+        </Border>
+    </Grid>
 </Window>
