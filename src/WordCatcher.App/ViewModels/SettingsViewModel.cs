@@ -32,6 +32,82 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly HotkeyManager _hotkeyManager;
     private readonly UpdateCheckService? _updateCheckService;
     private readonly IAppUpdater? _appUpdater;
+    private readonly StartupService _startupService;
+
+    [ObservableProperty] private bool _startWithWindows;
+    [ObservableProperty] private bool _canChangeStartup = true;
+    [ObservableProperty] private bool _startupPathNeedsRepair;
+    [ObservableProperty] private string _startupStatus = "修改后立即生效，启动后驻留系统托盘。";
+    private bool _refreshingStartup;
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        if (_initializing || _refreshingStartup) return;
+        try
+        {
+            _startupService.SetEnabled(value);
+            RefreshStartupState();
+        }
+        catch (Exception ex)
+        {
+            SetStartupSwitch(!value);
+            StartupStatus = $"自启动设置失败：{ex.Message}";
+        }
+    }
+
+    private void SetStartupSwitch(bool value)
+    {
+        _refreshingStartup = true;
+        try { StartWithWindows = value; }
+        finally { _refreshingStartup = false; }
+    }
+
+    [RelayCommand]
+    private void RepairStartupPath()
+    {
+        try
+        {
+            _startupService.SetEnabled(true);
+            RefreshStartupState();
+            StartupStatus = "已更新为当前程序路径，下次登录 Windows 时自动驻留系统托盘。";
+        }
+        catch (Exception ex) { StartupStatus = $"修复启动路径失败：{ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private void OpenWindowsStartupSettings()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:startupapps")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception) { StartupStatus = "无法打开系统设置，请手动打开 Windows 设置 → 应用 → 启动。"; }
+    }
+
+    private void RefreshStartupState()
+    {
+        try
+        {
+            // Refresh system state even when the editor contains unsaved changes.
+            SetStartupSwitch(_startupService.IsEnabled);
+            StartupPathNeedsRepair = _startupService.NeedsPathRepair;
+            CanChangeStartup = true;
+            StartupStatus = StartupPathNeedsRepair
+                ? "启动项使用旧路径或旧启动方式，点击「修复启动路径」更新。"
+                : StartWithWindows
+                    ? "已登记自启动。若在 Windows 中禁用，请到「系统启动设置」重新开启。"
+                    : "未开启自启动。切换后立即生效，启动后驻留系统托盘。";
+        }
+        catch (Exception ex)
+        {
+            CanChangeStartup = false;
+            StartupPathNeedsRepair = false;
+            StartupStatus = $"无法读取自启动设置：{ex.Message}";
+        }
+    }
     public event Action? UpdateInstallRequested;
     private readonly IWebDavSyncService? _webDavSyncService;
 
@@ -313,7 +389,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         HotkeyManager hotkeyManager,
         UpdateCheckService? updateCheckService = null,
         IWebDavSyncService? webDavSyncService = null,
-        IAppUpdater? appUpdater = null)
+        IAppUpdater? appUpdater = null,
+        StartupService? startupService = null)
     {
         _settingsService = settingsService;
         _secretStore = secretStore;
@@ -324,12 +401,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         _hotkeyManager = hotkeyManager;
         _updateCheckService = updateCheckService;
         _appUpdater = appUpdater;
+        _startupService = startupService ?? new StartupService();
         IsUpdateReady = appUpdater?.IsUpdateReady ?? false;
         _webDavSyncService = webDavSyncService;
     }
 
     public async Task InitializeAsync()
     {
+        RefreshStartupState();
         if (HasUnsavedChanges) return;
         _initializing = true;
         try

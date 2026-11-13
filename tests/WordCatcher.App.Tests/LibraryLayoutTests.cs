@@ -40,7 +40,8 @@ public class LibraryLayoutTests
                     Color.FromRgb(15, 118, 110), Wpf.Ui.Appearance.ApplicationTheme.Light,
                     systemGlassColor: false, systemAccentColor: false);
                 var repo = DispatchProxy.Create<IWordRepository, LibraryViewModelTests.RepositoryProxy>();
-                var (settings, service) = InteractionTests.Settings();
+                using var startupRegistration = new StartupTestRegistration();
+                var (settings, service) = InteractionTests.Settings(startupRegistration.Service);
                 settings.InitializeAsync().GetAwaiter().GetResult();
                 var syncRepo = DispatchProxy.Create<IWordRepository, InteractionTests.Proxy>();
                 var sync = new SyncViewModel(syncRepo, DispatchProxy.Create<IAnkiSyncQueue, InteractionTests.Proxy>(), (ISettingsService)service);
@@ -53,6 +54,29 @@ public class LibraryLayoutTests
                 root.Arrange(new Rect(0, 0, 900, 700));
                 root.UpdateLayout();
                 var scroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
+                var startupSwitch = (CheckBox)window.FindName("StartWithWindowsSwitch");
+                startupSwitch.IsChecked = true;
+                Assert.True(startupRegistration.Service.IsEnabled);
+                ((FrameworkElement)window.FindName("InteractionSettingsGroup")).BringIntoView();
+                root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-startup-enabled.png", 900, 700);
+                startupSwitch.IsChecked = false;
+                Assert.False(startupRegistration.Service.IsEnabled);
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-startup-disabled.png", 900, 700);
+                using (var startupKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(startupRegistration.KeyPath))
+                    startupKey.SetValue("WordCatcherDesktop", "\"C:\\Old Folder\\WordCatcher.App.exe\"");
+                settings.InitializeAsync().GetAwaiter().GetResult();
+                root.UpdateLayout();
+                var repairButton = (Wpf.Ui.Controls.Button)window.FindName("StartupRepairButton");
+                Assert.Equal(Visibility.Visible, repairButton.Visibility);
+                RenderState(root, "wordcatcher-startup-repair.png", 900, 700);
+                repairButton.Command.Execute(null);
+                root.UpdateLayout();
+                Assert.False(startupRegistration.Service.NeedsPathRepair);
+                Assert.Equal(Visibility.Collapsed, repairButton.Visibility);
+                startupSwitch.IsChecked = false;
                 var pendingBar = (FrameworkElement)window.FindName("SettingsPendingBar");
                 Assert.Equal(Visibility.Collapsed, pendingBar.Visibility);
                 settings.ApiModel = "pending-model";

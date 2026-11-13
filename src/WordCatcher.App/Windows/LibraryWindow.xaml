@@ -1933,6 +1933,17 @@
 <GroupBox x:Name="InteractionSettingsGroup" Header="操作与显示" Style="{StaticResource SettingsSectionStyle}"><StackPanel>
                                 <Grid MinHeight="44">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="登录 Windows 时自动启动" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <CheckBox x:Name="StartWithWindowsSwitch" Grid.Column="1" Width="36" IsChecked="{Binding StartWithWindows}" IsEnabled="{Binding CanChangeStartup}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="登录 Windows 时自动启动" VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBlock Text="{Binding StartupStatus}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,12" />
+                                <WrapPanel Margin="0,0,0,12">
+                                    <ui:Button x:Name="StartupRepairButton" Content="修复启动路径" Command="{Binding RepairStartupPathCommand}" Visibility="{Binding StartupPathNeedsRepair, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding CanChangeStartup}" Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,0" />
+                                    <ui:Button Content="系统启动设置" Command="{Binding OpenWindowsStartupSettingsCommand}" Style="{StaticResource QuietActionButton}" />
+                                </WrapPanel>
+                                <Border Height="1" Background="{StaticResource BorderBrush}" />
+                                <Grid MinHeight="44">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="收藏后关闭浮窗" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" />
                                     <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding ClosePopupAfterSave}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="收藏后关闭浮窗" ToolTip="钉住的浮窗会保持打开" VerticalAlignment="Center" />
                                 </Grid>

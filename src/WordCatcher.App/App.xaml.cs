@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -52,7 +53,8 @@ public partial class App : System.Windows.Application
         _ownsSingleInstanceMutex = createdNew;
         if (!createdNew)
         {
-            System.Windows.MessageBox.Show(
+            if (!e.Args.Contains("--startup", StringComparer.OrdinalIgnoreCase))
+                System.Windows.MessageBox.Show(
                 "Word Catcher 已经在运行中，请查看屏幕右下角系统托盘。",
                 "Word Catcher",
                 MessageBoxButton.OK,

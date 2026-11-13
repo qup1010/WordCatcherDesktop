@@ -71,12 +71,12 @@ public class InteractionTests
         if (valid) Assert.Equal((uint)key, actual);
     }
 
-    public static (SettingsViewModel Vm, Proxy Service) Settings()
+    public static (SettingsViewModel Vm, Proxy Service) Settings(StartupService? startupService = null)
     {
         var settings = DispatchProxy.Create<ISettingsService, Proxy>();
         var secrets = DispatchProxy.Create<ISecretStore, Proxy>();
         var dict = DispatchProxy.Create<IOfflineDictionaryService, Proxy>();
-        return (new SettingsViewModel(settings, secrets, dict, null!, null!, null!, new HotkeyManager()), (Proxy)settings);
+        return (new SettingsViewModel(settings, secrets, dict, null!, null!, null!, new HotkeyManager(), startupService: startupService), (Proxy)settings);
     }
 
     [Fact]
