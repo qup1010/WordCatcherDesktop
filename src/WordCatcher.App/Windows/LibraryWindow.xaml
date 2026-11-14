@@ -6,6 +6,7 @@
         xmlns:vm="clr-namespace:WordCatcher.App.ViewModels"
         xmlns:views="clr-namespace:WordCatcher.App.Views"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:controls="clr-namespace:WordCatcher.App.Controls"
         xmlns:converters="clr-namespace:WordCatcher.App.Converters"
         xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -322,21 +323,21 @@
                                        FrameMargin="0">
                         <ui:NavigationView.MenuItems>
                             <ui:NavigationViewItem x:Name="LibraryNavigationItem" ToolTip="生词库（Ctrl+1）" Content="生词库" Tag="Library"
-                                                   Icon="{ui:SymbolIcon Book24}" IsActive="True"
+                                                   Icon="{controls:CrispIcon Book24}" IsActive="True"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
                             <ui:NavigationViewItem x:Name="LookupNavigationItem" ToolTip="查词（Ctrl+2）" Content="查词" Tag="Lookup"
-                                                   Icon="{ui:SymbolIcon Search24}"
+                                                   Icon="{controls:CrispIcon Search24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
                             <ui:NavigationViewItem x:Name="SyncNavigationItem" ToolTip="WebDAV 与 Anki 同步（Ctrl+3）" Content="同步状态" Tag="Sync"
-                                                   Icon="{ui:SymbolIcon ArrowSync24}"
+                                                   Icon="{controls:CrispIcon ArrowSync24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
                         </ui:NavigationView.MenuItems>
                         <ui:NavigationView.FooterMenuItems>
                             <ui:NavigationViewItem x:Name="SettingsNavigationItem" ToolTip="设置（Ctrl+4）" Content="设置" Tag="Settings"
-                                                   Icon="{ui:SymbolIcon Settings24}"
+                                                   Icon="{controls:CrispIcon Settings24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
                         </ui:NavigationView.FooterMenuItems>
@@ -381,7 +382,7 @@
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="LibraryTab">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Book24" FontSize="16" Margin="0,0,11,0" />
+                        <controls:CrispSymbolIcon Symbol="Book24" FontSize="16" Margin="0,0,11,0" />
                         <TextBlock Text="生词库" />
                     </StackPanel>
                 </TabItem.Header>
@@ -412,7 +413,7 @@
                                     Foreground="{DynamicResource AccentBrush}"
                                     FontSize="{StaticResource CaptionFontSize}">
                                 <StackPanel Orientation="Horizontal">
-                                    <ui:SymbolIcon Symbol="Flash20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <controls:CrispSymbolIcon Symbol="Flash20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock Text="卡片复习" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 </StackPanel>
                             </ui:Button>
@@ -428,7 +429,7 @@
                                     </Style>
                                 </ui:Button.Style>
                                 <StackPanel Orientation="Horizontal">
-                                    <ui:SymbolIcon Symbol="ArrowSync20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <controls:CrispSymbolIcon Symbol="ArrowSync20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock>
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
@@ -457,7 +458,7 @@
                                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                                 CornerRadius="6" Padding="{TemplateBinding Padding}">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <ui:SymbolIcon Symbol="MoreHorizontal20" FontSize="15"
+                                                <controls:CrispSymbolIcon Symbol="MoreHorizontal20" FontSize="15"
                                                                TextOptions.TextFormattingMode="Ideal"
                                                                TextOptions.TextRenderingMode="Grayscale" />
                                             </StackPanel>
@@ -488,7 +489,7 @@
                                                 Padding="10,7" Foreground="{DynamicResource TextPrimaryBrush}"
                                                 IsEnabled="{Binding IsExporting, Converter={StaticResource InverseBool}}">
                                             <StackPanel Orientation="Horizontal">
-                                                <ui:SymbolIcon Symbol="ArrowDownload20" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <controls:CrispSymbolIcon Symbol="ArrowDownload20" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
                                                 <TextBlock Text="导入备份" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </ui:Button>
@@ -498,7 +499,7 @@
                                                 Padding="10,7" Foreground="{DynamicResource TextPrimaryBrush}"
                                                 IsEnabled="{Binding IsExporting, Converter={StaticResource InverseBool}}">
                                             <StackPanel Orientation="Horizontal">
-                                                <ui:SymbolIcon Symbol="ArrowUpload20" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <controls:CrispSymbolIcon Symbol="ArrowUpload20" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
                                                 <TextBlock Text="导出备份" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </ui:Button>
@@ -576,7 +577,7 @@
                                              BorderThickness="1"
                                              ToolTip="输入即搜索；Ctrl+F 聚焦，Esc 清空搜索"
                                              KeyDown="SearchBox_KeyDown" />
-                                    <ui:SymbolIcon Symbol="Search20"
+                                    <controls:CrispSymbolIcon Symbol="Search20"
                                                    FontSize="14"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="11,0,0,0"
@@ -595,7 +596,7 @@
                                             Foreground="{DynamicResource TextSecondaryBrush}"
                                             Visibility="{Binding SearchQuery, Converter={StaticResource StringToVis}}"
                                             ToolTip="清空搜索">
-                                        <ui:SymbolIcon Symbol="Dismiss16" FontSize="12" />
+                                        <controls:CrispSymbolIcon Symbol="Dismiss16" FontSize="12" />
                                     </ui:Button>
                                 </Grid>
                                     <Grid Margin="0,0,0,8" IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBool}}">
@@ -719,7 +720,7 @@
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                                        <ui:SymbolIcon Symbol="Book24" FontSize="28"
+                                        <controls:CrispSymbolIcon Symbol="Book24" FontSize="28"
                                                        Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" />
                                         <TextBlock Text="{Binding EmptyMessage}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,0" />
@@ -839,7 +840,7 @@
                                                                            Visibility="{Binding CurrentReviewWord.Reading, Converter={StaticResource StringToVis}}" />
                                                                 <ui:Button Command="{Binding SpeakWordCommand}" Style="{StaticResource QuietActionButton}" Padding="8,4" Margin="10,0,0,0" ToolTip="朗读（快捷键 P）">
                                                                     <StackPanel Orientation="Horizontal">
-                                                                        <ui:SymbolIcon Symbol="Speaker220" FontSize="14" VerticalAlignment="Center" />
+                                                                        <controls:CrispSymbolIcon Symbol="Speaker220" FontSize="14" VerticalAlignment="Center" />
                                                                         <TextBlock Text="朗读" Margin="5,0,0,0" FontSize="{StaticResource CaptionFontSize}" />
                                                                     </StackPanel>
                                                                 </ui:Button>
@@ -930,7 +931,7 @@
                                                                VerticalAlignment="Center"
                                                                ToolTip="朗读当前词条">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <ui:SymbolIcon Symbol="Speaker220" FontSize="14" VerticalAlignment="Center" />
+                                                            <controls:CrispSymbolIcon Symbol="Speaker220" FontSize="14" VerticalAlignment="Center" />
                                                             <TextBlock Text="朗读" FontSize="{StaticResource CaptionFontSize}" Margin="5,0,0,0" VerticalAlignment="Center" />
                                                         </StackPanel>
                                                     </ui:Button>
@@ -1346,7 +1347,7 @@
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="LookupTab">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Search24" FontSize="16" Margin="0,0,11,0" />
+                        <controls:CrispSymbolIcon Symbol="Search24" FontSize="16" Margin="0,0,11,0" />
                         <TextBlock Text="查词" />
                     </StackPanel>
                 </TabItem.Header>
@@ -1357,7 +1358,7 @@
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="SyncTab">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="ArrowSync24" FontSize="16" Margin="0,0,11,0" />
+                        <controls:CrispSymbolIcon Symbol="ArrowSync24" FontSize="16" Margin="0,0,11,0" />
                         <TextBlock Text="同步状态" />
                     </StackPanel>
                 </TabItem.Header>
@@ -1379,7 +1380,7 @@
                         <ui:Button Grid.Column="1" Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryActionButton}" VerticalAlignment="Center"
                                    ToolTip="刷新同步状态" AutomationProperties.Name="刷新同步状态">
                             <StackPanel Orientation="Horizontal">
-                                <ui:SymbolIcon Symbol="ArrowSync20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <controls:CrispSymbolIcon Symbol="ArrowSync20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
                                 <TextBlock Text="刷新" VerticalAlignment="Center" />
                             </StackPanel>
                         </ui:Button>
@@ -1395,7 +1396,7 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <ui:SymbolIcon Symbol="CloudSwap24" FontSize="22" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                            <controls:CrispSymbolIcon Symbol="CloudSwap24" FontSize="22" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
                                             <TextBlock Grid.Column="1" Text="WebDAV 词库同步" FontSize="16" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                                             <Border Grid.Column="2" Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding WebDavTitle}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
@@ -1444,7 +1445,7 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <ui:SymbolIcon Symbol="Flash24" FontSize="20" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                            <controls:CrispSymbolIcon Symbol="Flash24" FontSize="20" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
                                             <TextBlock Grid.Column="1" Text="Anki 卡片同步" FontSize="16" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                                             <Border Grid.Column="2" Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding AnkiStatusLabel}" FontSize="12">
@@ -1533,7 +1534,7 @@
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="SettingsTab">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Settings24" FontSize="16" Margin="0,0,11,0" />
+                        <controls:CrispSymbolIcon Symbol="Settings24" FontSize="16" Margin="0,0,11,0" />
                         <TextBlock Text="设置" />
                     </StackPanel>
                 </TabItem.Header>
@@ -1613,7 +1614,7 @@
                                 <TabItem x:Name="GeneralSettingsCategory" Header="常规与外观">
                                     <StackPanel x:Name="InteractionSettingsGroup">
                                         <TextBlock Text="窗口与主题" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Color24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Color24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="外观主题" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1629,7 +1630,7 @@
                                             </ComboBox>
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Pin24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Pin24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="收藏后关闭浮窗" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1641,7 +1642,7 @@
                                                              ToolTip="固定的浮窗会保持打开" />
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon CursorHover24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon CursorHover24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="点击外部关闭浮窗" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1654,7 +1655,7 @@
                                         </ui:CardControl>
 
                                         <TextBlock Text="全局快捷键" Style="{StaticResource SettingsGroupHeaderStyle}" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Keyboard24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Keyboard24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="取词快捷键" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1703,7 +1704,7 @@
                                         </ui:CardControl>
 
                                         <TextBlock Text="系统启动" Style="{StaticResource SettingsGroupHeaderStyle}" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Power24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Power24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="登录 Windows 时自动启动" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1735,7 +1736,7 @@
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <ui:SymbolIcon Symbol="Warning20" FontSize="18" Foreground="{DynamicResource WarningBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                                <controls:CrispSymbolIcon Symbol="Warning20" FontSize="18" Foreground="{DynamicResource WarningBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
                                                 <TextBlock Grid.Column="1" Text="检测到当前开机启动项路径与程序位置不一致，建议立即修复。"
                                                            Foreground="{DynamicResource WarningTextBrush}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
                                                 <ui:Button x:Name="StartupRepairButton" Grid.Column="2" Content="修复启动路径"
@@ -1752,7 +1753,7 @@
                                 <TabItem x:Name="LookupSettingsCategory" Header="查词与词典">
                                     <StackPanel x:Name="LookupSettingsGroup">
                                         <TextBlock Text="翻译引擎与语言" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Translate24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Translate24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="在线快译服务" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1768,7 +1769,7 @@
                                             </ComboBox>
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Globe24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Globe24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="目标语言" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1781,7 +1782,7 @@
                                         </ui:CardControl>
 
                                         <TextBlock Text="离线词典管理" Style="{StaticResource SettingsGroupHeaderStyle}" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Library24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Library24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="离线英汉词典" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1833,7 +1834,7 @@
 
                                         <ui:CardExpander x:Name="DictionaryManagementExpander"
                                                          Style="{StaticResource FluentSettingsExpanderStyle}"
-                                                         Icon="{ui:SymbolIcon FolderOpen24}">
+                                                         Icon="{controls:CrispIcon FolderOpen24}">
                                             <ui:CardExpander.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="词典源地址与本地文件" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1858,7 +1859,7 @@
                                         </ui:CardExpander>
 
                                         <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}"
-                                                         Icon="{ui:SymbolIcon DocumentText24}">
+                                                         Icon="{controls:CrispIcon DocumentText24}">
                                             <ui:CardExpander.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="词典来源与许可声明" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1877,7 +1878,7 @@
                                 <TabItem x:Name="AiSettingsCategory" Header="AI 详解">
                                     <StackPanel x:Name="AiSettingsGroup">
                                         <TextBlock Text="配置方案与预设" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Sparkle24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Sparkle24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="当前 AI 配置" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1917,7 +1918,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <ui:SymbolIcon Symbol="Apps24" FontSize="20"
+                                                <controls:CrispSymbolIcon Symbol="Apps24" FontSize="20"
                                                                Foreground="{DynamicResource CardForeground}"
                                                                VerticalAlignment="Center"
                                                                Margin="0,0,16,0" />
@@ -1939,7 +1940,7 @@
                                         <TextBlock Text="接口与密钥" Style="{StaticResource SettingsGroupHeaderStyle}" />
                                         <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}"
                                                          IsExpanded="True"
-                                                         Icon="{ui:SymbolIcon Key24}">
+                                                         Icon="{controls:CrispIcon Key24}">
                                             <ui:CardExpander.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="服务地址与密钥" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2003,7 +2004,7 @@
                                                     Title="WebDAV 服务器要求"
                                                     Message="在桌面端和浏览器扩展中填写相同的 WebDAV 地址与文件路径即可双向同步；地址须使用 HTTPS，服务器需支持强 ETag 与条件写入以避免覆盖冲突。" />
 
-                                        <ui:CardControl x:Name="WebDavSettingsGroup" Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon CloudSwap24}">
+                                        <ui:CardControl x:Name="WebDavSettingsGroup" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon CloudSwap24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="启用 WebDAV 词库同步" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2015,7 +2016,7 @@
                                                              ToolTip="启用 WebDAV 多端生词库同步" />
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon ArrowSync24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon ArrowSync24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="词库修改后自动同步" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2029,7 +2030,7 @@
 
                                         <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}"
                                                          IsExpanded="True"
-                                                         Icon="{ui:SymbolIcon PlugConnected24}">
+                                                         Icon="{controls:CrispIcon PlugConnected24}">
                                             <ui:CardExpander.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="WebDAV 服务器连接配置" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2099,7 +2100,7 @@
                                         </ui:CardExpander>
 
                                         <TextBlock Text="Anki 联动制卡" Style="{StaticResource SettingsGroupHeaderStyle}" />
-                                        <ui:CardControl x:Name="AnkiSettingsGroup" Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Flash24}">
+                                        <ui:CardControl x:Name="AnkiSettingsGroup" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Flash24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="自动将收藏发送到 Anki" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2111,7 +2112,7 @@
                                                              ToolTip="自动将收藏发送到 Anki" />
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Book24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Book24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="牌组名称" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2139,7 +2140,7 @@
                                             </StackPanel>
                                         </ui:CardControl>
 
-                                        <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}" Icon="{ui:SymbolIcon Apps24}">
+                                        <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}" Icon="{controls:CrispIcon Apps24}">
                                             <ui:CardExpander.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="Anki 高级选项" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2177,7 +2178,7 @@
                                 <TabItem x:Name="AboutSettingsCategory" Header="关于与更新">
                                     <StackPanel x:Name="AboutSettingsGroup">
                                         <TextBlock Text="应用信息与版本更新" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Info24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Info24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <StackPanel Orientation="Horizontal">
@@ -2226,7 +2227,7 @@
 
                                         <TextBlock Text="相关链接" Style="{StaticResource SettingsGroupHeaderStyle}" />
                                         <ui:CardAction Style="{StaticResource FluentSettingsActionStyle}"
-                                                       Icon="{ui:SymbolIcon Code24}"
+                                                       Icon="{controls:CrispIcon Code24}"
                                                        Command="{Binding OpenProjectPageCommand}"
                                                        ToolTip="在浏览器中打开项目主页">
                                             <StackPanel>
@@ -2236,7 +2237,7 @@
                                         </ui:CardAction>
 
                                         <ui:CardAction Style="{StaticResource FluentSettingsActionStyle}"
-                                                       Icon="{ui:SymbolIcon ArrowDownload24}"
+                                                       Icon="{controls:CrispIcon ArrowDownload24}"
                                                        Command="{Binding OpenLatestReleasePageCommand}"
                                                        ToolTip="在浏览器中打开最新 GitHub Release">
                                             <StackPanel>

@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:WordCatcher.App.Controls"
              xmlns:vm="clr-namespace:WordCatcher.App.ViewModels"
              xmlns:converters="clr-namespace:WordCatcher.App.Converters"
              xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
@@ -79,7 +80,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <ui:SymbolIcon Symbol="Search20" FontSize="17" Foreground="{DynamicResource TextSecondaryBrush}" Margin="2,0,10,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+                    <controls:CrispSymbolIcon Symbol="Search20" FontSize="17" Foreground="{DynamicResource TextSecondaryBrush}" Margin="2,0,10,0" VerticalAlignment="Center" IsHitTestVisible="False" />
                     <TextBox x:Name="QueryBox"
                              Style="{StaticResource LookupQueryTextBox}"
                              Grid.Column="1"
@@ -101,7 +102,7 @@
                             Foreground="{DynamicResource TextMutedBrush}"
                             ToolTip="清空（Esc）" AutomationProperties.Name="清空查词内容"
                             Visibility="{Binding Query, Converter={StaticResource StringToVis}}">
-                        <ui:SymbolIcon Symbol="Dismiss16" FontSize="14" />
+                        <controls:CrispSymbolIcon Symbol="Dismiss16" FontSize="14" />
                     </ui:Button>
                     <ui:Button Grid.Column="3"
                             Command="{Binding SearchCommand}"
@@ -214,17 +215,17 @@
                                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0">
                                     <ui:Button Command="{Binding SpeakCommand}" Style="{StaticResource LookupIconButton}"
                                             ToolTip="朗读" AutomationProperties.Name="朗读词条" Margin="0,0,6,0">
-                                        <ui:SymbolIcon Symbol="Speaker220" FontSize="16" />
+                                        <controls:CrispSymbolIcon Symbol="Speaker220" FontSize="16" />
                                     </ui:Button>
                                     <ui:Button Command="{Binding CopyResultCommand}" Style="{StaticResource LookupIconButton}"
                                             ToolTip="复制单词与释义" AutomationProperties.Name="复制词条" Margin="0,0,6,0">
-                                        <ui:SymbolIcon Symbol="Copy20" FontSize="15" />
+                                        <controls:CrispSymbolIcon Symbol="Copy20" FontSize="15" />
                                     </ui:Button>
                                     <ui:Button Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}"
                                             Style="{StaticResource PrimaryActionButton}"
                                             ToolTip="存入生词库">
                                         <StackPanel Orientation="Horizontal">
-                                            <ui:SymbolIcon Symbol="Bookmark20" FontSize="14" VerticalAlignment="Center" />
+                                            <controls:CrispSymbolIcon Symbol="Bookmark20" FontSize="14" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding SaveButtonText}" Margin="6,0,0,0" />
                                         </StackPanel>
                                     </ui:Button>
@@ -235,7 +236,7 @@
                                             Margin="6,0,0,0"
                                             ToolTip="使用 AI 结合语境生成详解">
                                         <StackPanel Orientation="Horizontal">
-                                            <ui:SymbolIcon Symbol="Sparkle20" FontSize="14" VerticalAlignment="Center" />
+                                            <controls:CrispSymbolIcon Symbol="Sparkle20" FontSize="14" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding AiButtonText}" Margin="6,0,0,0" />
                                         </StackPanel>
                                     </ui:Button>

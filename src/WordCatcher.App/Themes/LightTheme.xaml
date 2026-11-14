@@ -65,6 +65,7 @@
     <SolidColorBrush x:Key="CardBorderBrush" Color="#E4E7EB" po:Freeze="True" />
     <SolidColorBrush x:Key="CardBorderBrushDisabled" Color="#ECEEF0" po:Freeze="True" />
     <SolidColorBrush x:Key="InfoBarBorderBrush" Color="#E4E7EB" po:Freeze="True" />
+    <SolidColorBrush x:Key="InfoBarInformationalIconBrush" Color="#005FB8" po:Freeze="True" />
 
     <SolidColorBrush x:Key="AccentButtonBackground" Color="#0F766E" po:Freeze="True" />
     <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#0D665F" po:Freeze="True" />

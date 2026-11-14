@@ -563,7 +563,32 @@ public class LibraryLayoutTests
             .ToList();
 
         Assert.NotEmpty(icons);
-        foreach (var icon in icons)
+        var crispIcons = icons.OfType<WordCatcher.App.Controls.CrispSymbolIcon>().ToList();
+        Assert.True(crispIcons.Count > 0, "Expected CrispSymbolIcon instances across measured views.");
+
+        foreach (var crispIcon in crispIcons)
+        {
+            var codepoint = (uint)crispIcon.Symbol;
+            var visualParent = VisualTreeHelper.GetParent(crispIcon);
+            var parentInfo = $"{crispIcon.TemplatedParent?.GetType().Name ?? visualParent?.GetType().Name ?? crispIcon.Parent?.GetType().Name ?? "<none>"}";
+            Assert.True(codepoint <= 0xFFFF, $"CrispSymbolIcon {crispIcon.Symbol} (0x{codepoint:X}) on {parentInfo} exceeds BMP.");
+            if (visualParent is not null)
+            {
+                var path = FindVisualDescendant<System.Windows.Shapes.Path>(crispIcon);
+                Assert.True(path is not null, $"Expected rendered Path inside CrispSymbolIcon {crispIcon.Symbol} (Parent={parentInfo}).");
+                Assert.True(path!.Data is not null && !path.Data.Bounds.IsEmpty, $"Expected non-empty glyph geometry inside CrispSymbolIcon {crispIcon.Symbol}.");
+                Assert.True(path.Data!.IsFrozen, $"Expected frozen geometry on CrispSymbolIcon {crispIcon.Symbol}.");
+                Assert.False(path.UseLayoutRounding, $"Expected UseLayoutRounding=false on CrispSymbolIcon {crispIcon.Symbol} path.");
+                Assert.False(path.SnapsToDevicePixels, $"Expected SnapsToDevicePixels=false on CrispSymbolIcon {crispIcon.Symbol} path.");
+
+                var image = FindVisualDescendant<System.Windows.Controls.Image>(crispIcon);
+                Assert.True(image?.Source is System.Windows.Media.Imaging.BitmapSource { IsFrozen: true, PixelWidth: > 0, PixelHeight: > 0 },
+                    $"Expected frozen supersampled BitmapSource inside CrispSymbolIcon {crispIcon.Symbol} (Parent={parentInfo}).");
+                Assert.Equal(BitmapScalingMode.NearestNeighbor, RenderOptions.GetBitmapScalingMode(image!));
+            }
+        }
+
+        foreach (var icon in icons.OfType<Wpf.Ui.Controls.SymbolIcon>())
         {
             var codepoint = (uint)icon.Symbol;
             var visualParent = VisualTreeHelper.GetParent(icon);
@@ -581,10 +606,27 @@ public class LibraryLayoutTests
         }
     }
 
-    private static IEnumerable<Wpf.Ui.Controls.SymbolIcon> CollectSymbolIcons(DependencyObject root)
+    private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
     {
-        if (root is Wpf.Ui.Controls.SymbolIcon symbolIcon)
-            yield return symbolIcon;
+        var childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < childCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match)
+                return match;
+
+            var nested = FindVisualDescendant<T>(child);
+            if (nested is not null)
+                return nested;
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<Wpf.Ui.Controls.IconElement> CollectSymbolIcons(DependencyObject root)
+    {
+        if (root is WordCatcher.App.Controls.CrispSymbolIcon or Wpf.Ui.Controls.SymbolIcon)
+            yield return (Wpf.Ui.Controls.IconElement)root;
 
         var seen = new HashSet<DependencyObject>();
         if (root is Visual || root is System.Windows.Media.Media3D.Visual3D)
@@ -612,13 +654,18 @@ public class LibraryLayoutTests
 
         if (root is Wpf.Ui.Controls.CardControl card)
         {
-            if (card.Icon is Wpf.Ui.Controls.SymbolIcon cardIcon)
-                yield return cardIcon;
+            if (card.Icon is WordCatcher.App.Controls.CrispSymbolIcon or Wpf.Ui.Controls.SymbolIcon && seen.Add(card.Icon))
+                yield return card.Icon;
         }
         else if (root is Wpf.Ui.Controls.CardExpander expander)
         {
-            if (expander.Icon is Wpf.Ui.Controls.SymbolIcon expanderIcon)
-                yield return expanderIcon;
+            if (expander.Icon is WordCatcher.App.Controls.CrispSymbolIcon or Wpf.Ui.Controls.SymbolIcon && seen.Add(expander.Icon))
+                yield return expander.Icon;
+        }
+        else if (root is Wpf.Ui.Controls.NavigationViewItem navItem)
+        {
+            if (navItem.Icon is WordCatcher.App.Controls.CrispSymbolIcon or Wpf.Ui.Controls.SymbolIcon && seen.Add(navItem.Icon))
+                yield return navItem.Icon;
         }
         else if (root is TabControl tabControl)
         {
