@@ -165,10 +165,10 @@
 
     <Grid Margin="10">
         <!-- Keep the shadow off the text subtree so its intermediate bitmap cannot soften glyphs. -->
-        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" IsHitTestVisible="False">
-            <Border.Effect><DropShadowEffect BlurRadius="18" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
+        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="12" IsHitTestVisible="False">
+            <Border.Effect><DropShadowEffect BlurRadius="20" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
         </Border>
-        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" RenderOptions.ClearTypeHint="Enabled">
+        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="12" RenderOptions.ClearTypeHint="Enabled">
         <Grid Margin="16,14">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -209,16 +209,16 @@
                 </Border>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                     <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读" AutomationProperties.Name="朗读">
-                        <ui:SymbolIcon Symbol="Speaker224" FontSize="17" />
+                        <ui:SymbolIcon Symbol="Speaker220" FontSize="16" />
                     </ui:Button>
                     <ui:Button x:Name="OpenInMainButton" Command="{Binding OpenInMainCommand}" Style="{StaticResource IconButton}" Margin="2,0,0,0" ToolTip="在主窗口中打开" AutomationProperties.Name="在主窗口中打开" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
-                        <ui:SymbolIcon Symbol="Open24" FontSize="16" />
+                        <ui:SymbolIcon Symbol="Open20" FontSize="15" />
                     </ui:Button>
                     <ToggleButton x:Name="PinToggle" AutomationProperties.Name="固定查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="固定卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
-                        <ui:SymbolIcon Symbol="Pin24" FontSize="16" />
+                        <ui:SymbolIcon Symbol="Pin20" FontSize="15" />
                     </ToggleButton>
                     <ui:Button Command="{Binding CloseCommand}" Style="{StaticResource CloseIconButton}" ToolTip="关闭（Esc）" AutomationProperties.Name="关闭查词浮窗">
-                        <ui:SymbolIcon Symbol="Dismiss24" FontSize="15" />
+                        <ui:SymbolIcon Symbol="Dismiss20" FontSize="15" />
                     </ui:Button>
                 </StackPanel>
                 </Grid>
@@ -256,12 +256,6 @@
                                     AcceptsReturn="True"
                                     TextWrapping="Wrap"
                                     MinHeight="54"
-                                    Padding="8,6"
-                                    FontSize="13"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    Background="{DynamicResource SurfaceBrush}"
-                                    BorderBrush="{DynamicResource ControlBorderBrush}"
-                                    BorderThickness="1"
                                     Margin="0,0,0,8"
                                     ToolTip="保存前可直接修改释义内容" />
                         <!-- One compact row for EVERY part of speech, never a global Take(3). -->
@@ -279,7 +273,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}" Style="{StaticResource PopupButton}" HorizontalContentAlignment="Left" Background="{DynamicResource SubtleSurfaceBrush}" Foreground="{DynamicResource TextSecondaryBrush}" Padding="10,7" Margin="0,2,0,8" Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
+                        <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}" Style="{StaticResource PopupButton}" HorizontalContentAlignment="Left" Padding="10,7" Margin="0,2,0,8" Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
                         <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Visibility="{Binding IsDetailsExpanded, Converter={StaticResource BoolToVis}}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -442,13 +436,11 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
-                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{DynamicResource AccentBrush}" Background="Transparent" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)">
-                            <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}" /></ui:Button.Style>
-                        </ui:Button>
-                        <ui:Button Grid.Column="2" Width="32" Padding="0" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前修改释义" AutomationProperties.Name="编辑释义">
+                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Style="{StaticResource PopupButton}" Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentBrush}" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)" />
+                        <ui:Button Grid.Column="2" Style="{StaticResource UtilityIconButton}" Command="{Binding ToggleEditDefinitionCommand}" Margin="0,0,4,0" ToolTip="保存前修改释义" AutomationProperties.Name="编辑释义">
                             <ui:SymbolIcon Symbol="Edit20" FontSize="15" />
                         </ui:Button>
-                        <ui:Button Grid.Column="3" Width="32" Padding="0" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{DynamicResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" AutomationProperties.Name="复制词条">
+                        <ui:Button Grid.Column="3" Style="{StaticResource UtilityIconButton}" Command="{Binding CopyResultCommand}" ToolTip="复制单词与释义 (Ctrl+C)" AutomationProperties.Name="复制词条">
                             <ui:SymbolIcon Symbol="Copy20" FontSize="15" />
                         </ui:Button>
                     </Grid>

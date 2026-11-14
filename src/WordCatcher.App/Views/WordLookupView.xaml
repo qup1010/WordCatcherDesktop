@@ -10,7 +10,6 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:WordLookupViewModel}"
              FontFamily="{DynamicResource UiFontFamily}"
-             Background="{DynamicResource CanvasBrush}"
              UseLayoutRounding="True"
              SnapsToDevicePixels="True"
              TextOptions.TextFormattingMode="Display"
@@ -41,7 +40,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid TextElement.FontWeight="Normal" TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+    <Grid Background="{DynamicResource CanvasLayerBrush}" TextElement.FontWeight="Normal" TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -172,15 +171,18 @@
                         <TextBlock Text="查询未完成" FontWeight="Medium" Foreground="{DynamicResource DangerBrush}" />
                         <TextBlock Text="{Binding Lookup.ErrorMessage}" Foreground="{DynamicResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
                                    TextWrapping="Wrap" Margin="0,6,0,0" />
-                        <WrapPanel><ui:Button Content="重新查询" Command="{Binding Lookup.RetryCommand}" Style="{StaticResource LookupActionButton}"
-                                HorizontalAlignment="Left" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource DangerBrush}" Margin="0,12,8,0" />
-                        <ui:Button Content="改用 AI 详解" Command="{Binding Lookup.ForceAiCommand}"
-                                Visibility="{Binding Lookup.CanUseAiFallback, Converter={StaticResource BoolToVis}}"
-                                Style="{StaticResource LookupActionButton}" HorizontalAlignment="Left"
-                                Background="{DynamicResource SubtleSurfaceBrush}" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,8,0" />
-                        <ui:Button Content="改用在线快译" Command="{Binding Lookup.QuickFallbackCommand}" Visibility="{Binding Lookup.CanUseQuickFallback, Converter={StaticResource BoolToVis}}" Style="{StaticResource LookupActionButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
-                    </WrapPanel>
-                </StackPanel>
+                        <WrapPanel Margin="0,12,0,0">
+                            <ui:Button Content="重新查询" Command="{Binding Lookup.RetryCommand}" Style="{StaticResource LookupActionButton}"
+                                       HorizontalAlignment="Left" Margin="0,0,8,0" />
+                            <ui:Button Content="改用 AI 详解" Command="{Binding Lookup.ForceAiCommand}"
+                                       Visibility="{Binding Lookup.CanUseAiFallback, Converter={StaticResource BoolToVis}}"
+                                       Style="{StaticResource LookupActionButton}" HorizontalAlignment="Left"
+                                       Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" />
+                            <ui:Button Content="改用在线快译" Command="{Binding Lookup.QuickFallbackCommand}"
+                                       Visibility="{Binding Lookup.CanUseQuickFallback, Converter={StaticResource BoolToVis}}"
+                                       Style="{StaticResource LookupActionButton}" HorizontalAlignment="Left" />
+                        </WrapPanel>
+                    </StackPanel>
                 </Border>
             </StackPanel>
 
@@ -212,7 +214,7 @@
                                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0">
                                     <ui:Button Command="{Binding SpeakCommand}" Style="{StaticResource LookupIconButton}"
                                             ToolTip="朗读" AutomationProperties.Name="朗读词条" Margin="0,0,6,0">
-                                        <ui:SymbolIcon Symbol="Speaker224" FontSize="16" />
+                                        <ui:SymbolIcon Symbol="Speaker220" FontSize="16" />
                                     </ui:Button>
                                     <ui:Button Command="{Binding CopyResultCommand}" Style="{StaticResource LookupIconButton}"
                                             ToolTip="复制单词与释义" AutomationProperties.Name="复制词条" Margin="0,0,6,0">
@@ -227,14 +229,11 @@
                                         </StackPanel>
                                     </ui:Button>
                                     <ui:Button Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}"
-                                            Background="{DynamicResource SubtleSurfaceBrush}"
+                                            Style="{StaticResource LookupActionButton}"
+                                            Background="{DynamicResource AccentSubtleBrush}"
                                             Foreground="{DynamicResource AccentBrush}"
                                             Margin="6,0,0,0"
                                             ToolTip="使用 AI 结合语境生成详解">
-                                        <ui:Button.Style>
-                                            <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource LookupActionButton}">
-                                            </Style>
-                                        </ui:Button.Style>
                                         <StackPanel Orientation="Horizontal">
                                             <ui:SymbolIcon Symbol="Sparkle20" FontSize="14" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding AiButtonText}" Margin="6,0,0,0" />
@@ -271,7 +270,7 @@
                             <StackPanel Margin="0,18,0,0">
                                 <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}"
                                         Style="{StaticResource LookupActionButton}" HorizontalContentAlignment="Left"
-                                        Background="{DynamicResource SubtleSurfaceBrush}" Foreground="{DynamicResource TextSecondaryBrush}" Padding="11,8"
+                                        Padding="12,7"
                                         Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
                                 <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Visibility="{Binding IsDetailsExpanded, Converter={StaticResource BoolToVis}}">
                                     <ItemsControl.ItemTemplate>

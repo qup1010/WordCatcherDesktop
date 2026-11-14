@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media;
@@ -15,6 +16,7 @@ public static class ThemeManager
 
     private static readonly Uri LightThemeUri = new("/WordCatcher.App;component/Themes/LightTheme.xaml", UriKind.Relative);
     private static readonly Uri DarkThemeUri = new("/WordCatcher.App;component/Themes/DarkTheme.xaml", UriKind.Relative);
+    private static readonly List<WeakReference<FrameworkElement>> RegisteredElements = new();
 
     public static bool IsDarkActive { get; private set; }
 
@@ -42,32 +44,82 @@ public static class ThemeManager
             : System.Windows.Media.Color.FromRgb(15, 118, 110);
         var wpfUiTheme = isDark ? ApplicationTheme.Dark : ApplicationTheme.Light;
 
-        try
-        {
-            ApplicationThemeManager.Apply(wpfUiTheme);
-            ApplicationAccentColorManager.Apply(accent, wpfUiTheme, systemGlassColor: false, systemAccentColor: false);
-        }
-        catch (Exception)
-        {
-            // Unit tests without a full Application host may skip global WPF-UI theme registration.
-        }
-
         var app = Application.Current;
-        if (app == null) return;
-
-        ApplyDictionaryTheme(app.Resources, isDark);
-
-        foreach (Window window in app.Windows)
+        var canAccessApp = app == null || app.CheckAccess();
+        if (canAccessApp)
         {
-            ApplyDictionaryTheme(window.Resources, isDark);
-            WindowBackdrop.SetDarkMode(window, isDark);
-            SyncElementSubtree(window, isDark);
+            try
+            {
+                ApplicationThemeManager.Apply(wpfUiTheme);
+                ApplicationAccentColorManager.Apply(accent, wpfUiTheme, systemGlassColor: false, systemAccentColor: false);
+            }
+            catch (Exception)
+            {
+                // Unit tests without a full Application host may skip global WPF-UI theme registration.
+            }
+        }
+
+        if (app != null && canAccessApp)
+        {
+            ApplyDictionaryTheme(app.Resources, isDark, ensureTopLevelTheme: true);
+        }
+
+        var targets = new HashSet<FrameworkElement>();
+        if (app != null && canAccessApp)
+        {
+            foreach (Window window in app.Windows)
+            {
+                targets.Add(window);
+            }
+        }
+
+        for (var i = RegisteredElements.Count - 1; i >= 0; i--)
+        {
+            if (RegisteredElements[i].TryGetTarget(out var element))
+            {
+                targets.Add(element);
+            }
+            else
+            {
+                RegisteredElements.RemoveAt(i);
+            }
+        }
+
+        foreach (var target in targets)
+        {
+            if (!target.CheckAccess())
+                continue;
+
+            ApplyDictionaryTheme(target.Resources, isDark, ensureTopLevelTheme: true);
+            if (target is Window window)
+            {
+                WindowBackdrop.SetDarkMode(window, isDark);
+            }
+            SyncElementSubtree(target, isDark);
         }
     }
 
     public static void SyncElementResources(FrameworkElement element)
     {
-        ApplyDictionaryTheme(element.Resources, IsDarkActive);
+        RegisterElement(element);
+        ApplyDictionaryTheme(element.Resources, IsDarkActive, ensureTopLevelTheme: true);
+    }
+
+    private static void RegisterElement(FrameworkElement element)
+    {
+        for (var i = RegisteredElements.Count - 1; i >= 0; i--)
+        {
+            if (!RegisteredElements[i].TryGetTarget(out var existing))
+            {
+                RegisteredElements.RemoveAt(i);
+            }
+            else if (ReferenceEquals(existing, element))
+            {
+                return;
+            }
+        }
+
+        RegisteredElements.Add(new WeakReference<FrameworkElement>(element));
     }
 
     private static void SyncElementSubtree(DependencyObject root, bool isDark)
@@ -82,16 +134,27 @@ public static class ThemeManager
         }
     }
 
-    private static void ApplyDictionaryTheme(ResourceDictionary dictionary, bool isDark)
+    private static void ApplyDictionaryTheme(ResourceDictionary dictionary, bool isDark, bool ensureTopLevelTheme = false)
     {
         if (dictionary == null) return;
 
+        var targetTheme = isDark ? ApplicationTheme.Dark : ApplicationTheme.Light;
         var targetUri = isDark ? DarkThemeUri : LightThemeUri;
+        var hasDirectThemeDictionary = false;
         for (var i = 0; i < dictionary.MergedDictionaries.Count; i++)
         {
             var merged = dictionary.MergedDictionaries[i];
-            if (IsThemeDictionary(merged))
+            if (merged is Wpf.Ui.Markup.ThemesDictionary themesDict)
             {
+                var themeFile = isDark ? "Dark.xaml" : "Light.xaml";
+                if (themesDict.Source?.OriginalString?.EndsWith(themeFile, StringComparison.OrdinalIgnoreCase) != true)
+                {
+                    themesDict.Theme = targetTheme;
+                }
+            }
+            else if (IsThemeDictionary(merged))
+            {
+                hasDirectThemeDictionary = true;
                 if (!string.Equals(merged.Source?.OriginalString, targetUri.OriginalString, StringComparison.OrdinalIgnoreCase))
                 {
                     dictionary.MergedDictionaries[i] = new ResourceDictionary { Source = targetUri };
@@ -101,6 +164,11 @@ public static class ThemeManager
             {
                 ApplyDictionaryTheme(merged, isDark);
             }
+        }
+
+        if (ensureTopLevelTheme && !hasDirectThemeDictionary)
+        {
+            dictionary.MergedDictionaries.Add(new ResourceDictionary { Source = targetUri });
         }
     }
 

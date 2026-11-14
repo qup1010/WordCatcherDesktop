@@ -54,7 +54,8 @@ public class LibraryLayoutTests
                 root.Arrange(new Rect(0, 0, 900, 700));
                 root.UpdateLayout();
                 var scroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
-                var startupSwitch = (CheckBox)window.FindName("StartWithWindowsSwitch");
+                var categoryTabs = (TabControl)window.FindName("SettingsCategoryTabs");
+                var startupSwitch = (Wpf.Ui.Controls.ToggleSwitch)window.FindName("StartWithWindowsSwitch");
                 startupSwitch.IsChecked = true;
                 Assert.True(startupRegistration.Service.IsEnabled);
                 ((FrameworkElement)window.FindName("InteractionSettingsGroup")).BringIntoView();
@@ -94,9 +95,15 @@ public class LibraryLayoutTests
                 settings.DiscardChangesCommand.ExecuteAsync(null).GetAwaiter().GetResult();
                 root.UpdateLayout();
                 Assert.Equal(Visibility.Collapsed, pendingBar.Visibility);
+
+                ((RadioButton)window.FindName("SyncCategoryTab")).IsChecked = true;
+                root.UpdateLayout();
                 scroll.ScrollToEnd();
                 root.UpdateLayout();
                 Assert.True(scroll.ScrollableHeight > 0);
+                ((RadioButton)window.FindName("GeneralCategoryTab")).IsChecked = true;
+                root.UpdateLayout();
+
                 foreach (var page in new[] { "LibraryTab", "LookupTab", "SyncTab", "SettingsTab" })
                 {
                     ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName(page);
@@ -113,38 +120,47 @@ public class LibraryLayoutTests
                 Assert.Equal(Wpf.Ui.Controls.NavigationViewPaneDisplayMode.LeftMinimal,
                     ((Wpf.Ui.Controls.NavigationView)window.FindName("AppNavigation")).PaneDisplayMode);
                 RenderState(root, "wordcatcher-settings-compact.png", 640, 480);
-                foreach (var section in new[] { "LookupSettingsGroup", "AiSettingsGroup", "WebDavSettingsGroup", "AnkiSettingsGroup", "InteractionSettingsGroup", "AboutSettingsGroup" })
+
+                var categories = new[]
                 {
-                    ((FrameworkElement)window.FindName(section)).BringIntoView();
+                    ("GeneralCategoryTab", "GeneralSettingsCategory", 0),
+                    ("LookupCategoryTab", "LookupSettingsCategory", 1),
+                    ("AiCategoryTab", "AiSettingsCategory", 2),
+                    ("SyncCategoryTab", "SyncSettingsCategory", 3),
+                    ("AboutCategoryTab", "AboutSettingsCategory", 4)
+                };
+                foreach (var (tabBtnName, categoryName, expectedIndex) in categories)
+                {
+                    ((RadioButton)window.FindName(tabBtnName)).IsChecked = true;
+                    Assert.Equal(expectedIndex, categoryTabs.SelectedIndex);
                     root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     root.UpdateLayout();
-                    RenderState(root, $"wordcatcher-settings-{section}-640.png", 640, 480);
-                    var group = (FrameworkElement)window.FindName(section);
-                    SetExpanders(group, true);
-                    var frame = new System.Windows.Threading.DispatcherFrame();
-                    var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-                    timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
-                    timer.Start();
-                    System.Windows.Threading.Dispatcher.PushFrame(frame);
-                    root.UpdateLayout();
-                    group.BringIntoView(new Rect(0, 0, 1, 1));
+                    RenderState(root, $"wordcatcher-settings-{categoryName}-640.png", 640, 480);
+
+                    var category = (TabItem)window.FindName(categoryName);
+                    if (category.Content is DependencyObject contentRoot)
+                        SetExpanders(contentRoot, true);
                     root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     root.UpdateLayout();
-                    RenderState(root, $"wordcatcher-settings-{section}-expanded-640.png", 640, 480);
-                    group.BringIntoView(new Rect(0, Math.Max(0, group.ActualHeight - 1), 1, 1));
-                    root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    RenderState(root, $"wordcatcher-settings-{categoryName}-expanded-640.png", 640, 480);
+                    scroll.ScrollToEnd();
                     root.UpdateLayout();
-                    RenderState(root, $"wordcatcher-settings-{section}-bottom-640.png", 640, 480);
-                    SetExpanders(group, false);
+                    RenderState(root, $"wordcatcher-settings-{categoryName}-bottom-640.png", 640, 480);
+                    if (category.Content is DependencyObject collapseRoot)
+                        SetExpanders(collapseRoot, false);
+                    scroll.ScrollToTop();
                 }
 
-                var dictionaryPopup = (System.Windows.Controls.Primitives.Popup)window.FindName("DictionaryMorePopup");
-                var dictionaryPanel = (FrameworkElement)dictionaryPopup.Child;
-                dictionaryPanel.DataContext = settings;
-                dictionaryPanel.Measure(new Size(360, double.PositiveInfinity));
-                dictionaryPanel.Arrange(new Rect(0, 0, 360, dictionaryPanel.DesiredSize.Height));
-                dictionaryPanel.UpdateLayout();
-                RenderState(dictionaryPanel, "wordcatcher-dictionary-options.png", 360, (int)Math.Ceiling(dictionaryPanel.ActualHeight));
+                ((RadioButton)window.FindName("LookupCategoryTab")).IsChecked = true;
+                var dictExpander = (Expander)window.FindName("DictionaryManagementExpander");
+                dictExpander.IsExpanded = true;
+                root.UpdateLayout();
+                RenderState(dictExpander, "wordcatcher-dictionary-options.png",
+                    Math.Max(360, (int)Math.Ceiling(dictExpander.ActualWidth)),
+                    Math.Max(120, (int)Math.Ceiling(dictExpander.ActualHeight)));
+                dictExpander.IsExpanded = false;
+
+                ((RadioButton)window.FindName("GeneralCategoryTab")).IsChecked = true;
                 settings.RecordHotkeyCommand.Execute(null);
                 Assert.True(settings.IsRecordingHotkey);
                 ((FrameworkElement)window.FindName("InteractionSettingsGroup")).BringIntoView();
@@ -159,10 +175,29 @@ public class LibraryLayoutTests
                 root.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 root.UpdateLayout();
                 Assert.Equal(208, ((ColumnDefinition)window.FindName("NavigationColumn")).Width.Value);
+                RenderState(root, "wordcatcher-settings-light-1180.png", 1180, 700);
+                ((RadioButton)window.FindName("SyncCategoryTab")).IsChecked = true;
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-settings-sync-light-1180.png", 1180, 700);
+
+                ThemeManager.ApplyTheme(ThemeManager.DarkMode);
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-settings-sync-dark-1180.png", 1180, 700);
+                ((RadioButton)window.FindName("GeneralCategoryTab")).IsChecked = true;
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-settings-dark-1180.png", 1180, 700);
+                ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName("LibraryTab");
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-library-dark-1180.png", 1180, 700);
+                ThemeManager.ApplyTheme(ThemeManager.LightMode);
+
                 window.ShowSettings();
                 window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 Assert.True(window.IsVisible);
                 window.Hide();
+
+                var lookupWindow = new LookupWindow(lookup);
+                AssertAllSymbolIconsClean(window, lookupWindow, requireIdealAntiAliasing: true, renderMorePopup: true);
             }
             catch (Exception ex) { failure = ex; }
             finally { application?.Shutdown(); }
@@ -311,6 +346,8 @@ public class LibraryLayoutTests
                     if (page == "SettingsTab")
                     {
                         var settingsScroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
+                        ((RadioButton)window.FindName("SyncCategoryTab")).IsChecked = true;
+                        root.UpdateLayout();
                         settingsScroll.ScrollToEnd();
                         root.UpdateLayout();
                         Assert.True(settingsScroll.ScrollableHeight > 0);
@@ -321,6 +358,7 @@ public class LibraryLayoutTests
                         using var bottomFile = File.Create(Path.Combine(Path.GetTempPath(), $"wordcatcher-SettingsBottom-{width}.png"));
                         bottomEncoder.Save(bottomFile);
                         settingsScroll.ScrollToTop();
+                        ((RadioButton)window.FindName("GeneralCategoryTab")).IsChecked = true;
                         root.UpdateLayout();
                     }
                 }
@@ -415,6 +453,7 @@ public class LibraryLayoutTests
                         Assert.Equal(Visibility.Visible, openSettings.Visibility);
                         openSettings.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         Assert.Same(window.FindName("SettingsTab"), ((TabControl)window.FindName("MainTabs")).SelectedItem);
+                        Assert.Equal(3, ((TabControl)window.FindName("SettingsCategoryTabs")).SelectedIndex);
                     }
                 }
             }
@@ -424,6 +463,174 @@ public class LibraryLayoutTests
         thread.Start();
         thread.Join();
         Assert.Null(failure);
+    }
+
+    [Fact]
+    public void AllAppSymbolIconsUseBmpCodepointsAndIdealAntiAliasing()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var repo = DispatchProxy.Create<IWordRepository, LibraryViewModelTests.RepositoryProxy>();
+                var vm = new LibraryViewModel(repo, new WordCollectionEvents());
+                var (settingsVm, settingsService) = InteractionTests.Settings();
+                settingsVm.InitializeAsync().GetAwaiter().GetResult();
+                var syncRepo = DispatchProxy.Create<IWordRepository, InteractionTests.Proxy>();
+                var syncVm = new SyncViewModel(syncRepo, DispatchProxy.Create<IAnkiSyncQueue, InteractionTests.Proxy>(), (ISettingsService)settingsService);
+                var (lookupVm, _, _, _) = LookupViewModelTests.Create();
+                lookupVm.StartLookupAsync(LookupViewModelTests.Capture()).GetAwaiter().GetResult();
+
+                var libraryWindow = new LibraryWindow(vm, syncVm, settingsVm, new WordLookupViewModel(lookupVm));
+                var lookupWindow = new LookupWindow(lookupVm);
+                // When run outside Application.Current (already shut down by SettingsRendersWithActualApplicationResources),
+                // verify BMP safety everywhere and Ideal anti-aliasing on all non-nested-template icons.
+                AssertAllSymbolIconsClean(libraryWindow, lookupWindow, requireIdealAntiAliasing: false, renderMorePopup: true);
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(30)));
+        Assert.Null(failure);
+    }
+
+    private static void AssertAllSymbolIconsClean(
+        LibraryWindow libraryWindow,
+        LookupWindow lookupWindow,
+        bool requireIdealAntiAliasing,
+        bool renderMorePopup)
+    {
+        var libraryRoot = (FrameworkElement)libraryWindow.Content;
+        var mainTabs = (TabControl)libraryWindow.FindName("MainTabs");
+        var previousTab = mainTabs.SelectedItem;
+        var previousCategory = ((RadioButton)libraryWindow.FindName("GeneralCategoryTab")).IsChecked == true
+            ? "GeneralCategoryTab"
+            : ((RadioButton)libraryWindow.FindName("LookupCategoryTab")).IsChecked == true
+                ? "LookupCategoryTab"
+                : ((RadioButton)libraryWindow.FindName("AiCategoryTab")).IsChecked == true
+                    ? "AiCategoryTab"
+                    : ((RadioButton)libraryWindow.FindName("SyncCategoryTab")).IsChecked == true
+                        ? "SyncCategoryTab"
+                        : "AboutCategoryTab";
+
+        foreach (var tabName in new[] { "LookupTab", "SyncTab", "SettingsTab", "LibraryTab" })
+        {
+            mainTabs.SelectedItem = libraryWindow.FindName(tabName);
+            if (tabName == "SettingsTab")
+            {
+                foreach (var catName in new[] { "GeneralCategoryTab", "LookupCategoryTab", "AiCategoryTab", "SyncCategoryTab", "AboutCategoryTab" })
+                {
+                    ((RadioButton)libraryWindow.FindName(catName)).IsChecked = true;
+                    libraryRoot.Measure(new Size(1180, 700));
+                    libraryRoot.Arrange(new Rect(0, 0, 1180, 700));
+                    libraryRoot.UpdateLayout();
+                }
+                ((RadioButton)libraryWindow.FindName(previousCategory)).IsChecked = true;
+            }
+            libraryRoot.Measure(new Size(1180, 700));
+            libraryRoot.Arrange(new Rect(0, 0, 1180, 700));
+            libraryRoot.UpdateLayout();
+        }
+        mainTabs.SelectedItem = previousTab;
+
+        var importButton = (FrameworkElement)libraryWindow.FindName("ImportBackupButton");
+        var popupContent = Assert.IsType<Border>(((FrameworkElement)importButton.Parent).Parent);
+        popupContent.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("/WordCatcher.App;component/Themes/DesignSystem.xaml", UriKind.Relative)
+        });
+        popupContent.Measure(new Size(300, 300));
+        popupContent.Arrange(new Rect(0, 0, popupContent.DesiredSize.Width, popupContent.DesiredSize.Height));
+        popupContent.UpdateLayout();
+        if (renderMorePopup)
+        {
+            RenderState(popupContent, "wordcatcher-library-more-popup.png",
+                (int)Math.Ceiling(popupContent.DesiredSize.Width),
+                (int)Math.Ceiling(popupContent.DesiredSize.Height));
+        }
+
+        var lookupRoot = (FrameworkElement)lookupWindow.Content;
+        lookupRoot.Measure(new Size(420, double.PositiveInfinity));
+        lookupRoot.Arrange(new Rect(0, 0, 420, lookupRoot.DesiredSize.Height));
+        lookupRoot.UpdateLayout();
+
+        var icons = CollectSymbolIcons(libraryRoot)
+            .Concat(CollectSymbolIcons(popupContent))
+            .Concat(CollectSymbolIcons(lookupRoot))
+            .Distinct()
+            .ToList();
+
+        Assert.NotEmpty(icons);
+        foreach (var icon in icons)
+        {
+            var codepoint = (uint)icon.Symbol;
+            var visualParent = VisualTreeHelper.GetParent(icon);
+            var parentInfo = $"{icon.TemplatedParent?.GetType().Name ?? visualParent?.GetType().Name ?? icon.Parent?.GetType().Name ?? "<none>"}";
+            Assert.True(codepoint <= 0xFFFF, $"Symbol {icon.Symbol} (0x{codepoint:X}) on {parentInfo} exceeds BMP and truncates in WPF UTF-16 rendering.");
+            if ((requireIdealAntiAliasing && visualParent is not null) || (visualParent is not null && icon.TemplatedParent is null))
+            {
+                var formatting = TextOptions.GetTextFormattingMode(icon);
+                var rendering = TextOptions.GetTextRenderingMode(icon);
+                Assert.True(formatting == TextFormattingMode.Ideal,
+                    $"Expected Ideal TextFormattingMode on {icon.Symbol} (Name='{icon.Name}', Parent={parentInfo}), actual={formatting}.");
+                Assert.True(rendering == TextRenderingMode.Grayscale,
+                    $"Expected Grayscale TextRenderingMode on {icon.Symbol} (Name='{icon.Name}', Parent={parentInfo}), actual={rendering}.");
+            }
+        }
+    }
+
+    private static IEnumerable<Wpf.Ui.Controls.SymbolIcon> CollectSymbolIcons(DependencyObject root)
+    {
+        if (root is Wpf.Ui.Controls.SymbolIcon symbolIcon)
+            yield return symbolIcon;
+
+        var seen = new HashSet<DependencyObject>();
+        if (root is Visual || root is System.Windows.Media.Media3D.Visual3D)
+        {
+            var childCount = VisualTreeHelper.GetChildrenCount(root);
+            for (var i = 0; i < childCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (seen.Add(child))
+                {
+                    foreach (var nested in CollectSymbolIcons(child))
+                        yield return nested;
+                }
+            }
+        }
+
+        foreach (var logicalChild in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (seen.Add(logicalChild))
+            {
+                foreach (var nested in CollectSymbolIcons(logicalChild))
+                    yield return nested;
+            }
+        }
+
+        if (root is Wpf.Ui.Controls.CardControl card)
+        {
+            if (card.Icon is Wpf.Ui.Controls.SymbolIcon cardIcon)
+                yield return cardIcon;
+        }
+        else if (root is Wpf.Ui.Controls.CardExpander expander)
+        {
+            if (expander.Icon is Wpf.Ui.Controls.SymbolIcon expanderIcon)
+                yield return expanderIcon;
+        }
+        else if (root is TabControl tabControl)
+        {
+            foreach (var tab in tabControl.Items.OfType<DependencyObject>())
+            {
+                if (seen.Add(tab))
+                {
+                    foreach (var nested in CollectSymbolIcons(tab))
+                        yield return nested;
+                }
+            }
+        }
     }
 
     private static void AssertNavigationAccent(Wpf.Ui.Controls.NavigationViewItem item)
@@ -436,6 +643,13 @@ public class LibraryLayoutTests
     private static void RenderState(FrameworkElement root, string fileName, int width, int height)
     {
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        if (width >= 600 && root.TryFindResource("CanvasBrush") is Brush canvasBrush)
+        {
+            var bgVisual = new DrawingVisual();
+            using (var context = bgVisual.RenderOpen())
+                context.DrawRectangle(canvasBrush, null, new Rect(0, 0, width, height));
+            bitmap.Render(bgVisual);
+        }
         bitmap.Render(root);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));

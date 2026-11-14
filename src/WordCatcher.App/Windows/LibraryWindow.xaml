@@ -90,8 +90,8 @@
         <Style x:Key="WindowCloseButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource WindowCaptionButton}">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
-                    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+                    <Setter Property="Background" Value="#C42B1C" />
+                    <Setter Property="Foreground" Value="#FFFFFF" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -222,11 +222,11 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <ItemsPresenter Grid.Row="0" Visibility="Collapsed" />
-                            <Border Grid.Row="1" Background="{DynamicResource CanvasBrush}">
+                            <Border Grid.Row="1" Background="Transparent" ClipToBounds="True">
                                 <ContentPresenter ContentSource="SelectedContent"
                                                   ContentTemplate="{TemplateBinding SelectedContentTemplate}"
                                                   ContentStringFormat="{TemplateBinding SelectedContentStringFormat}"
-                                                  Margin="24,20,24,22" />
+                                                  Margin="24,20,24,20" />
                             </Border>
                         </Grid>
                     </ControlTemplate>
@@ -234,96 +234,24 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SettingsSectionStyle" TargetType="GroupBox">
-            <Setter Property="Padding" Value="0,0,0,18" />
-            <Setter Property="Margin" Value="0,0,0,8" />
+        <Style x:Key="SettingsCategoryHostTabControl" TargetType="TabControl">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="GroupBox">
-                        <Border Padding="{TemplateBinding Padding}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <ContentPresenter ContentSource="Header"
-                                                  RecognizesAccessKey="True"
-                                                  Margin="0,0,0,12"
-                                                  TextElement.FontSize="{StaticResource BodyFontSize}"
-                                                  TextElement.FontWeight="Medium"
-                                                  TextElement.Foreground="{DynamicResource TextPrimaryBrush}" />
-                                <ContentPresenter Grid.Row="1"
-                                                  Content="{TemplateBinding Content}"
-                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                  ContentStringFormat="{TemplateBinding ContentStringFormat}" />
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SettingsSwitchCheckBoxStyle" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <Grid x:Name="SwitchRoot" MinHeight="26" Background="Transparent">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Border x:Name="SwitchTrack" Width="36" Height="20"
-                                    HorizontalAlignment="Left" VerticalAlignment="Center"
-                                    Background="{DynamicResource SubtleSurfaceBrush}"
-                                    BorderBrush="{DynamicResource ControlBorderBrush}"
-                                    BorderThickness="1" CornerRadius="10">
-                                <Ellipse x:Name="SwitchThumb" Width="14" Height="14" Margin="2"
-                                         HorizontalAlignment="Left" VerticalAlignment="Center"
-                                         Fill="{DynamicResource TextSecondaryBrush}" />
-                            </Border>
-                            <ContentPresenter Grid.Column="1" Margin="10,0,0,0"
-                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center"
-                                              Content="{TemplateBinding Content}"
-                                              ContentTemplate="{TemplateBinding ContentTemplate}"
-                                              RecognizesAccessKey="True"
-                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="0" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <ItemsPresenter Grid.Row="0" Visibility="Collapsed" />
+                            <ContentPresenter Grid.Row="1"
+                                              ContentSource="SelectedContent"
+                                              ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                              ContentStringFormat="{TemplateBinding SelectedContentStringFormat}" />
                         </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="SwitchTrack" Property="Background" Value="{DynamicResource AccentBrush}" />
-                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment" Value="Right" />
-                                <Setter TargetName="SwitchThumb" Property="Fill" Value="{DynamicResource OnAccentBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsMouseOver" Value="True" />
-                                    <Condition Property="IsChecked" Value="False" />
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="SwitchTrack" Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
-                                <Setter TargetName="SwitchThumb" Property="Fill" Value="{DynamicResource TextPrimaryBrush}" />
-                            </MultiTrigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="SwitchTrack" Property="BorderThickness" Value="2" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="SwitchRoot" Property="Opacity" Value="0.45" />
-                                <Setter Property="Cursor" Value="Arrow" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -337,7 +265,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border x:Name="TitleBar" Grid.Row="0" Panel.ZIndex="10" Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+        <Border x:Name="TitleBar" Grid.Row="0" Panel.ZIndex="10" Background="{DynamicResource TitleBarGlassBrush}" BorderThickness="0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="BrandColumn" Width="208" />
@@ -346,22 +274,25 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
                     <Image Source="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.png"
-                           Width="22" Height="22" Stretch="Uniform" />
+                           Width="20" Height="20" Stretch="Uniform" />
                     <TextBlock x:Name="BrandText" Text="Word Catcher" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
                 </StackPanel>
                 <StackPanel x:Name="CaptionButtonsPanel" Grid.Column="2" Panel.ZIndex="20" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                     <ui:Button x:Name="MinimizeButton" Style="{StaticResource WindowCaptionButton}"
                             Click="MinimizeButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化">
-                        <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" />
+                        <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                                   TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale" />
                     </ui:Button>
                     <ui:Button x:Name="MaximizeButton" Style="{StaticResource WindowCaptionButton}"
                             Click="MaximizeButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化">
-                        <TextBlock x:Name="MaximizeGlyph" Text="&#xE922;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" />
+                        <TextBlock x:Name="MaximizeGlyph" Text="&#xE922;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                                   TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale" />
                     </ui:Button>
                     <ui:Button x:Name="CloseButton" Style="{StaticResource WindowCloseButton}"
                             Click="CloseButton_Click" ToolTip="关闭到托盘" AutomationProperties.Name="关闭到托盘">
-                        <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" />
+                        <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                                   TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale" />
                     </ui:Button>
                 </StackPanel>
             </Grid>
@@ -373,8 +304,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="{DynamicResource SubtleSurfaceBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+            <Border x:Name="NavigationRailBorder" Grid.Column="0" Background="Transparent" BorderThickness="0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -386,7 +316,7 @@
                                        IsPaneToggleVisible="False"
                                        IsBackButtonVisible="Collapsed"
                                        HeaderVisibility="Collapsed"
-                                       IsFooterSeparatorVisible="False"
+                                       IsFooterSeparatorVisible="True"
                                        OpenPaneLength="208"
                                        CompactPaneLength="64"
                                        FrameMargin="0">
@@ -403,31 +333,49 @@
                                                    Icon="{ui:SymbolIcon ArrowSync24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
+                        </ui:NavigationView.MenuItems>
+                        <ui:NavigationView.FooterMenuItems>
                             <ui:NavigationViewItem x:Name="SettingsNavigationItem" ToolTip="设置（Ctrl+4）" Content="设置" Tag="Settings"
                                                    Icon="{ui:SymbolIcon Settings24}"
                                                    Height="40" Margin="8,2" FontSize="13"
                                                    Click="NavigationItem_Click" />
-                        </ui:NavigationView.MenuItems>
+                        </ui:NavigationView.FooterMenuItems>
                     </ui:NavigationView>
 
-                    <Border x:Name="NavigationHint" Grid.Row="1" Background="Transparent"
+                    <Border x:Name="NavigationHint" Grid.Row="1" Background="{DynamicResource SubtleSurfaceBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="7" Margin="12,12,12,16" Padding="12,10">
-                        <StackPanel>
-                            <TextBlock Text="快速取词" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                            <Border Background="{DynamicResource SubtleSurfaceBrush}"
+                            CornerRadius="6" Margin="12,4,12,14" Padding="10,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="取词" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" />
+                            <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    CornerRadius="4" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="7,2">
+                                    CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding AppliedHotkey}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                           FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" />
+                                           FontSize="11" FontWeight="SemiBold" />
                             </Border>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </Border>
 
-            <TabControl x:Name="MainTabs" Grid.Column="1"
-                        Style="{StaticResource PageHostTabControl}">
+            <Border x:Name="MainWorkspaceSurface"
+                    Grid.Column="1"
+                    Background="{DynamicResource CanvasLayerBrush}"
+                    BorderBrush="{DynamicResource SurfaceStrokeBrush}"
+                    BorderThickness="1,1,0,0"
+                    CornerRadius="8,0,0,0"
+                    ClipToBounds="True">
+                <TabControl x:Name="MainTabs"
+                            Style="{StaticResource PageHostTabControl}"
+                            RenderTransformOrigin="0.5,0.5">
+                    <TabControl.RenderTransform>
+                        <TranslateTransform x:Name="MainTabsTransform" Y="0" />
+                    </TabControl.RenderTransform>
 
             <!-- ================= TAB 1: 词库 ================= -->
             <TabItem Style="{StaticResource TabItemStyle}" x:Name="LibraryTab">
@@ -454,32 +402,28 @@
                                        Style="{StaticResource PageSubtitleStyle}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <ui:Button x:Name="StartReviewButton" Command="{Binding StartReviewCommand}" ToolTip="对当前列表中的词条与语境进行卡片自测复习"
+                            <ui:Button x:Name="StartReviewButton" Command="{Binding StartReviewCommand}"
+                                    Style="{StaticResource SecondaryActionButton}"
+                                    ToolTip="对当前列表中的词条与语境进行卡片自测复习"
                                     Margin="0,0,8,0"
-                                    Padding="12,6"
+                                    MinHeight="34"
+                                    Padding="12,5"
                                     Background="{DynamicResource AccentSubtleBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
                                     Foreground="{DynamicResource AccentBrush}"
-                                    FontSize="{StaticResource CaptionFontSize}"
-                                    Cursor="Hand">
+                                    FontSize="{StaticResource CaptionFontSize}">
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="Flash20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock Text="卡片复习" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 </StackPanel>
                             </ui:Button>
-                            <ui:Button x:Name="SyncWebDavButton" Command="{Binding SyncWebDavCommand}" ToolTip="与 WebDAV 云端合并同步词库"
+                            <ui:Button x:Name="SyncWebDavButton" Command="{Binding SyncWebDavCommand}"
+                                    ToolTip="与 WebDAV 云端合并同步词库"
                                     Margin="0,0,8,0"
-                                    Padding="12,6"
-                                    Background="{DynamicResource SurfaceBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                    FontSize="{StaticResource CaptionFontSize}"
-                                    Cursor="Hand">
+                                    Padding="12,5"
+                                    FontSize="{StaticResource CaptionFontSize}">
                                 <ui:Button.Style>
-                                    <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
-                                        <Setter Property="MinHeight" Value="36" />
+                                    <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}">
+                                        <Setter Property="MinHeight" Value="34" />
                                         <Setter Property="IsEnabled" Value="{Binding IsSyncingWebDav, Converter={StaticResource InverseBool}}" />
                                     </Style>
                                 </ui:Button.Style>
@@ -499,9 +443,9 @@
                                     </TextBlock>
                                 </StackPanel>
                             </ui:Button>
-                            <ToggleButton x:Name="LibraryMoreButton" Margin="0,0,10,0" Padding="10,6" MinHeight="36"
+                            <ToggleButton x:Name="LibraryMoreButton" Margin="0,0,10,0" Padding="9,5" MinHeight="34"
                                           Background="{DynamicResource SurfaceBrush}"
-                                          BorderBrush="{DynamicResource BorderBrush}"
+                                          BorderBrush="{DynamicResource ControlBorderBrush}"
                                           BorderThickness="1"
                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                           FontSize="{StaticResource CaptionFontSize}"
@@ -513,7 +457,9 @@
                                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                                 CornerRadius="6" Padding="{TemplateBinding Padding}">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <ui:SymbolIcon Symbol="MoreHorizontal20" FontSize="15" />
+                                                <ui:SymbolIcon Symbol="MoreHorizontal20" FontSize="15"
+                                                               TextOptions.TextFormattingMode="Ideal"
+                                                               TextOptions.TextRenderingMode="Grayscale" />
                                             </StackPanel>
                                         </Border>
                                         <ControlTemplate.Triggers>
@@ -542,7 +488,7 @@
                                                 Padding="10,7" Foreground="{DynamicResource TextPrimaryBrush}"
                                                 IsEnabled="{Binding IsExporting, Converter={StaticResource InverseBool}}">
                                             <StackPanel Orientation="Horizontal">
-                                                <ui:SymbolIcon Symbol="ArrowImport20" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <ui:SymbolIcon Symbol="ArrowDownload20" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
                                                 <TextBlock Text="导入备份" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </ui:Button>
@@ -552,7 +498,7 @@
                                                 Padding="10,7" Foreground="{DynamicResource TextPrimaryBrush}"
                                                 IsEnabled="{Binding IsExporting, Converter={StaticResource InverseBool}}">
                                             <StackPanel Orientation="Horizontal">
-                                                <ui:SymbolIcon Symbol="ArrowExport20" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <ui:SymbolIcon Symbol="ArrowUpload20" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
                                                 <TextBlock Text="导出备份" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </ui:Button>
@@ -1420,7 +1366,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid Margin="0,0,0,20">
+                    <Grid Margin="0,0,0,18">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -1431,8 +1377,7 @@
                                        Style="{StaticResource PageSubtitleStyle}" />
                         </StackPanel>
                         <ui:Button Grid.Column="1" Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryActionButton}" VerticalAlignment="Center"
-                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                ToolTip="刷新同步状态" AutomationProperties.Name="刷新同步状态">
+                                   ToolTip="刷新同步状态" AutomationProperties.Name="刷新同步状态">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="ArrowSync20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
                                 <TextBlock Text="刷新" VerticalAlignment="Center" />
@@ -1440,120 +1385,145 @@
                         </ui:Button>
                     </Grid>
 
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,8">
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,0,8">
                         <StackPanel HorizontalAlignment="Stretch">
-                            <Border x:Name="WebDavSyncCard" Background="Transparent" Padding="0,8,0,24" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,24">
-                                <StackPanel>
-                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="词库同步" FontSize="16" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding WebDavTitle}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    </Grid>
-                                    <TextBlock Text="{Binding WebDavDescription}" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding WebDavLastSuccess}" Visibility="{Binding WebDavLastSuccess, Converter={StaticResource StringToVis}}" FontSize="12" Margin="0,6,0,0" />
-                                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0" Visibility="{Binding IsWebDavBusy, Converter={StaticResource BoolToVis}}" />
-                                    <WrapPanel Margin="0,12,0,0">
-                                        <ui:Button Content="立即同步" Visibility="{Binding IsWebDavEnabled, Converter={StaticResource BoolToVis}}" Command="{Binding RetryWebDavCommand}" Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,0" />
-                                        <ui:Button Content="设置" ToolTip="WebDAV 词库同步设置" Click="OpenWebDavSettings_Click" Style="{StaticResource QuietActionButton}" />
-                                    </WrapPanel>
-                                    <TextBlock Text="{Binding WebDavActionMessage}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding WebDavActionMessage, Converter={StaticResource StringToVis}}" />
-                                    <Expander Header="错误详情" Margin="0,8,0,0" Visibility="{Binding WebDavError, Converter={StaticResource StringToVis}}">
-                                        <TextBox Text="{Binding WebDavError, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" />
-                                    </Expander>
-                                    <StackPanel Margin="0,16,0,0" Visibility="{Binding HasWebDavConflict, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="对比两端内容，选择要保留的版本。选择会覆盖这条语境及词条信息，也会采用该版本的删除状态。多个冲突需逐条处理。" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding ConflictRecordId, StringFormat=记录：{0}}" FontSize="11" Margin="0,4,0,8" TextWrapping="Wrap" />
+                            <Border x:Name="WebDavSyncCard" Style="{StaticResource SurfaceCardStyle}" Padding="20,18" Margin="0,0,0,14">
+                                    <StackPanel>
                                         <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="本地版本" FontWeight="Medium" />
-                                                <TextBox Text="{Binding LocalConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="280" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
-                                                <ui:Button Content="保留本地并继续同步" Command="{Binding KeepLocalConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="云端版本" FontWeight="Medium" />
-                                                <TextBox Text="{Binding RemoteConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="280" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
-                                                <ui:Button Content="保留云端并继续同步" Command="{Binding KeepRemoteConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                            <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <TextBlock Text="Anki 卡片同步" FontSize="16" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                <TextBlock Grid.Column="1" Text="{Binding AnkiStatusLabel}" VerticalAlignment="Center">
-                                    <TextBlock.Style><Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                                        <Style.Triggers><DataTrigger Binding="{Binding HasActionableIssues}" Value="True"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}" /></DataTrigger></Style.Triggers>
-                                    </Style></TextBlock.Style>
-                                </TextBlock>
-                            </Grid>
-                            <TextBlock Text="{Binding StateDescription}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <WrapPanel Margin="0,12,0,0">
-                                <ui:Button x:Name="OpenAnkiSettingsButton" Content="设置" Click="OpenAnkiSettings_Click" Style="{StaticResource QuietActionButton}" ToolTip="Anki 卡片同步设置" />
-                                <ui:Button Content="重试同步" Command="{Binding RetryAllCommand}" Style="{StaticResource SecondaryActionButton}" Margin="8,0,0,0" Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}" />
-                            </WrapPanel>
-                            <TextBlock Text="{Binding AnkiSummary}" Visibility="{Binding AnkiSummary, Converter={StaticResource StringToVis}}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,12,0,0" />
-
-                            <StackPanel Margin="0,24,0,0" Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="需要处理的同步项" FontSize="{StaticResource BodyFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
-                                <ItemsControl ItemsSource="{Binding IssueJobs}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,12">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Margin="0,0,16,0">
-                                                        <TextBlock Text="{Binding Word.DisplayWord, TargetNullValue=未知单词}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                        <TextBlock Text="{Binding LastError}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1" Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}"
-                                                               FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Top" />
-                                                </Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ui:SymbolIcon Symbol="CloudSwap24" FontSize="22" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="WebDAV 词库同步" FontSize="16" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Border Grid.Column="2" Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding WebDavTitle}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <TextBlock Text="{Binding MoreIssuesCount, StringFormat=另有 {0} 项未显示；重试同步仍会处理全部}"
-                                           FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,10,0,0"
-                                           Visibility="{Binding HasMoreIssues, Converter={StaticResource BoolToVis}}" />
-                            </StackPanel>
-
-                            <Expander x:Name="SyncHistoryExpander" Header="最近的 Anki 同步记录" Margin="0,24,0,0"
-                                      Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}">
-                                <Expander.Template>
-                                    <ControlTemplate TargetType="Expander">
-                                        <StackPanel>
-                                            <ToggleButton IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Content="{TemplateBinding Header}" HorizontalAlignment="Left" Style="{StaticResource QuietDisclosureToggle}" />
-                                            <ContentPresenter Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}" Margin="0,8,0,0" />
-                                        </StackPanel>
-                                    </ControlTemplate>
-                                </Expander.Template>
-                                <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ItemsControl ItemsSource="{Binding RecentJobs}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,9">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="105" />
-                                                        <ColumnDefinition Width="125" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding Word.DisplayWord, TargetNullValue=未知单词}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                    <TextBlock Grid.Column="2" Text="{Binding UpdatedAtUtc, Converter={StaticResource LocalTime}}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding WebDavDescription}" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding WebDavLastSuccess}" Visibility="{Binding WebDavLastSuccess, Converter={StaticResource StringToVis}}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0" />
+                                        <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0" Visibility="{Binding IsWebDavBusy, Converter={StaticResource BoolToVis}}" />
+                                        <WrapPanel Margin="0,14,0,0">
+                                            <ui:Button Content="立即同步" Visibility="{Binding IsWebDavEnabled, Converter={StaticResource BoolToVis}}" Command="{Binding RetryWebDavCommand}" Style="{StaticResource PrimaryActionButton}" Margin="0,0,8,0" />
+                                            <ui:Button Content="前往设置" ToolTip="WebDAV 词库同步设置" Click="OpenWebDavSettings_Click" Style="{StaticResource SecondaryActionButton}" />
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding WebDavActionMessage}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,10,0,0" Visibility="{Binding WebDavActionMessage, Converter={StaticResource StringToVis}}" />
+                                        <ui:CardExpander Header="查看错误详情" Margin="0,12,0,0" Style="{StaticResource FluentSettingsExpanderStyle}"
+                                                         Visibility="{Binding WebDavError, Converter={StaticResource StringToVis}}">
+                                            <TextBox Text="{Binding WebDavError, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        </ui:CardExpander>
+                                        <Border Margin="0,14,0,0" Background="{DynamicResource WarningSurfaceBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14"
+                                                Visibility="{Binding HasWebDavConflict, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel>
+                                                <TextBlock Text="检测到两端数据冲突：请选择要保留的版本，所选版本及其删除状态将覆盖冲突记录。多个冲突需逐条处理。" Foreground="{DynamicResource WarningTextBrush}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding ConflictRecordId, StringFormat=记录：{0}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,10" TextWrapping="Wrap" />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="本地版本" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                        <TextBox Text="{Binding LocalConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="260" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
+                                                        <ui:Button Content="保留本地并继续同步" Command="{Binding KeepLocalConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="云端版本" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                        <TextBox Text="{Binding RemoteConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="260" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
+                                                        <ui:Button Content="保留云端并继续同步" Command="{Binding KeepRemoteConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
+                                                    </StackPanel>
                                                 </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Expander>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
 
-                            <ProgressBar Height="3" IsIndeterminate="True" Margin="0,20,0,0"
-                                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
-                            <TextBlock Text="{Binding StatusMessage}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,12,0,0" />
+                                <Border x:Name="AnkiSyncCard" Style="{StaticResource SurfaceCardStyle}" Padding="20,18" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ui:SymbolIcon Symbol="Flash24" FontSize="20" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="Anki 卡片同步" FontSize="16" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Border Grid.Column="2" Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding AnkiStatusLabel}" FontSize="12">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasActionableIssues}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </Grid>
+                                        <TextBlock Text="{Binding StateDescription}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding AnkiSummary}" Visibility="{Binding AnkiSummary, Converter={StaticResource StringToVis}}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0" />
+                                        <WrapPanel Margin="0,14,0,0">
+                                            <ui:Button Content="重试同步" Command="{Binding RetryAllCommand}" Style="{StaticResource PrimaryActionButton}" Margin="0,0,8,0" Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}" />
+                                            <ui:Button x:Name="OpenAnkiSettingsButton" Content="前往设置" Click="OpenAnkiSettings_Click" Style="{StaticResource SecondaryActionButton}" ToolTip="Anki 卡片同步设置" />
+                                        </WrapPanel>
+
+                                        <StackPanel Margin="0,18,0,0" Visibility="{Binding HasActionableIssues, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="需要处理的同步项" FontSize="{StaticResource BodyFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                                            <ItemsControl ItemsSource="{Binding IssueJobs}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Margin="0,0,16,0">
+                                                                    <TextBlock Text="{Binding Word.DisplayWord, TargetNullValue=未知单词}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                    <TextBlock Text="{Binding LastError}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="1" Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}"
+                                                                           FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Top" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="{Binding MoreIssuesCount, StringFormat=另有 {0} 项未显示；重试同步仍会处理全部}"
+                                                       FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,10,0,0"
+                                                       Visibility="{Binding HasMoreIssues, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+
+                                        <ui:CardExpander x:Name="SyncHistoryExpander" Header="最近的 Anki 同步记录" Style="{StaticResource FluentSettingsExpanderStyle}"
+                                                         Margin="0,16,0,0" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}">
+                                            <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding RecentJobs}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="0,7">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="105" />
+                                                                    <ColumnDefinition Width="125" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding Word.DisplayWord, TargetNullValue=未知单词}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding Status, Converter={StaticResource SyncStatusLabel}}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                                <TextBlock Grid.Column="2" Text="{Binding UpdatedAtUtc, Converter={StaticResource LocalTime}}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </ui:CardExpander>
+                                    </StackPanel>
+                                </Border>
+
+                                <ProgressBar Height="3" IsIndeterminate="True" Margin="0,8,0,0"
+                                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                                <ui:InfoBar Style="{StaticResource FluentInfoBarStyle}" Severity="Informational" IsOpen="True" Margin="0,10,0,0"
+                                        Title="同步消息" Message="{Binding StatusMessage}"
+                                        Visibility="{Binding StatusMessage, Converter={StaticResource StringToVis}}" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
@@ -1573,537 +1543,761 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <StackPanel Margin="0,0,0,18">
+
+                    <StackPanel Margin="0,0,0,16">
                         <TextBlock Text="设置" Style="{StaticResource PageTitleStyle}" />
-<WrapPanel Margin="0,12,0,0"><ui:Button Content="查词与翻译" Tag="LookupSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="AI 详解" Tag="AiSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="词库与同步" Tag="WebDavSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="Anki" Tag="AnkiSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="操作与显示" Tag="InteractionSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /><ui:Button Content="关于" Tag="AboutSettingsGroup" Click="SettingsSection_Click" Style="{StaticResource QuietActionButton}" Margin="0,0,8,4" Padding="10,6" /></WrapPanel>
+                        <Border Margin="0,12,0,0"
+                                Background="{DynamicResource SubtleSurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="4"
+                                HorizontalAlignment="Left">
+                            <WrapPanel x:Name="SettingsCategoryBar">
+                                <RadioButton x:Name="GeneralCategoryTab"
+                                             GroupName="SettingsCategoryGroup"
+                                             Tag="0"
+                                             IsChecked="True"
+                                             Checked="SettingsCategoryTab_Checked"
+                                             Style="{StaticResource SettingsCategoryTabStyle}"
+                                             Content="常规与外观" />
+                                <RadioButton x:Name="LookupCategoryTab"
+                                             GroupName="SettingsCategoryGroup"
+                                             Tag="1"
+                                             Checked="SettingsCategoryTab_Checked"
+                                             Style="{StaticResource SettingsCategoryTabStyle}"
+                                             Content="查词与词典" />
+                                <RadioButton x:Name="AiCategoryTab"
+                                             GroupName="SettingsCategoryGroup"
+                                             Tag="2"
+                                             Checked="SettingsCategoryTab_Checked"
+                                             Style="{StaticResource SettingsCategoryTabStyle}"
+                                             Content="AI 详解" />
+                                <RadioButton x:Name="SyncCategoryTab"
+                                             GroupName="SettingsCategoryGroup"
+                                             Tag="3"
+                                             Checked="SettingsCategoryTab_Checked"
+                                             Style="{StaticResource SettingsCategoryTabStyle}"
+                                             Content="同步与联动" />
+                                <RadioButton x:Name="AboutCategoryTab"
+                                             GroupName="SettingsCategoryGroup"
+                                             Tag="4"
+                                             Checked="SettingsCategoryTab_Checked"
+                                             Style="{StaticResource SettingsCategoryTabStyle}"
+                                             Content="关于与更新" />
+                            </WrapPanel>
+                        </Border>
                     </StackPanel>
-                <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}">
-                        <StackPanel MaxWidth="900" HorizontalAlignment="Center" Margin="0,0,12,0">
-<GroupBox x:Name="LookupSettingsGroup" Header="查词与翻译" Style="{StaticResource SettingsSectionStyle}"><StackPanel><TextBlock Text="先查离线词典，未收录的单词和句子使用在线翻译。需要更详细的解释时，点击「AI 详解」。" TextWrapping="Wrap" Margin="0,0,0,12" /><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="在线快译" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="18" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0" />
-                                    <ComboBox Grid.Column="1"
-                                              SelectedValue="{Binding MachineTranslationProvider, UpdateSourceTrigger=PropertyChanged}"
-                                              SelectedValuePath="Tag"
-                                              MinHeight="36" Padding="10,4" FontSize="13"
-                                              Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                              BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                              VerticalContentAlignment="Center">
-                                        <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
-                                        <ComboBoxItem Content="谷歌翻译" Tag="google" />
-                                    </ComboBox>
-                                </Grid><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="目标语言" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding ExplainLanguage, UpdateSourceTrigger=LostFocus}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid><TextBlock Text="翻译服务和目标语言修改后自动保存。" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,4,0,0" /><Grid Margin="0,20,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                                        <TextBlock Text="离线词典" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <WrapPanel Margin="0,5,0,0"><TextBlock Text="{Binding DictStatusText}" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Text="{Binding DictionaryCountText}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0" /></WrapPanel>
+
+                    <ScrollViewer x:Name="SettingsScrollViewer"
+                                  Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="0,0,12,8"
+                                  IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MaxWidth="960" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TabControl x:Name="SettingsCategoryTabs"
+                                        Grid.Column="0"
+                                        SelectedIndex="0"
+                                        Style="{StaticResource SettingsCategoryHostTabControl}"
+                                        RenderTransformOrigin="0.5,0.5">
+                                <TabControl.RenderTransform>
+                                    <TranslateTransform x:Name="SettingsCategoryTransform" Y="0" />
+                                </TabControl.RenderTransform>
+
+                                <!-- Category 1: 常规与外观 -->
+                                <TabItem x:Name="GeneralSettingsCategory" Header="常规与外观">
+                                    <StackPanel x:Name="InteractionSettingsGroup">
+                                        <TextBlock Text="窗口与主题" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Color24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="外观主题" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="切换浅色、深色或跟随 Windows 系统外观" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ComboBox MinWidth="148" MinHeight="34" VerticalAlignment="Center"
+                                                      SelectedValue="{Binding ThemeMode, Mode=TwoWay}" SelectedValuePath="Tag"
+                                                      AutomationProperties.Name="外观主题">
+                                                <ComboBoxItem Content="浅色" Tag="Light" />
+                                                <ComboBoxItem Content="深色" Tag="Dark" />
+                                                <ComboBoxItem Content="跟随系统" Tag="System" />
+                                            </ComboBox>
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Pin24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="收藏后关闭浮窗" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="保存词条后自动收起取词浮窗；已固定浮窗保持打开" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding ClosePopupAfterSave}"
+                                                             AutomationProperties.Name="收藏后关闭浮窗"
+                                                             ToolTip="固定的浮窗会保持打开" />
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon CursorHover24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="点击外部关闭浮窗" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="焦点移出浮窗后自动隐藏；已固定浮窗保持打开（修改后自动保存）" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding ClosePopupOnDeactivate}"
+                                                             AutomationProperties.Name="点击外部关闭浮窗"
+                                                             ToolTip="固定的浮窗会保持打开" />
+                                        </ui:CardControl>
+
+                                        <TextBlock Text="全局快捷键" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Keyboard24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="取词快捷键" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding HotkeyHint}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="18" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource SubtleSurfaceBrush}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="6"
+                                                        Padding="12,6"
+                                                        Margin="0,0,8,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="{Binding Hotkey}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True">
+                                                                        <Setter Property="Text" Value="请按组合键…" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                                <ui:Button Content="恢复默认"
+                                                           Command="{Binding ResetHotkeyCommand}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}"
+                                                           Margin="0,0,6,0"
+                                                           ToolTip="填入 Ctrl+Shift+Z，保存后生效" />
+                                                <ui:Button x:Name="RecordHotkeyButton"
+                                                           Content="修改"
+                                                           Command="{Binding RecordHotkeyCommand}"
+                                                           Style="{StaticResource SecondaryActionButton}"
+                                                           Visibility="{Binding IsRecordingHotkey, Converter={StaticResource InverseBoolToVis}}"
+                                                           VerticalAlignment="Center" />
+                                                <ui:Button Content="取消"
+                                                           Command="{Binding CancelHotkeyRecordingCommand}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </ui:CardControl>
+
+                                        <TextBlock Text="系统启动" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Power24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="登录 Windows 时自动启动" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding StartupStatus}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <ui:Button Content="系统启动设置"
+                                                           Command="{Binding OpenWindowsStartupSettingsCommand}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Margin="0,0,10,0" />
+                                                <ui:ToggleSwitch x:Name="StartWithWindowsSwitch"
+                                                                 IsChecked="{Binding StartWithWindows}"
+                                                                 IsEnabled="{Binding CanChangeStartup}"
+                                                                 AutomationProperties.Name="登录 Windows 时自动启动" />
+                                            </StackPanel>
+                                        </ui:CardControl>
+
+                                        <Border Visibility="{Binding StartupPathNeedsRepair, Converter={StaticResource BoolToVis}}"
+                                                Background="{DynamicResource WarningSurfaceBrush}"
+                                                BorderBrush="{DynamicResource WarningBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="14,10"
+                                                Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <ui:SymbolIcon Symbol="Warning20" FontSize="18" Foreground="{DynamicResource WarningBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="检测到当前开机启动项路径与程序位置不一致，建议立即修复。"
+                                                           Foreground="{DynamicResource WarningTextBrush}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                                <ui:Button x:Name="StartupRepairButton" Grid.Column="2" Content="修复启动路径"
+                                                           Command="{Binding RepairStartupPathCommand}"
+                                                           IsEnabled="{Binding CanChangeStartup}"
+                                                           Visibility="{Binding StartupPathNeedsRepair, Converter={StaticResource BoolToVis}}"
+                                                           Style="{StaticResource SecondaryActionButton}" />
+                                            </Grid>
+                                        </Border>
                                     </StackPanel>
-                                    <ui:Button Grid.Column="1" Content="{Binding DictionaryDownloadText}" Command="{Binding InstallDictFromUrlCommand}" IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}" Margin="0,0,8,0" VerticalAlignment="Center">
-                                        <ui:Button.Style><Style TargetType="ui:Button" BasedOn="{StaticResource SecondaryActionButton}"><Style.Triggers><DataTrigger Binding="{Binding DictInstalled}" Value="False"><Setter Property="Background" Value="{DynamicResource AccentBrush}" /><Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" /></DataTrigger></Style.Triggers></Style></ui:Button.Style>
-                                    </ui:Button>
-                                    <ToggleButton x:Name="DictionaryMoreButton" Grid.Column="2" Content="更多 ⋯" Padding="8,5" MinHeight="32" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <Popup x:Name="DictionaryMorePopup" IsOpen="{Binding IsChecked, ElementName=DictionaryMoreButton, Mode=TwoWay}" PlacementTarget="{Binding ElementName=DictionaryMoreButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Width="360" Margin="0,4,0,0">
-                                            <StackPanel><TextBlock Text="{Binding DictDetailsText}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12" />
-<StackPanel Margin="0"><TextBlock Text="词典下载地址" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                                <ui:TextBox Text="{Binding DictDownloadUrl, UpdateSourceTrigger=PropertyChanged}"
-                                         MinHeight="36" Padding="10,6" FontSize="13"
-                                         Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                         BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                         VerticalContentAlignment="Center" Margin="0,0,0,10" /><WrapPanel><ui:Button Content="从文件安装" Style="{StaticResource SecondaryActionButton}"
-                                            Command="{Binding InstallDictFromFileCommand}"
-                                            IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
-                                            Padding="12,6"
-                                            Background="{DynamicResource SubtleSurfaceBrush}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            BorderThickness="0"
-                                            Margin="0,0,8,0"
-                                            Cursor="Hand" /><ui:Button Content="删除离线词典" Style="{StaticResource QuietActionButton}" IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
-                                            Command="{Binding RemoveDictCommand}"
-                                            Padding="12,6"
-                                            Background="{DynamicResource DangerSurfaceBrush}"
-                                            Foreground="{DynamicResource DangerBrush}"
-                                            BorderThickness="0"
-                                            Cursor="Hand" /></WrapPanel></StackPanel>
+                                </TabItem>
+
+                                <!-- Category 2: 查词与词典 -->
+                                <TabItem x:Name="LookupSettingsCategory" Header="查词与词典">
+                                    <StackPanel x:Name="LookupSettingsGroup">
+                                        <TextBlock Text="翻译引擎与语言" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Translate24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="在线快译服务" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="离线词典未收录的单词和句子使用此在线服务；修改后自动保存" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ComboBox MinWidth="180" MinHeight="34" VerticalAlignment="Center"
+                                                      SelectedValue="{Binding MachineTranslationProvider, UpdateSourceTrigger=PropertyChanged}"
+                                                      SelectedValuePath="Tag"
+                                                      AutomationProperties.Name="在线快译">
+                                                <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
+                                                <ComboBoxItem Content="谷歌翻译" Tag="google" />
+                                            </ComboBox>
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Globe24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="目标语言" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="用于快译和 AI 详解的输出语言代码（如 zh-CN），失焦后自动保存" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:TextBox MinWidth="180"
+                                                        Text="{Binding ExplainLanguage, UpdateSourceTrigger=LostFocus}"
+                                                        PlaceholderText="zh-CN" />
+                                        </ui:CardControl>
+
+                                        <TextBlock Text="离线词典管理" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Library24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="离线英汉词典" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <WrapPanel Margin="0,3,0,0">
+                                                        <TextBlock Text="{Binding DictStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                        <TextBlock Text="{Binding DictionaryCountText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,0,0" />
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:Button Content="{Binding DictionaryDownloadText}"
+                                                       Command="{Binding InstallDictFromUrlCommand}"
+                                                       IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}">
+                                                <ui:Button.Style>
+                                                    <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding DictInstalled}" Value="False">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentButtonBackground}" />
+                                                                <Setter Property="MouseOverBackground" Value="{DynamicResource AccentButtonBackgroundPointerOver}" />
+                                                                <Setter Property="PressedBackground" Value="{DynamicResource AccentButtonBackgroundPressed}" />
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentButtonForeground}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ui:Button.Style>
+                                            </ui:Button>
+                                        </ui:CardControl>
+
+                                        <Border Visibility="{Binding IsDictInstalling, Converter={StaticResource BoolToVis}}"
+                                                Style="{StaticResource SurfaceCardStyle}" Padding="16,12" Margin="0,0,0,8">
+                                            <StackPanel>
+                                                <ProgressBar Value="{Binding DictProgressValue}" IsIndeterminate="{Binding IsDictProgressIndeterminate}" Height="4" Maximum="100" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding DictProgressText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                                    <ui:Button Grid.Column="1" Content="取消安装" Command="{Binding CancelDictionaryInstallCommand}" Style="{StaticResource QuietActionButton}" />
+                                                </Grid>
                                             </StackPanel>
                                         </Border>
-                                    </Popup>
-                                </Grid>
-                                <TextBlock Text="{Binding DictFeedback}" Visibility="{Binding DictFeedback, Converter={StaticResource StringToVis}}" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,8" />
-                                <!-- Progress indicator during install -->
-                                <StackPanel Visibility="{Binding IsDictInstalling, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
-                                    <ProgressBar Value="{Binding DictProgressValue}" IsIndeterminate="{Binding IsDictProgressIndeterminate}" Height="4" Maximum="100" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,4" />
-                                    <TextBlock Text="{Binding DictProgressText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:Button Content="取消安装" Command="{Binding CancelDictionaryInstallCommand}" Style="{StaticResource QuietActionButton}" HorizontalAlignment="Left" Margin="0,6,0,0" />
-                                </StackPanel>
 
+                                        <ui:InfoBar Style="{StaticResource FluentInfoBarStyle}"
+                                                    Severity="Informational"
+                                                    IsOpen="True"
+                                                    Title="词典状态"
+                                                    Message="{Binding DictFeedback}"
+                                                    Visibility="{Binding DictFeedback, Converter={StaticResource StringToVis}}" />
 
-                                <Expander Header="词典来源与许可" Margin="0,4,0,0" FontSize="12">
-                                    <Expander.Template><ControlTemplate TargetType="Expander"><StackPanel>
-                                        <ToggleButton Content="{TemplateBinding Header}" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" HorizontalAlignment="Left" Cursor="Hand" Padding="0" MinHeight="28" Foreground="{DynamicResource TextSecondaryBrush}">
-                                            <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent" Padding="0,5"><TextBlock Text="{TemplateBinding Content}" TextDecorations="Underline" Foreground="{TemplateBinding Foreground}" FontSize="12" /></Border></ControlTemplate></ToggleButton.Template>
-                                        </ToggleButton>
-                                        <ContentPresenter Content="{TemplateBinding Content}" Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}" />
-                                    </StackPanel></ControlTemplate></Expander.Template><Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2,0,0,0" Padding="10,2,0,2" Margin="0,14,0,0">
-                                    <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" LineHeight="16">
-                                        <Bold>数据署名与许可声明：</Bold><LineBreak />
-                                        离线词典基于 <Run Text="ahpxex/open-dictionary" FontWeight="SemiBold" /> 项目发行文件，数据源自 English Wiktionary 及贡献者与 Wiktextract 项目，遵循 CC BY-SA 4.0 知识共享许可协议。本桌面应用代码与词典数据独立授权。
-                                    </TextBlock>
-                                </Border></Expander>
-                            </StackPanel></GroupBox>
-<GroupBox x:Name="AiSettingsGroup" Header="AI 详解" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
-                                <TextBlock Text="填写服务地址、模型和 API Key 后，可先测试连接，再点击「保存设置」。" TextWrapping="Wrap" Margin="0,0,0,12" />
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="AI 配置" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <WrapPanel Grid.Column="1">
-                                        <ComboBox Width="220"
-                                                  ItemsSource="{Binding AiProfiles}"
-                                                  DisplayMemberPath="Name"
-                                                  SelectedValuePath="Id"
-                                                  SelectedValue="{Binding ActiveAiProfileId, UpdateSourceTrigger=PropertyChanged}"
-                                                  MinHeight="36" Padding="10,4" FontSize="13"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                                  BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                                  VerticalContentAlignment="Center" />
-                                        <ui:Button Content="新增"
-                                                Command="{Binding AddAiProfileCommand}"
-                                                Margin="8,0,0,0"
-                                                Padding="10,4"
-                                                Background="{DynamicResource SubtleSurfaceBrush}"
-                                                BorderThickness="0" />
-                                        <ui:Button Content="删除"
-                                                Command="{Binding RemoveAiProfileCommand}"
-                                                Margin="6,0,0,0"
-                                                Padding="10,4"
-                                                Background="{DynamicResource DangerSurfaceBrush}"
-                                                Foreground="{DynamicResource DangerBrush}"
-                                                BorderThickness="0" />
-                                    </WrapPanel>
-                                </Grid>
+                                        <ui:CardExpander x:Name="DictionaryManagementExpander"
+                                                         Style="{StaticResource FluentSettingsExpanderStyle}"
+                                                         Icon="{ui:SymbolIcon FolderOpen24}">
+                                            <ui:CardExpander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="词典源地址与本地文件" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding DictDetailsText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardExpander.Header>
+                                            <StackPanel>
+                                                <TextBlock Text="词典下载地址" FontSize="12.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" />
+                                                <ui:TextBox Text="{Binding DictDownloadUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+                                                <WrapPanel>
+                                                    <ui:Button Content="从本地文件安装"
+                                                               Style="{StaticResource SecondaryActionButton}"
+                                                               Command="{Binding InstallDictFromFileCommand}"
+                                                               IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}"
+                                                               Margin="0,0,8,0" />
+                                                    <ui:Button Content="删除离线词典"
+                                                               Style="{StaticResource DangerActionButton}"
+                                                               Command="{Binding RemoveDictCommand}"
+                                                               IsEnabled="{Binding IsDictInstalling, Converter={StaticResource InverseBool}}" />
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </ui:CardExpander>
 
-
-
-
-
-                            <Expander Header="服务地址与密钥" Margin="0,16,0,0"><StackPanel Margin="0,12,0,0"><Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="服务商预设" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <WrapPanel Grid.Column="1">
-                                        <ui:Button Content="OpenAI" Command="{Binding ApplyAiPresetCommand}" CommandParameter="openai" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,6" />
-                                        <ui:Button Content="DeepSeek" Command="{Binding ApplyAiPresetCommand}" CommandParameter="deepseek" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,6" />
-                                        <ui:Button Content="Kimi" Command="{Binding ApplyAiPresetCommand}" CommandParameter="kimi" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,6" />
-                                        <ui:Button Content="智谱 GLM" Command="{Binding ApplyAiPresetCommand}" CommandParameter="zhipu" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,6" />
-                                        <ui:Button Content="硅基流动" Command="{Binding ApplyAiPresetCommand}" CommandParameter="siliconflow" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,6" />
-                                        <ui:Button Content="本地 Ollama" Command="{Binding ApplyAiPresetCommand}" CommandParameter="ollama" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,6" />
-                                    </WrapPanel>
-                                </Grid><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="配置名称" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1"
-                                             Text="{Binding AiProfileName, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="接口地址" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="模型名称" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding ApiModel, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="API Key" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:PasswordBox x:Name="ApiKeyBox" Grid.Column="1"
-                                                    PasswordChanged="ApiKeyBox_PasswordChanged"
-                                                    MinHeight="36" Padding="10,6" FontSize="13"
-                                                    Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                                    VerticalContentAlignment="Center"
-                                                    ToolTip="密钥仅用于当前 AI 配置，本地加密保存" AutomationProperties.Name="API Key" />
-                                </Grid><ui:Button Style="{StaticResource SecondaryActionButton}" IsEnabled="{Binding IsTestingAi, Converter={StaticResource InverseBool}}"
-                                        Command="{Binding TestAiConnectionCommand}"
-                                        HorizontalAlignment="Left"
-                                        Padding="12,5"
-                                        Background="{DynamicResource SubtleSurfaceBrush}"
-                                        Foreground="{DynamicResource TextSecondaryBrush}"
-                                        BorderThickness="0"
-                                        Margin="160,4,0,0"
-                                        Cursor="Hand" ><TextBlock><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="测试 AI 连接" /><Style.Triggers><DataTrigger Binding="{Binding IsTestingAi}" Value="True"><Setter Property="Text" Value="正在测试…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></ui:Button></StackPanel></Expander></StackPanel>
-                        </GroupBox>
-<GroupBox x:Name="WebDavSettingsGroup" Header="词库与同步" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
-                                <TextBlock Text="在桌面端和浏览器扩展中填写相同的 WebDAV 地址与文件路径，即可同步生词库。编辑和删除也会同步；出现冲突时，请到「同步状态」选择要保留的内容。"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="{StaticResource CaptionFontSize}"
-                                           TextWrapping="Wrap"
-                                           Margin="0,0,0,10" />
-                                <Expander Header="WebDAV 服务器要求" Margin="0,0,0,10"><TextBlock Text="地址须使用 HTTPS。服务器需支持强 ETag 和条件写入，以检测其他设备的修改并避免覆盖。" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource TextSecondaryBrush}" /></Expander>
-                                <Grid MinHeight="44" Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="启用 WebDAV 词库同步" TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding WebDavEnabled}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="启用 WebDAV 词库同步" ToolTip="启用 WebDAV 多端生词库同步" VerticalAlignment="Center" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="WebDAV 地址" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavUrl, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center"
-                                             ToolTip="例如 https://dav.jianguoyun.com/dav/" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="同步文件路径" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavRemotePath, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="账号" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavUsername, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="密码（或应用密码）" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:PasswordBox x:Name="WebDavPasswordBox" Grid.Column="1"
-                                                    PasswordChanged="WebDavPasswordBox_PasswordChanged"
-                                                    MinHeight="36" Padding="10,6" FontSize="13"
-                                                    Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                                    VerticalContentAlignment="Center"
-                                                    ToolTip="WebDAV 密码使用系统 DPAPI 在本地加密保存" AutomationProperties.Name="WebDAV 密码" />
-                                </Grid>
-
-                                <Grid MinHeight="44" Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="词库修改后自动同步" TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding WebDavAutoSync}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="词库修改后自动同步" ToolTip="新增、编辑或删除词条后自动与云端合并同步" VerticalAlignment="Center" />
-                                </Grid>
-
-                                <WrapPanel Margin="160,4,0,0">
-                                    <ui:Button Style="{StaticResource SecondaryActionButton}"
-                                            IsEnabled="{Binding IsTestingWebDav, Converter={StaticResource InverseBool}}"
-                                            Command="{Binding TestWebDavConnectionCommand}"
-                                            Padding="12,5"
-                                            Margin="0,0,8,0"
-                                            Background="{DynamicResource SubtleSurfaceBrush}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            BorderThickness="0"
-                                            Cursor="Hand">
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Text" Value="测试 WebDAV 连接" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTestingWebDav}" Value="True">
-                                                            <Setter Property="Text" Value="正在测试…" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </ui:Button>
-                                    <ui:Button Style="{StaticResource SecondaryActionButton}"
-                                            IsEnabled="{Binding IsSyncingWebDav, Converter={StaticResource InverseBool}}"
-                                            Command="{Binding SyncWebDavNowCommand}"
-                                            Padding="12,5"
-                                            Background="{DynamicResource SubtleSurfaceBrush}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            BorderThickness="0"
-                                            Cursor="Hand">
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Text" Value="立即同步词库" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSyncingWebDav}" Value="True">
-                                                            <Setter Property="Text" Value="正在同步…" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </ui:Button>
-                                </WrapPanel>
-                            </StackPanel>
-                        </GroupBox>
-<GroupBox x:Name="AnkiSettingsGroup" Header="Anki" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
-                                <TextBlock Text="开启后，收藏的词条会自动发送到 Anki。请先打开 Anki 并安装 AnkiConnect 插件。" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,0,0,10" />
-                                <Grid MinHeight="44" Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="自动将收藏发送到 Anki" TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding AnkiEnabled}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="自动将收藏发送到 Anki" ToolTip="自动将收藏发送到 Anki" VerticalAlignment="Center" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="牌组名称" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding AnkiDeckName, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid>
-
-                                <ui:Button Style="{StaticResource SecondaryActionButton}" IsEnabled="{Binding IsTestingAnki, Converter={StaticResource InverseBool}}"
-                                        Command="{Binding TestAnkiConnectionCommand}"
-                                        HorizontalAlignment="Left"
-                                        Padding="12,5"
-                                        Background="{DynamicResource SubtleSurfaceBrush}"
-                                        Foreground="{DynamicResource TextSecondaryBrush}"
-                                        BorderThickness="0"
-                                        Margin="160,4,0,0"
-                                        Cursor="Hand" ><TextBlock><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="测试 Anki 连接" /><Style.Triggers><DataTrigger Binding="{Binding IsTestingAnki}" Value="True"><Setter Property="Text" Value="正在测试…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></ui:Button>
-                            <Expander Header="Anki 高级选项" Margin="0,16,0,0"><StackPanel Margin="0,12,0,0"><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="AnkiConnect 地址" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding AnkiUrl, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid><Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="笔记类型" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <ui:TextBox Grid.Column="1" Text="{Binding AnkiNoteTypeName, UpdateSourceTrigger=PropertyChanged}"
-                                             MinHeight="36" Padding="10,6" FontSize="13"
-                                             Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource SurfaceBrush}"
-                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                             VerticalContentAlignment="Center" />
-                                </Grid><Grid MinHeight="44" Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="在卡片中挖空目标词" TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding AnkiClozeContext}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="在卡片中挖空目标词" ToolTip="将例句中的单词替换为填空" VerticalAlignment="Center" />
-                                </Grid></StackPanel></Expander></StackPanel>
-                        </GroupBox>
-<GroupBox x:Name="InteractionSettingsGroup" Header="操作与显示" Style="{StaticResource SettingsSectionStyle}"><StackPanel>
-                                <Grid MinHeight="44">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="登录 Windows 时自动启动" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox x:Name="StartWithWindowsSwitch" Grid.Column="1" Width="36" IsChecked="{Binding StartWithWindows}" IsEnabled="{Binding CanChangeStartup}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="登录 Windows 时自动启动" VerticalAlignment="Center" />
-                                </Grid>
-                                <TextBlock Text="{Binding StartupStatus}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,12" />
-                                <WrapPanel Margin="0,0,0,12">
-                                    <ui:Button x:Name="StartupRepairButton" Content="修复启动路径" Command="{Binding RepairStartupPathCommand}" Visibility="{Binding StartupPathNeedsRepair, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding CanChangeStartup}" Style="{StaticResource SecondaryActionButton}" Margin="0,0,8,0" />
-                                    <ui:Button Content="系统启动设置" Command="{Binding OpenWindowsStartupSettingsCommand}" Style="{StaticResource QuietActionButton}" />
-                                </WrapPanel>
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" />
-                                <Grid MinHeight="44">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="外观主题" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <ComboBox Grid.Column="1" MinWidth="136" MinHeight="34" VerticalAlignment="Center"
-                                              SelectedValue="{Binding ThemeMode, Mode=TwoWay}" SelectedValuePath="Tag"
-                                              AutomationProperties.Name="外观主题">
-                                        <ComboBoxItem Content="浅色" Tag="Light" />
-                                        <ComboBoxItem Content="深色" Tag="Dark" />
-                                        <ComboBoxItem Content="跟随系统" Tag="System" />
-                                    </ComboBox>
-                                </Grid>
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" />
-                                <Grid MinHeight="44">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="收藏后关闭浮窗" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding ClosePopupAfterSave}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="收藏后关闭浮窗" ToolTip="固定的浮窗会保持打开" VerticalAlignment="Center" />
-                                </Grid>
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" />
-                                <Grid MinHeight="44">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="点击外部关闭浮窗" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <CheckBox Grid.Column="1" Width="36" IsChecked="{Binding ClosePopupOnDeactivate}" Style="{StaticResource SettingsSwitchCheckBoxStyle}" AutomationProperties.Name="点击外部关闭浮窗" ToolTip="固定的浮窗会保持打开" VerticalAlignment="Center" />
-                                </Grid>
-                                <TextBlock Text="固定时保持打开。修改后自动保存。" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,6,0,0" />
-                            <Grid Margin="0,20,0,0" MinHeight="40">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="取词快捷键" FontWeight="Medium" VerticalAlignment="Center" />
-                                    <Border Grid.Column="1" Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="4" Padding="10,5" Margin="8,0" VerticalAlignment="Center">
-                                        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="{Binding Hotkey}" /><Style.Triggers><DataTrigger Binding="{Binding IsRecordingHotkey}" Value="True"><Setter Property="Text" Value="请按组合键…" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
-                                    </Border>
-                                    <ui:Button x:Name="RecordHotkeyButton" Grid.Column="2" Content="修改" Command="{Binding RecordHotkeyCommand}" Style="{StaticResource SecondaryActionButton}" Visibility="{Binding IsRecordingHotkey, Converter={StaticResource InverseBoolToVis}}" VerticalAlignment="Center" />
-                                    <ui:Button Grid.Column="2" Content="取消" Command="{Binding CancelHotkeyRecordingCommand}" Style="{StaticResource QuietActionButton}" Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center" />
-                                </Grid>
-                                <WrapPanel Visibility="{Binding IsRecordingHotkey, Converter={StaticResource BoolToVis}}" Margin="0,8,0,0"><ui:Button Content="恢复默认" Command="{Binding ResetHotkeyCommand}" Style="{StaticResource QuietActionButton}" ToolTip="填入 Ctrl+Shift+Z，保存后生效" /></WrapPanel>
-                                <TextBlock Text="{Binding HotkeyHint}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Margin="0,6,0,0" />
-                            </StackPanel></GroupBox>
-<GroupBox x:Name="AboutSettingsGroup" Header="关于" Style="{StaticResource SettingsSectionStyle}">
-                            <StackPanel>
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="Word Catcher" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBlock Text="当前版本 " Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                            <TextBlock Text="{Binding AppVersion}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" />
-                                        </StackPanel>
+                                        <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}"
+                                                         Icon="{ui:SymbolIcon DocumentText24}">
+                                            <ui:CardExpander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="词典来源与许可声明" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="ahpxex/open-dictionary · English Wiktionary · CC BY-SA 4.0" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardExpander.Header>
+                                            <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="18">
+                                                <Bold>数据署名与许可声明：</Bold><LineBreak />
+                                                离线词典基于 <Run Text="ahpxex/open-dictionary" FontWeight="SemiBold" /> 项目发行文件，数据源自 English Wiktionary 及贡献者与 Wiktextract 项目，遵循 CC BY-SA 4.0 知识共享许可协议。本桌面应用代码与词典数据独立授权。
+                                            </TextBlock>
+                                        </ui:CardExpander>
                                     </StackPanel>
-                                    <ui:Button Grid.Column="1"
-                                            Content="检查更新" Style="{StaticResource SecondaryActionButton}"
-                                            Command="{Binding CheckForUpdatesCommand}"
-                                            IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource InverseBool}}"
-                                            Background="{DynamicResource AccentBrush}"
-                                            Foreground="{DynamicResource OnAccentBrush}"
-                                            Padding="14,7"
-                                            ToolTip="检查 GitHub Releases 中是否有新版本" />
-                                </Grid>
-                                <TextBlock Text="选中文字后按取词快捷键，即可查看释义，并将单词和原句收藏到生词库。"
-                                           TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="{StaticResource CaptionFontSize}"
-                                           LineHeight="19"
-                                           Margin="0,0,0,10" />
-                                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,0,0,12"
-                                        Visibility="{Binding HasCheckedForUpdates, Converter={StaticResource BoolToVis}}">
+                                </TabItem>
+
+                                <!-- Category 3: AI 详解 -->
+                                <TabItem x:Name="AiSettingsCategory" Header="AI 详解">
+                                    <StackPanel x:Name="AiSettingsGroup">
+                                        <TextBlock Text="配置方案与预设" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Sparkle24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="当前 AI 配置" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="填写服务地址、模型与 API Key 后可先测试连接，再点击底部「保存设置」" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <ComboBox Width="168" MinHeight="34"
+                                                          ItemsSource="{Binding AiProfiles}"
+                                                          DisplayMemberPath="Name"
+                                                          SelectedValuePath="Id"
+                                                          SelectedValue="{Binding ActiveAiProfileId, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="0,0,8,0"
+                                                          AutomationProperties.Name="AI 配置" />
+                                                <ui:Button Content="新增"
+                                                           Command="{Binding AddAiProfileCommand}"
+                                                           Style="{StaticResource SecondaryActionButton}"
+                                                           Margin="0,0,6,0" />
+                                                <ui:Button Content="删除"
+                                                           Command="{Binding RemoveAiProfileCommand}"
+                                                           Style="{StaticResource DangerActionButton}" />
+                                            </StackPanel>
+                                        </ui:CardControl>
+
+                                        <Border Background="{DynamicResource CardBackground}"
+                                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="16,13"
+                                                Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <ui:SymbolIcon Symbol="Apps24" FontSize="20"
+                                                               Foreground="{DynamicResource CardForeground}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,16,0" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="服务商预设" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="一键填充 OpenAI 兼容接口地址和默认模型" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                                <WrapPanel Grid.Row="1" Grid.Column="1" Margin="0,10,0,0">
+                                                    <ui:Button Content="OpenAI" Command="{Binding ApplyAiPresetCommand}" CommandParameter="openai" Style="{StaticResource SecondaryActionButton}" MinHeight="30" Padding="10,4" Margin="0,2,6,2" />
+                                                    <ui:Button Content="DeepSeek" Command="{Binding ApplyAiPresetCommand}" CommandParameter="deepseek" Style="{StaticResource SecondaryActionButton}" MinHeight="30" Padding="10,4" Margin="0,2,6,2" />
+                                                    <ui:Button Content="Kimi" Command="{Binding ApplyAiPresetCommand}" CommandParameter="kimi" Style="{StaticResource SecondaryActionButton}" MinHeight="30" Padding="10,4" Margin="0,2,6,2" />
+                                                    <ui:Button Content="智谱 GLM" Command="{Binding ApplyAiPresetCommand}" CommandParameter="zhipu" Style="{StaticResource SecondaryActionButton}" MinHeight="30" Padding="10,4" Margin="0,2,6,2" />
+                                                    <ui:Button Content="硅基流动" Command="{Binding ApplyAiPresetCommand}" CommandParameter="siliconflow" Style="{StaticResource SecondaryActionButton}" MinHeight="30" Padding="10,4" Margin="0,2,6,2" />
+                                                    <ui:Button Content="本地 Ollama" Command="{Binding ApplyAiPresetCommand}" CommandParameter="ollama" Style="{StaticResource SecondaryActionButton}" MinHeight="30" Padding="10,4" Margin="0,2,0,2" />
+                                                </WrapPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <TextBlock Text="接口与密钥" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}"
+                                                         IsExpanded="True"
+                                                         Icon="{ui:SymbolIcon Key24}">
+                                            <ui:CardExpander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="服务地址与密钥" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="密钥仅用于当前 AI 配置，通过系统 DPAPI 本地加密保存" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardExpander.Header>
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="配置名称" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding AiProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="接口地址" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="模型名称" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding ApiModel, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="API Key" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:PasswordBox x:Name="ApiKeyBox" Grid.Column="1"
+                                                                    PasswordChanged="ApiKeyBox_PasswordChanged"
+                                                                    ToolTip="密钥仅用于当前 AI 配置，本地加密保存"
+                                                                    AutomationProperties.Name="API Key" />
+                                                </Grid>
+                                                <ui:Button Style="{StaticResource SecondaryActionButton}"
+                                                           IsEnabled="{Binding IsTestingAi, Converter={StaticResource InverseBool}}"
+                                                           Command="{Binding TestAiConnectionCommand}"
+                                                           HorizontalAlignment="Left"
+                                                           Margin="140,0,0,0">
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="测试 AI 连接" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTestingAi}" Value="True">
+                                                                        <Setter Property="Text" Value="正在测试…" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </ui:Button>
+                                            </StackPanel>
+                                        </ui:CardExpander>
+                                    </StackPanel>
+                                </TabItem>
+
+                                <!-- Category 4: 同步与联动 -->
+                                <TabItem x:Name="SyncSettingsCategory" Header="同步与联动">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Height="4" Margin="0,8,0,4"
-                                                     Visibility="{Binding IsCheckingForUpdates, Converter={StaticResource BoolToVis}}" />
-                                        <WrapPanel Margin="0,8,0,0">
-                                            <ui:Button Content="安装更新" Style="{StaticResource PrimaryActionButton}"
-                                                       Command="{Binding InstallUpdateCommand}"
+                                        <TextBlock Text="WebDAV 云端词库同步" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
+                                        <ui:InfoBar Style="{StaticResource FluentInfoBarStyle}"
+                                                    Severity="Informational"
+                                                    IsOpen="True"
+                                                    Title="WebDAV 服务器要求"
+                                                    Message="在桌面端和浏览器扩展中填写相同的 WebDAV 地址与文件路径即可双向同步；地址须使用 HTTPS，服务器需支持强 ETag 与条件写入以避免覆盖冲突。" />
+
+                                        <ui:CardControl x:Name="WebDavSettingsGroup" Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon CloudSwap24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="启用 WebDAV 词库同步" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="开启后可手动或自动与云端生词库合并同步" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding WebDavEnabled}"
+                                                             AutomationProperties.Name="启用 WebDAV 词库同步"
+                                                             ToolTip="启用 WebDAV 多端生词库同步" />
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon ArrowSync24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="词库修改后自动同步" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="新增、编辑或删除词条后自动与云端合并同步" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding WebDavAutoSync}"
+                                                             AutomationProperties.Name="词库修改后自动同步"
+                                                             ToolTip="新增、编辑或删除词条后自动与云端合并同步" />
+                                        </ui:CardControl>
+
+                                        <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}"
+                                                         IsExpanded="True"
+                                                         Icon="{ui:SymbolIcon PlugConnected24}">
+                                            <ui:CardExpander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="WebDAV 服务器连接配置" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="密码使用系统 DPAPI 本地加密保存；保存设置后生效" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardExpander.Header>
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="WebDAV 地址" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavUrl, UpdateSourceTrigger=PropertyChanged}" ToolTip="例如 https://dav.jianguoyun.com/dav/" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="同步文件路径" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavRemotePath, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="账号" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding WebDavUsername, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="密码（或应用密码）" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:PasswordBox x:Name="WebDavPasswordBox" Grid.Column="1"
+                                                                    PasswordChanged="WebDavPasswordBox_PasswordChanged"
+                                                                    ToolTip="WebDAV 密码使用系统 DPAPI 在本地加密保存"
+                                                                    AutomationProperties.Name="WebDAV 密码" />
+                                                </Grid>
+                                                <WrapPanel Margin="150,0,0,0">
+                                                    <ui:Button Style="{StaticResource SecondaryActionButton}"
+                                                               IsEnabled="{Binding IsTestingWebDav, Converter={StaticResource InverseBool}}"
+                                                               Command="{Binding TestWebDavConnectionCommand}"
+                                                               Margin="0,0,8,0">
+                                                        <TextBlock>
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="测试 WebDAV 连接" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsTestingWebDav}" Value="True">
+                                                                            <Setter Property="Text" Value="正在测试…" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </ui:Button>
+                                                    <ui:Button Style="{StaticResource SecondaryActionButton}"
+                                                               IsEnabled="{Binding IsSyncingWebDav, Converter={StaticResource InverseBool}}"
+                                                               Command="{Binding SyncWebDavNowCommand}">
+                                                        <TextBlock>
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="立即同步词库" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsSyncingWebDav}" Value="True">
+                                                                            <Setter Property="Text" Value="正在同步…" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </ui:Button>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </ui:CardExpander>
+
+                                        <TextBlock Text="Anki 联动制卡" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardControl x:Name="AnkiSettingsGroup" Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Flash24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="自动将收藏发送到 Anki" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="请先打开 Anki 并安装 AnkiConnect 插件" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding AnkiEnabled}"
+                                                             AutomationProperties.Name="自动将收藏发送到 Anki"
+                                                             ToolTip="自动将收藏发送到 Anki" />
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Book24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="牌组名称" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="收藏词条默认导入的目标 Anki 牌组" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <ui:TextBox MinWidth="180" Text="{Binding AnkiDeckName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
+                                                <ui:Button Style="{StaticResource SecondaryActionButton}"
+                                                           IsEnabled="{Binding IsTestingAnki, Converter={StaticResource InverseBool}}"
+                                                           Command="{Binding TestAnkiConnectionCommand}">
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="测试 Anki 连接" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTestingAnki}" Value="True">
+                                                                        <Setter Property="Text" Value="正在测试…" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </ui:Button>
+                                            </StackPanel>
+                                        </ui:CardControl>
+
+                                        <ui:CardExpander Style="{StaticResource FluentSettingsExpanderStyle}" Icon="{ui:SymbolIcon Apps24}">
+                                            <ui:CardExpander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="Anki 高级选项" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="自定义 AnkiConnect 地址、笔记类型与上下文挖空方式" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardExpander.Header>
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="AnkiConnect 地址" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding AnkiUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="笔记类型" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <ui:TextBox Grid.Column="1" Text="{Binding AnkiNoteTypeName, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <Grid MinHeight="32">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                                        <TextBlock Text="在卡片中挖空目标词" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                        <TextBlock Text="将例句中的单词替换为填空形式" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                    <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding AnkiClozeContext}"
+                                                                     AutomationProperties.Name="在卡片中挖空目标词"
+                                                                     ToolTip="将例句中的单词替换为填空"
+                                                                     VerticalAlignment="Center" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </ui:CardExpander>
+                                    </StackPanel>
+                                </TabItem>
+
+                                <!-- Category 5: 关于与更新 -->
+                                <TabItem x:Name="AboutSettingsCategory" Header="关于与更新">
+                                    <StackPanel x:Name="AboutSettingsGroup">
+                                        <TextBlock Text="应用信息与版本更新" Style="{StaticResource SettingsGroupHeaderStyle}" Margin="2,0,0,8" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{ui:SymbolIcon Info24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Word Catcher 桌面伴侣" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                        <Border Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Text="选中文字后按取词快捷键即可查看释义，并将单词和原句收藏到生词库。" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:Button Content="检查更新"
+                                                       Style="{StaticResource PrimaryActionButton}"
+                                                       Command="{Binding CheckForUpdatesCommand}"
                                                        IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource InverseBool}}"
-                                                       Visibility="{Binding IsUpdateReady, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0" />
-                                            <ui:Button Content="取消" Style="{StaticResource QuietActionButton}"
-                                                       Command="{Binding CheckForUpdatesCancelCommand}"
-                                                       Visibility="{Binding IsCheckingForUpdates, Converter={StaticResource BoolToVis}}" />
-                                        </WrapPanel>
-                                        <TextBlock Text="更新检查与下载访问 GitHub 发布信息和安装包，不会上传词库、API Key 或取词内容。"
-                                                   TextWrapping="Wrap"
-                                                   Foreground="{DynamicResource TextMutedBrush}"
-                                                   FontSize="{StaticResource CaptionFontSize}"
-                                                   Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                                <WrapPanel>
-                                    <ui:Button Content="打开项目主页" Style="{StaticResource QuietActionButton}"
-                                            Command="{Binding OpenProjectPageCommand}"
-                                            Padding="12,6"
-                                            Margin="0,0,8,0"
-                                            Background="{DynamicResource SubtleSurfaceBrush}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            ToolTip="在浏览器中打开项目主页" />
-                                    <ui:Button Content="打开下载页面" Style="{StaticResource QuietActionButton}"
-                                            Command="{Binding OpenLatestReleasePageCommand}"
-                                            Padding="12,6"
-                                            Background="{DynamicResource SubtleSurfaceBrush}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            ToolTip="在浏览器中打开最新 GitHub Release" />
-                                </WrapPanel>
-                            </StackPanel>
-                        </GroupBox>
+                                                       ToolTip="检查 GitHub Releases 中是否有新版本" />
+                                        </ui:CardControl>
 
+                                        <Border Style="{StaticResource SurfaceCardStyle}" Padding="16,14" Margin="0,0,0,8"
+                                                Visibility="{Binding HasCheckedForUpdates, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel>
+                                                <ui:InfoBar Style="{StaticResource FluentInfoBarStyle}"
+                                                            Severity="Informational"
+                                                            IsOpen="True"
+                                                            Title="更新状态"
+                                                            Message="{Binding UpdateStatus}"
+                                                            Margin="0" />
+                                                <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Height="4" Margin="0,10,0,4"
+                                                             Visibility="{Binding IsCheckingForUpdates, Converter={StaticResource BoolToVis}}" />
+                                                <WrapPanel Margin="0,10,0,0">
+                                                    <ui:Button Content="安装更新" Style="{StaticResource PrimaryActionButton}"
+                                                               Command="{Binding InstallUpdateCommand}"
+                                                               IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource InverseBool}}"
+                                                               Visibility="{Binding IsUpdateReady, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0" />
+                                                    <ui:Button Content="取消" Style="{StaticResource QuietActionButton}"
+                                                               Command="{Binding CheckForUpdatesCancelCommand}"
+                                                               Visibility="{Binding IsCheckingForUpdates, Converter={StaticResource BoolToVis}}" />
+                                                </WrapPanel>
+                                                <TextBlock Text="更新检查与下载仅访问 GitHub 发布信息和安装包，不会上传词库、API Key 或取词内容。"
+                                                           TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           FontSize="{StaticResource CaptionFontSize}"
+                                                           Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock Text="相关链接" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardAction Style="{StaticResource FluentSettingsActionStyle}"
+                                                       Icon="{ui:SymbolIcon Code24}"
+                                                       Command="{Binding OpenProjectPageCommand}"
+                                                       ToolTip="在浏览器中打开项目主页">
+                                            <StackPanel>
+                                                <TextBlock Text="GitHub 项目主页" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                <TextBlock Text="查看源码实现、版本日志与文档说明" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </ui:CardAction>
+
+                                        <ui:CardAction Style="{StaticResource FluentSettingsActionStyle}"
+                                                       Icon="{ui:SymbolIcon ArrowDownload24}"
+                                                       Command="{Binding OpenLatestReleasePageCommand}"
+                                                       ToolTip="在浏览器中打开最新 GitHub Release">
+                                            <StackPanel>
+                                                <TextBlock Text="GitHub Releases 下载页面" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                <TextBlock Text="手动下载最新安装包或查看发布说明" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </ui:CardAction>
+                                    </StackPanel>
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="2">
+                        <ui:InfoBar Style="{StaticResource FluentInfoBarStyle}"
+                                    Severity="Informational"
+                                    IsOpen="True"
+                                    Margin="0,8,0,0"
+                                    Title="提示"
+                                    Message="{Binding StatusMessage}"
+                                    Visibility="{Binding StatusMessage, Converter={StaticResource StringToVis}}" />
+                        <Border x:Name="SettingsPendingBar"
+                                Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}"
+                                Style="{StaticResource SurfaceCardStyle}"
+                                Padding="16,12"
+                                Margin="0,10,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <TextBlock Text="{Binding DraftStatusText}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,3" />
+                                    <TextBlock Text="保存后生效；切换标签页也会保留草稿" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ui:Button x:Name="DiscardSettingsButton" Content="放弃修改" Command="{Binding DiscardChangesCommand}"
+                                               Style="{StaticResource QuietActionButton}" Margin="0,0,8,0"
+                                               Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}"
+                                               IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" />
+                                    <ui:Button x:Name="SettingsSaveButton" Style="{StaticResource PrimaryActionButton}"
+                                               ToolTip="保存设置（Ctrl+S）；切换页面会保留未保存的修改"
+                                               Command="{Binding SaveSettingsCommand}"
+                                               IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}"
+                                               Padding="18,8">
+                                        <TextBlock>
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="保存设置" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSaving}" Value="True"><Setter Property="Text" Value="正在保存…" /></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </ui:Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </StackPanel>
-                </ScrollViewer>
-                <StackPanel Grid.Row="2">
-                    <TextBlock Text="{Binding StatusMessage}" Visibility="{Binding StatusMessage, Converter={StaticResource StringToVis}}" TextWrapping="Wrap" MaxHeight="60" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="14,8,14,0" />
-                <Border x:Name="SettingsPendingBar" Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,12" Margin="0,10,0,0" CornerRadius="8">
-                <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-<TextBlock Text="{Binding DraftStatusText}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
-<TextBlock Text="保存后生效" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ui:Button x:Name="DiscardSettingsButton" Content="放弃修改" Command="{Binding DiscardChangesCommand}" Style="{StaticResource QuietActionButton}" Margin="0,0,8,0" Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" />
-                        <ui:Button x:Name="SettingsSaveButton" Style="{StaticResource PrimaryActionButton}" ToolTip="保存设置（Ctrl+S）；切换页面会保留未保存的修改" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource OnAccentBrush}" Padding="18,9">
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="保存设置" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsSaving}" Value="True"><Setter Property="Text" Value="正在保存…" /></DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </ui:Button>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-                </StackPanel>
                 </Grid>
             </TabItem>
             </TabControl>
+            </Border>
         </Grid>
     </Grid>
 </Window>

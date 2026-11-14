@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using TextBox = System.Windows.Controls.TextBox;
 using WordCatcher.App.Services;
@@ -104,6 +105,7 @@ public partial class LibraryWindow : Window
             if (e.Source != MainTabs) return;
             UpdateNavigationSelection();
             UpdateSyncRefreshTimer();
+            if (IsLoaded) AnimateElementEntrance(MainTabs, MainTabsTransform);
             if (MainTabs.SelectedItem == SettingsTab) _settingsVm.RefreshStartupState();
             if (e.Source == MainTabs && MainTabs.SelectedItem != SettingsTab)
                 _settingsVm.CancelHotkeyRecording();
@@ -118,6 +120,7 @@ public partial class LibraryWindow : Window
             if (WindowBackdrop.TryApply(this, 42, ThemeManager.IsDarkActive))
             {
                 Background = System.Windows.Media.Brushes.Transparent;
+                NavigationRailBorder.Background = System.Windows.Media.Brushes.Transparent;
                 TitleBar.SetResourceReference(Border.BackgroundProperty, "TitleBarGlassBrush");
             }
             UpdateWindowStateVisuals();
@@ -436,7 +439,7 @@ public partial class LibraryWindow : Window
     private void OpenAnkiSettings_Click(object sender, RoutedEventArgs e)
     {
         MainTabs.SelectedItem = SettingsTab;
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => AnkiSettingsGroup.BringIntoView()));
+        SelectSettingsCategory(3, AnkiSettingsGroup);
     }
 
     private void OpenActionMenu_Click(object sender, RoutedEventArgs e)
@@ -448,16 +451,56 @@ public partial class LibraryWindow : Window
         }
     }
 
-    private void SettingsSection_Click(object sender, RoutedEventArgs e)
+    private void SettingsCategoryTab_Checked(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: string name } && FindName(name) is FrameworkElement section)
-            section.BringIntoView();
+        if (SettingsCategoryTabs == null || sender is not FrameworkElement { Tag: string tag } || !int.TryParse(tag, out var index))
+            return;
+
+        if (SettingsCategoryTabs.SelectedIndex != index)
+            SettingsCategoryTabs.SelectedIndex = index;
+
+        SettingsScrollViewer?.ScrollToTop();
+        if (IsLoaded) AnimateElementEntrance(SettingsCategoryTabs, SettingsCategoryTransform);
+    }
+
+    public void SelectSettingsCategory(int index, FrameworkElement? scrollTarget = null)
+    {
+        var tabs = new[]
+        {
+            GeneralCategoryTab,
+            LookupCategoryTab,
+            AiCategoryTab,
+            SyncCategoryTab,
+            AboutCategoryTab
+        };
+        if (index >= 0 && index < tabs.Length)
+            tabs[index].IsChecked = true;
+
+        if (SettingsCategoryTabs != null)
+            SettingsCategoryTabs.SelectedIndex = Math.Clamp(index, 0, tabs.Length - 1);
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            if (scrollTarget != null)
+                scrollTarget.BringIntoView();
+            else
+                SettingsScrollViewer?.ScrollToTop();
+        }));
     }
 
     private void OpenWebDavSettings_Click(object sender, RoutedEventArgs e)
     {
         MainTabs.SelectedItem = SettingsTab;
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => WebDavSettingsGroup.BringIntoView()));
+        SelectSettingsCategory(3, WebDavSettingsGroup);
+    }
+
+    private static void AnimateElementEntrance(UIElement element, TranslateTransform transform)
+    {
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var fade = new DoubleAnimation(0.76, 1.0, TimeSpan.FromMilliseconds(140)) { EasingFunction = ease };
+        var slide = new DoubleAnimation(8.0, 0.0, TimeSpan.FromMilliseconds(150)) { EasingFunction = ease };
+        element.BeginAnimation(OpacityProperty, fade);
+        transform.BeginAnimation(TranslateTransform.YProperty, slide);
     }
 
     public void ShowSettings()

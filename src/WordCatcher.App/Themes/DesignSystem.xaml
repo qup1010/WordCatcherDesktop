@@ -10,6 +10,26 @@
     <FontFamily x:Key="HeadwordFontFamily">Georgia, Cambria, Microsoft YaHei UI</FontFamily>
     <FontFamily x:Key="PhoneticFontFamily">Georgia, Cambria, Segoe UI</FontFamily>
 
+    <!-- Force DirectWrite ideal grayscale anti-aliasing on vector icon fonts so inherited Display mode does not distort curves. -->
+    <Style x:Key="CrispSymbolIconStyle" TargetType="{x:Type ui:SymbolIcon}">
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale" />
+    </Style>
+
+    <Style TargetType="{x:Type ui:SymbolIcon}" BasedOn="{StaticResource CrispSymbolIconStyle}" />
+
+    <Style TargetType="{x:Type ui:FontIcon}">
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale" />
+    </Style>
+
+    <Style TargetType="{x:Type ui:NavigationViewItem}"
+           BasedOn="{StaticResource {x:Type ui:NavigationViewItem}}">
+        <Style.Resources>
+            <Style TargetType="{x:Type ui:SymbolIcon}" BasedOn="{StaticResource CrispSymbolIconStyle}" />
+        </Style.Resources>
+    </Style>
+
     <!-- Native text editing keeps IME, selection and keyboard behavior without the Fluent underline. -->
     <Style x:Key="LookupQueryTextBox" TargetType="TextBox">
         <Setter Property="Background" Value="Transparent" />
@@ -105,6 +125,7 @@
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
     </Style>
 
     <Style x:Key="QuietActionButton" TargetType="{x:Type ui:Button}"
@@ -122,43 +143,35 @@
         <Setter Property="Padding" Value="0" />
     </Style>
 
-    <Style x:Key="PrimaryActionButton" TargetType="{x:Type ui:Button}">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
-        <Setter Property="Padding" Value="12,8" />
+    <Style x:Key="PrimaryActionButton" TargetType="{x:Type ui:Button}"
+           BasedOn="{StaticResource {x:Type ui:Button}}">
+        <Setter Property="Appearance" Value="Primary" />
+        <Setter Property="Background" Value="{DynamicResource AccentButtonBackground}" />
+        <Setter Property="MouseOverBackground" Value="{DynamicResource AccentButtonBackgroundPointerOver}" />
+        <Setter Property="PressedBackground" Value="{DynamicResource AccentButtonBackgroundPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentButtonForeground}" />
+        <Setter Property="PressedForeground" Value="{DynamicResource AccentButtonForegroundPressed}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="14,7" />
         <Setter Property="MinHeight" Value="36" />
         <Setter Property="FontSize" Value="13" />
         <!-- YaHei UI maps Semibold to Bold; keep compact UI text at a lighter weight. -->
         <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="{x:Type ui:Button}">
-                    <Border x:Name="ActionSurface" Background="{TemplateBinding Background}" CornerRadius="6"
-                            BorderBrush="Transparent" BorderThickness="2" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource FocusBrush}" />
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="ActionSurface" Property="Opacity" Value="0.8" />
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="ActionSurface" Property="BorderBrush" Value="{DynamicResource TextPrimaryBrush}" />
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
-                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style x:Key="DangerActionButton" TargetType="{x:Type ui:Button}"
+           BasedOn="{StaticResource SecondaryActionButton}">
+        <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        <Setter Property="MouseOverBackground" Value="{DynamicResource DangerHoverSurfaceBrush}" />
+        <Setter Property="MouseOverBorderBrush" Value="{DynamicResource DangerBorderBrush}" />
+        <Setter Property="PressedBackground" Value="{DynamicResource DangerHoverSurfaceBrush}" />
+        <Setter Property="PressedBorderBrush" Value="{DynamicResource DangerBorderBrush}" />
+        <Setter Property="PressedForeground" Value="{DynamicResource DangerBrush}" />
     </Style>
 
     <system:Double xmlns:system="clr-namespace:System;assembly=System.Runtime" x:Key="BodyFontSize">14</system:Double>
@@ -183,6 +196,110 @@
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style x:Key="FluentSettingsCardStyle" TargetType="{x:Type ui:CardControl}"
+           BasedOn="{StaticResource {x:Type ui:CardControl}}">
+        <Style.Resources>
+            <Style TargetType="{x:Type ui:SymbolIcon}" BasedOn="{StaticResource CrispSymbolIconStyle}" />
+        </Style.Resources>
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,13" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="IsTabStop" Value="False" />
+    </Style>
+
+    <Style x:Key="FluentSettingsExpanderStyle" TargetType="{x:Type ui:CardExpander}"
+           BasedOn="{StaticResource {x:Type ui:CardExpander}}">
+        <Style.Resources>
+            <Style TargetType="{x:Type ui:SymbolIcon}" BasedOn="{StaticResource CrispSymbolIconStyle}" />
+        </Style.Resources>
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,13" />
+        <Setter Property="ContentPadding" Value="16,14" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style x:Key="FluentSettingsActionStyle" TargetType="{x:Type ui:CardAction}"
+           BasedOn="{StaticResource {x:Type ui:CardAction}}">
+        <Style.Resources>
+            <Style TargetType="{x:Type ui:SymbolIcon}" BasedOn="{StaticResource CrispSymbolIconStyle}" />
+        </Style.Resources>
+        <Setter Property="Padding" Value="16,13" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style x:Key="FluentInfoBarStyle" TargetType="{x:Type ui:InfoBar}"
+           BasedOn="{StaticResource {x:Type ui:InfoBar}}">
+        <Style.Resources>
+            <Style TargetType="{x:Type ui:SymbolIcon}" BasedOn="{StaticResource CrispSymbolIconStyle}" />
+        </Style.Resources>
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="IsClosable" Value="False" />
+    </Style>
+
+    <Style x:Key="SettingsGroupHeaderStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="Margin" Value="2,14,0,8" />
+    </Style>
+
+    <Style x:Key="SettingsCategoryTabStyle" TargetType="RadioButton">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Padding" Value="13,7" />
+        <Setter Property="Margin" Value="2,0" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="PillBorder"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                        <Grid>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                            <Border x:Name="ActiveIndicator"
+                                    Width="18"
+                                    Height="3"
+                                    CornerRadius="1.5"
+                                    Background="{DynamicResource AccentBrush}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Bottom"
+                                    Margin="0,0,0,2"
+                                    Opacity="0" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="PillBorder" Property="Background" Value="{DynamicResource HoverSurfaceBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="PillBorder" Property="Background" Value="{DynamicResource SurfaceBrush}" />
+                            <Setter TargetName="PillBorder" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                            <Setter TargetName="ActiveIndicator" Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="Medium" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="PillBorder" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

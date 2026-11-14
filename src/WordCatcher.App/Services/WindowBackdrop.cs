@@ -11,6 +11,8 @@ internal static class WindowBackdrop
     private const int SystemBackdropType = 38;
     private const int MainWindowBackdrop = 2;
     private const int ImmersiveDarkModeAttribute = 20;
+    private const int WindowCornerPreferenceAttribute = 33;
+    private const int WindowCornerRound = 2;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Margins
@@ -43,12 +45,19 @@ internal static class WindowBackdrop
 
         try
         {
+            var corner = WindowCornerRound;
+            _ = DwmSetWindowAttribute(handle, WindowCornerPreferenceAttribute, ref corner, sizeof(int));
+
             var backdrop = MainWindowBackdrop;
             if (DwmSetWindowAttribute(handle, SystemBackdropType, ref backdrop, sizeof(int)) < 0)
                 return false;
 
-            var dpiScale = source.CompositionTarget.TransformToDevice.M22;
-            var margins = new Margins { Top = (int)Math.Ceiling(titleBarHeight * dpiScale) };
+            if (System.Windows.Shell.WindowChrome.GetWindowChrome(window) is { } chrome)
+                chrome.GlassFrameThickness = new Thickness(-1);
+
+            // Extend DWM Mica across the entire client area so the navigation rail
+            // and title bar share a continuous translucent WinUI 3 backdrop.
+            var margins = new Margins { Left = -1, Right = -1, Top = -1, Bottom = -1 };
             if (DwmExtendFrameIntoClientArea(handle, ref margins) < 0)
                 return false;
 
