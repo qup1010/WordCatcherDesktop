@@ -14,6 +14,46 @@ namespace WordCatcher.App.Tests;
 public class LookupViewModelTests
 {
     [Fact]
+    public async Task SavedContextCanBeEditedTranslatedAndSavedAgainInTheDatabase()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"lookup-edit-{Guid.NewGuid():N}.db");
+        try
+        {
+            var factory = new WordCatcher.Infrastructure.Database.SqliteConnectionFactory(path);
+            await new WordCatcher.Infrastructure.Database.SqliteMigrationRunner(factory).MigrateAsync();
+            var repository = new WordCatcher.Infrastructure.Database.WordRepository(factory);
+            var lookup = DispatchProxy.Create<ILookupService, ServiceProxy>();
+            var queue = DispatchProxy.Create<IAnkiSyncQueue, ServiceProxy>();
+            var settings = DispatchProxy.Create<ISettingsService, ServiceProxy>();
+            var vm = new LookupViewModel(lookup, repository, queue, settings, new FakeSpeechService(), new WordCollectionEvents());
+            await vm.StartLookupAsync(Capture() with { Sentence = "We use digital systems.", SentenceOffset = 7 });
+            await vm.SaveCommand.ExecuteAsync(null);
+            var word = Assert.Single(await repository.GetWordsAsync());
+            var original = Assert.Single(await repository.GetOccurrencesByWordIdAsync(word.Id));
+            Assert.True(vm.HasSavedContext);
+            Assert.False(vm.CanSave);
+            vm.EditDefinition = "自定义释义";
+            vm.LearningNote = "新笔记";
+            Assert.True(vm.CanSave);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.Equal("已更新当前语境", vm.SavedStatusText);
+            Assert.False(vm.CanSave);
+            await vm.TranslateSentenceCommand.ExecuteAsync(null);
+            Assert.True(vm.CanSave);
+            await vm.SaveCommand.ExecuteAsync(null);
+            var actual = Assert.Single(await repository.GetOccurrencesByWordIdAsync(word.Id));
+            Assert.Equal(original.Id, actual.Id);
+            Assert.Equal("自定义释义", actual.Definition);
+            Assert.Equal("新笔记", actual.Note);
+            Assert.Equal("手动翻译的原句意思", actual.Translation);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+    [Fact]
     public void SavedMeaningPresentationUsesSourceAndSuppressesDuplicates()
     {
         var occurrence = new Occurrence { LearningResult = Digital(), WordDefinition = Digital().Definition };

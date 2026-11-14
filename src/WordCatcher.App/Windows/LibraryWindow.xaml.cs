@@ -104,6 +104,7 @@ public partial class LibraryWindow : Window
             if (e.Source != MainTabs) return;
             UpdateNavigationSelection();
             UpdateSyncRefreshTimer();
+            if (MainTabs.SelectedItem == SettingsTab) _settingsVm.RefreshStartupState();
             if (e.Source == MainTabs && MainTabs.SelectedItem != SettingsTab)
                 _settingsVm.CancelHotkeyRecording();
             if (e.Source == MainTabs && IsLoaded && MainTabs.SelectedItem == SyncTab)
@@ -140,6 +141,10 @@ public partial class LibraryWindow : Window
             }
         };
         Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
+        Activated += (_, _) =>
+        {
+            if (MainTabs.SelectedItem == SettingsTab) _settingsVm.RefreshStartupState();
+        };
         IsVisibleChanged += (_, _) =>
         {
             if (!IsVisible) _settingsVm.CancelHotkeyRecording();
@@ -443,6 +448,7 @@ public partial class LibraryWindow : Window
     public void ShowSettings()
     {
         MainTabs.SelectedItem = SettingsTab;
+        _settingsVm.RefreshStartupState();
         ShowAndActivate();
     }
 

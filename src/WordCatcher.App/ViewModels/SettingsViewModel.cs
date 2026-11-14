@@ -87,7 +87,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception) { StartupStatus = "无法打开系统设置，请手动打开 Windows 设置 → 应用 → 启动。"; }
     }
 
-    private void RefreshStartupState()
+    public void RefreshStartupState()
     {
         try
         {

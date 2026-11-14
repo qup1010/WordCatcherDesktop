@@ -247,9 +247,25 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
         throw new InvalidOperationException($"WebDAV 服务器返回异常状态码：HTTP {(int)getRes.StatusCode}。");
     }
 
-    public async Task<WebDavSyncResult> SyncAsync(bool forcePush = false, CancellationToken ct = default)
+    public Task<WebDavSyncResult> SyncAsync(bool forcePush = false, CancellationToken ct = default)
+        => SyncCoreAsync(forcePush, ct);
+
+    private bool CanAutoSync(string target)
+    {
+        var settings = _settingsService.Current.WebDav;
+        return settings.Enabled && settings.AutoSync && !string.IsNullOrWhiteSpace(settings.Url)
+            && target == TargetIdentity();
+    }
+
+    private async Task<WebDavSyncResult> SyncCoreAsync(bool forcePush, CancellationToken ct, string? automaticTarget = null)
     {
         await _syncLock.WaitAsync(ct).ConfigureAwait(false);
+        // Recheck after acquiring the lock: a queued task may outlive its configuration.
+        if (automaticTarget != null && !CanAutoSync(automaticTarget))
+        {
+            _syncLock.Release();
+            throw new OperationCanceledException("自动同步配置已变更。");
+        }
         var startedRevision = Interlocked.Read(ref _localRevision);
         var target = TargetIdentity();
         IsSyncing = true;
@@ -405,17 +421,18 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
             cts = _debounceCts;
         }
 
-        _ = Task.Run(() => RunScheduledSyncAsync(cts));
+        var target = TargetIdentity();
+        _ = Task.Run(() => RunScheduledSyncAsync(cts, target));
     }
 
-    private async Task RunScheduledSyncAsync(CancellationTokenSource cts)
+    private async Task RunScheduledSyncAsync(CancellationTokenSource cts, string target)
     {
         try
         {
             await Task.Delay(2500, cts.Token).ConfigureAwait(false);
-            await SyncAsync(forcePush: true, CancellationToken.None).ConfigureAwait(false);
+            await SyncCoreAsync(forcePush: true, CancellationToken.None, target).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested || !CanAutoSync(target)) { }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Background auto WebDAV sync failed");

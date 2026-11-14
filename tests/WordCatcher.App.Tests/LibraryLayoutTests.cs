@@ -67,7 +67,16 @@ public class LibraryLayoutTests
                 RenderState(root, "wordcatcher-startup-disabled.png", 900, 700);
                 using (var startupKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(startupRegistration.KeyPath))
                     startupKey.SetValue("WordCatcherDesktop", "\"C:\\Old Folder\\WordCatcher.App.exe\"");
-                settings.InitializeAsync().GetAwaiter().GetResult();
+                // Exercise the actual navigation handler instead of manually refreshing the ViewModel.
+                var tabs = (TabControl)window.FindName("MainTabs");
+                var draftModel = settings.ApiModel;
+                settings.ApiModel = "unsaved-navigation-draft";
+                tabs.SelectedItem = window.FindName("LibraryTab");
+                tabs.SelectedItem = window.FindName("SettingsTab");
+                Assert.True(settings.StartWithWindows);
+                Assert.Equal("unsaved-navigation-draft", settings.ApiModel);
+                Assert.True(settings.HasUnsavedChanges);
+                settings.ApiModel = draftModel;
                 root.UpdateLayout();
                 var repairButton = (Wpf.Ui.Controls.Button)window.FindName("StartupRepairButton");
                 Assert.Equal(Visibility.Visible, repairButton.Visibility);

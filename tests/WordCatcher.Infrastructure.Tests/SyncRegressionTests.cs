@@ -8,6 +8,66 @@ namespace WordCatcher.Infrastructure.Tests;
 
 public sealed class SyncRegressionTests : IDisposable
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConcurrentWordSummaryEditsRequireAChoiceAndThenConverge(bool keepLocal)
+    {
+        var (word, occurrence, _) = await Save();
+        using var other = new SyncRegressionTests();
+        await new SqliteMigrationRunner(other._factory).MigrateAsync();
+        await other._repo.MergeSyncJsonAsync(await _repo.ExportSyncJsonAsync());
+        word.Definition = "本地摘要";
+        await _repo.UpdateWordAsync(word);
+        await Task.Delay(10);
+        var remoteWord = (await other._repo.FindWordAsync("bank"))!;
+        remoteWord.Definition = "远端摘要";
+        await other._repo.UpdateWordAsync(remoteWord);
+        var remote = await other.Payload();
+        await Assert.ThrowsAsync<SyncConflictException>(() => _repo.MergeSyncJsonAsync(remote.ToJsonString()));
+        var local = Record(await Payload());
+        await _repo.ResolveSyncConflictAsync(new(occurrence.Id, local.ToJsonString(), Record(remote).ToJsonString()), keepLocal);
+        await other._repo.MergeSyncJsonAsync(await _repo.ExportSyncJsonAsync());
+        await _repo.MergeSyncJsonAsync(await other._repo.ExportSyncJsonAsync());
+        Assert.Equal(keepLocal ? "本地摘要" : "远端摘要", (await _repo.FindWordAsync("bank"))!.Definition);
+        Assert.Equal((await _repo.FindWordAsync("bank"))!.Definition, (await other._repo.FindWordAsync("bank"))!.Definition);
+        Assert.False((await _repo.MergeSyncJsonAsync(await other._repo.ExportSyncJsonAsync())).NeedsPush);
+    }
+
+    [Fact]
+    public async Task EqualCausalVersionsWithDifferentWordSummariesAreRejected()
+    {
+        var (word, _, _) = await Save();
+        var remote = await Payload();
+        Record(remote)["wordMeta"]!["definition"] = "不同摘要";
+        Record(remote)["wordMeta"]!["updatedAt"] = word.UpdatedAtUtc.AddMinutes(1).ToUnixTimeMilliseconds();
+        await Assert.ThrowsAsync<SyncConflictException>(() => _repo.MergeSyncJsonAsync(remote.ToJsonString()));
+        Assert.Equal(word.Definition, (await _repo.FindWordAsync("bank"))!.Definition);
+    }
+
+    [Fact]
+    public async Task DesktopBackupPreservesEditedMetadataSnapshotAndIdentityWhenSyncedAgain()
+    {
+        var (word, occurrence, _) = await Save(new("我的语境义", "我的译文", "笔记"));
+        word.DisplayWord = "renamed-bank";
+        word.Definition = "修改后的词条摘要";
+        word.Reading = "new-reading";
+        await _repo.UpdateWordAsync(word);
+        using var restored = new SyncRegressionTests();
+        await new SqliteMigrationRunner(restored._factory).MigrateAsync();
+        Assert.Equal(1, await restored._repo.ImportWordsJsonAsync(await _repo.ExportWordsJsonAsync()));
+        var actualWord = Assert.Single(await restored._repo.GetWordsAsync());
+        Assert.Equal(word.DisplayWord, actualWord.DisplayWord);
+        Assert.Equal(word.Definition, actualWord.Definition);
+        Assert.Equal(word.Reading, actualWord.Reading);
+        var actual = Assert.Single(await restored._repo.GetOccurrencesByWordIdAsync(actualWord.Id));
+        Assert.Equal(occurrence.Id, actual.Id);
+        Assert.Equal(occurrence.LearningResult, actual.LearningResult);
+        Assert.Equal(occurrence.Edits, actual.Edits);
+        Assert.Equal(0, await restored._repo.ImportWordsJsonAsync(await _repo.ExportWordsJsonAsync()));
+        await restored._repo.MergeSyncJsonAsync(await _repo.ExportSyncJsonAsync());
+        Assert.Single((await restored.Payload())["records"]!.AsArray());
+    }
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"sync-regression-{Guid.NewGuid():N}.db");
     private readonly SqliteConnectionFactory _factory;
     private readonly WordRepository _repo;

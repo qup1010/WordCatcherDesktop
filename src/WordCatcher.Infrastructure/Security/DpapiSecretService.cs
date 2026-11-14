@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using WordCatcher.Core.Interfaces;
+using WordCatcher.Infrastructure.Storage;
 
 namespace WordCatcher.Infrastructure.Security;
 
@@ -15,6 +16,9 @@ public sealed class DpapiSecretService : IProfileSecretStore
 {
     private readonly string _secretsPath;
     private readonly ILogger<DpapiSecretService>? _logger;
+    private readonly SemaphoreSlim _ioGate = new(1, 1);
+    private bool _recoveredFromBackup;
+    private bool _readFailed;
 
     public DpapiSecretService(string? customPath = null, ILogger<DpapiSecretService>? logger = null)
     {
@@ -49,6 +53,13 @@ public sealed class DpapiSecretService : IProfileSecretStore
 
     public async Task<string> GetApiKeyAsync(string profileId, CancellationToken ct = default)
     {
+        await _ioGate.WaitAsync(ct).ConfigureAwait(false);
+        try { return await GetApiKeyCoreAsync(profileId, ct).ConfigureAwait(false); }
+        finally { _ioGate.Release(); }
+    }
+
+    private async Task<string> GetApiKeyCoreAsync(string profileId, CancellationToken ct)
+    {
         var secrets = await ReadSecretsAsync(ct).ConfigureAwait(false);
         if (secrets != null)
             return secrets.TryGetValue(profileId, out var key) ? key : string.Empty;
@@ -60,8 +71,17 @@ public sealed class DpapiSecretService : IProfileSecretStore
 
     public async Task SetApiKeyAsync(string profileId, string apiKey, CancellationToken ct = default)
     {
+        await _ioGate.WaitAsync(ct).ConfigureAwait(false);
+        try { await SetApiKeyCoreAsync(profileId, apiKey, ct).ConfigureAwait(false); }
+        finally { _ioGate.Release(); }
+    }
+
+    private async Task SetApiKeyCoreAsync(string profileId, string apiKey, CancellationToken ct)
+    {
         var secrets = await ReadSecretsAsync(ct).ConfigureAwait(false)
             ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        if (_readFailed)
+            throw new InvalidOperationException("密钥文件与备份均无法读取，已停止保存以保留原文件。");
 
         if (secrets.Count == 0 && File.Exists(_secretsPath))
         {
@@ -77,14 +97,8 @@ public sealed class DpapiSecretService : IProfileSecretStore
 
         if (secrets.Count == 0)
         {
-            try
-            {
-                if (File.Exists(_secretsPath)) File.Delete(_secretsPath);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to remove empty API key store at {Path}", _secretsPath);
-            }
+            File.Delete(_secretsPath + ".bak");
+            File.Delete(_secretsPath);
             return;
         }
 
@@ -93,7 +107,7 @@ public sealed class DpapiSecretService : IProfileSecretStore
             Encoding.UTF8.GetBytes(serialized),
             null,
             DataProtectionScope.CurrentUser);
-        await File.WriteAllBytesAsync(_secretsPath, encryptedBytes, ct).ConfigureAwait(false);
+        await AtomicFileWriter.WriteBytesAsync(_secretsPath, encryptedBytes, ct, !_recoveredFromBackup).ConfigureAwait(false);
     }
 
     private async Task<Dictionary<string, string>?> ReadSecretsAsync(CancellationToken ct)
@@ -134,22 +148,25 @@ public sealed class DpapiSecretService : IProfileSecretStore
 
     private async Task<string> ReadPlainTextAsync(CancellationToken ct)
     {
-        if (!File.Exists(_secretsPath))
-            return string.Empty;
-
-        try
+        _readFailed = false;
+        _recoveredFromBackup = false;
+        foreach (var path in new[] { _secretsPath, _secretsPath + ".bak" })
         {
-            var encryptedBytes = await File.ReadAllBytesAsync(_secretsPath, ct).ConfigureAwait(false);
-            if (encryptedBytes.Length == 0)
-                return string.Empty;
-
-            var decryptedBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(decryptedBytes);
+            if (!File.Exists(path)) continue;
+            try
+            {
+                var encryptedBytes = await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+                var decryptedBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
+                _recoveredFromBackup = path != _secretsPath;
+                _readFailed = false;
+                return Encoding.UTF8.GetString(decryptedBytes);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+            {
+                _readFailed = true;
+                _logger?.LogWarning(ex, "Failed to decrypt API Key from {Path}, trying backup", path);
+            }
         }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to decrypt API Key from {Path}", _secretsPath);
-            return string.Empty;
-        }
+        return string.Empty;
     }
 }

@@ -42,14 +42,15 @@ public sealed class WordRepository : IWordRepository
         SaveCardCommand command,
         CancellationToken ct,
         SqliteConnection? sharedConnection = null,
-        SqliteTransaction? sharedTransaction = null)
+        SqliteTransaction? sharedTransaction = null,
+        Word? importedWord = null)
     {
         var capture = command.Capture;
         var trans = command.Translation;
         if (string.IsNullOrWhiteSpace(trans.Word) || string.IsNullOrWhiteSpace(trans.Definition))
             throw new ArgumentException("表达和释义不能为空。");
 
-        var displayWord = trans.Word.Trim();
+        var displayWord = (importedWord?.DisplayWord ?? trans.Word).Trim();
         var normalized = displayWord.ToLowerInvariant();
         var language = "en"; // MVP primary language is English
         var now = DateTimeOffset.UtcNow;
@@ -142,10 +143,10 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
                         insertCmd.Parameters.AddWithValue("$norm", normalized);
                         insertCmd.Parameters.AddWithValue("$display", displayWord);
                         insertCmd.Parameters.AddWithValue("$lang", language);
-                        insertCmd.Parameters.AddWithValue("$reading", trans.Reading);
-                        insertCmd.Parameters.AddWithValue("$pos", trans.PartOfSpeech);
-                        insertCmd.Parameters.AddWithValue("$def", trans.Definition);
-                        insertCmd.Parameters.AddWithValue("$hook", trans.MemoryHook ?? string.Empty);
+                        insertCmd.Parameters.AddWithValue("$reading", importedWord?.Reading ?? trans.Reading);
+                        insertCmd.Parameters.AddWithValue("$pos", importedWord?.PartOfSpeech ?? trans.PartOfSpeech);
+                        insertCmd.Parameters.AddWithValue("$def", importedWord?.Definition ?? trans.Definition);
+                        insertCmd.Parameters.AddWithValue("$hook", importedWord?.MemoryHook ?? trans.MemoryHook ?? string.Empty);
                         insertCmd.Parameters.AddWithValue("$created", nowStr);
                         insertCmd.Parameters.AddWithValue("$updated", nowStr);
                         await insertCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
@@ -157,10 +158,10 @@ VALUES ($id, $norm, $display, $lang, $reading, $pos, $def, $hook, $created, $upd
                         NormalizedWord = normalized,
                         DisplayWord = displayWord,
                         Language = language,
-                        Reading = trans.Reading,
-                        PartOfSpeech = trans.PartOfSpeech,
-                        Definition = trans.Definition,
-                        MemoryHook = trans.MemoryHook ?? string.Empty,
+                        Reading = importedWord?.Reading ?? trans.Reading,
+                        PartOfSpeech = importedWord?.PartOfSpeech ?? trans.PartOfSpeech,
+                        Definition = importedWord?.Definition ?? trans.Definition,
+                        MemoryHook = importedWord?.MemoryHook ?? trans.MemoryHook ?? string.Empty,
                         CreatedAtUtc = now,
                         UpdatedAtUtc = now
                     };
@@ -1121,7 +1122,14 @@ WHERE word_id = $id;";
                         && editsEl.ValueKind == JsonValueKind.Object
                         ? JsonSerializer.Deserialize<LearningEdits>(editsEl.GetRawText(),
                             new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) : null;
-                    await SaveCoreAsync(new SaveCardCommand(capture, trans, edits), ct).ConfigureAwait(false);
+                    var occurrenceId = GetStringIgnoreCase(occEl, "Id");
+                    if (occurrenceId != null && !IsValidRecordId(occurrenceId))
+                        throw new InvalidOperationException("备份中的语境标识无效。");
+                    // Shared word metadata and the original learning snapshot are independent.
+                    await SaveCoreAsync(new SaveCardCommand(capture, trans, edits, OccurrenceId: occurrenceId), ct,
+                        importedWord: new Word { DisplayWord = displayWord, Reading = reading,
+                            PartOfSpeech = pos, Definition = definition, MemoryHook = memoryHook ?? string.Empty })
+                        .ConfigureAwait(false);
                     importedCount++;
                 }
             }
@@ -1697,7 +1705,8 @@ ORDER BY updated_at_utc DESC;";
                     if (sameContent && !localDeleted && localWord != null)
                     {
                         var occurrence = await GetOccurrenceByIdAsync(connection, transaction, local.OccurrenceId, ct).ConfigureAwait(false);
-                        sameContent = occurrence != null && SameLearningContent(localWord, occurrence, rem);
+                        sameContent = occurrence != null && SameLearningContent(localWord, occurrence, rem)
+                            && (rem.WordMeta == null || SameWordMeta(localWord, rem.WordMeta));
                     }
 
                     if (order == VersionVectorOrder.Equal && !sameContent)

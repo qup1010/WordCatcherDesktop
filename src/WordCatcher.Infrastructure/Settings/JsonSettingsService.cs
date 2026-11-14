@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
+using WordCatcher.Infrastructure.Storage;
 
 namespace WordCatcher.Infrastructure.Settings;
 
@@ -15,6 +16,8 @@ public sealed class JsonSettingsService : ISettingsService
     private readonly ILogger<JsonSettingsService>? _logger;
     private readonly object _lock = new();
     private AppSettings _current;
+    private readonly SemaphoreSlim _ioGate = new(1, 1);
+    private bool _recoveredFromBackup;
 
     public event Action<AppSettings>? SettingsChanged;
 
@@ -54,37 +57,15 @@ public sealed class JsonSettingsService : ISettingsService
 
     public async Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default)
     {
-        if (!File.Exists(_settingsPath))
-        {
-            var defaults = new AppSettings();
-            await SaveSettingsAsync(defaults, ct).ConfigureAwait(false);
-            return defaults;
-        }
-
+        await _ioGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var json = await File.ReadAllTextAsync(_settingsPath, ct).ConfigureAwait(false);
-            var loaded = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            lock (_lock)
-            {
-                _current = loaded ?? new AppSettings();
-            }
-            return _current;
+            ct.ThrowIfCancellationRequested();
+            var loaded = LoadSettingsSync();
+            lock (_lock) { _current = loaded; }
+            return loaded;
         }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to read settings from {Path}, using defaults", _settingsPath);
-            var fallback = new AppSettings();
-            lock (_lock)
-            {
-                _current = fallback;
-            }
-            return fallback;
-        }
+        finally { _ioGate.Release(); }
     }
 
     public async Task SaveSettingsAsync(AppSettings settings, CancellationToken ct = default)
@@ -94,43 +75,49 @@ public sealed class JsonSettingsService : ISettingsService
             WriteIndented = true
         });
 
-        await File.WriteAllTextAsync(_settingsPath, json, ct).ConfigureAwait(false);
-        lock (_lock)
+        await _ioGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            _current = settings;
+            await AtomicFileWriter.WriteTextAsync(_settingsPath, json, ct, !_recoveredFromBackup).ConfigureAwait(false);
+            _recoveredFromBackup = false;
+            lock (_lock) { _current = settings; }
         }
-        SettingsChanged?.Invoke(_current);
+        finally { _ioGate.Release(); }
+        SettingsChanged?.Invoke(settings);
     }
 
     private AppSettings LoadSettingsSync()
     {
-        if (!File.Exists(_settingsPath))
+        _recoveredFromBackup = false;
+        foreach (var path in new[] { _settingsPath, _settingsPath + ".bak" })
         {
-            var defaults = new AppSettings();
+            if (!File.Exists(path)) continue;
+            try
+            {
+                var loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (loaded == null) throw new JsonException("设置文件为空。");
+                _recoveredFromBackup = path != _settingsPath;
+                return loaded;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                _logger?.LogWarning(ex, "Failed to parse settings file {Path}, trying backup", path);
+            }
+        }
+        var defaults = new AppSettings();
+        if (!File.Exists(_settingsPath) && !File.Exists(_settingsPath + ".bak"))
+        {
             try
             {
                 var json = JsonSerializer.Serialize(defaults, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_settingsPath, json);
+                AtomicFileWriter.WriteTextAsync(_settingsPath, json).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "Failed to write default settings");
             }
-            return defaults;
         }
-
-        try
-        {
-            var json = File.ReadAllText(_settingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            }) ?? new AppSettings();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to parse settings file {Path}, falling back to defaults", _settingsPath);
-            return new AppSettings();
-        }
+        return defaults;
     }
 }

@@ -81,16 +81,15 @@ public sealed partial class FileLoggerProvider : ILoggerProvider
             if (!IsEnabled(logLevel)) return;
 
             var msg = formatter(state, exception);
-            // Sanitize sensitive info
-            msg = BearerTokenRegex().Replace(msg, "Bearer [REDACTED]");
-            msg = ApiKeyRegex().Replace(msg, "apiKey=[REDACTED]");
-
             var logLine = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] [{logLevel}] [{_categoryName}] {msg}";
             if (exception != null)
             {
                 logLine += Environment.NewLine + exception;
             }
 
+            // Exception.ToString includes inner exceptions and must be sanitized as well.
+            logLine = BearerTokenRegex().Replace(logLine, "Bearer [REDACTED]");
+            logLine = ApiKeyRegex().Replace(logLine, "apiKey=[REDACTED]");
             _provider.WriteLog(logLine);
         }
     }

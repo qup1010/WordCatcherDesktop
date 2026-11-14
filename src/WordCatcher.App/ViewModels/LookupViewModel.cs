@@ -34,6 +34,15 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty] private string _editTranslation = string.Empty;
     [ObservableProperty] private string _learningNote = string.Empty;
     [ObservableProperty] private bool _hasSavedContext;
+    private LearningEdits? _savedDraft;
+    partial void OnEditDefinitionChanged(string value) => RefreshSaveAvailability();
+    partial void OnEditTranslationChanged(string value) => RefreshSaveAvailability();
+    partial void OnLearningNoteChanged(string value) => RefreshSaveAvailability();
+    private void RefreshSaveAvailability()
+    {
+        if (_savedDraft != null && !IsLoading && !IsSaving && HasResult)
+            CanSave = _savedDraft != new LearningEdits(EditDefinition, EditTranslation, LearningNote);
+    }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TranslateSentenceButtonText))]
     [NotifyPropertyChangedFor(nameof(CanUseAiSentenceTranslation))]
@@ -220,6 +229,7 @@ public sealed partial class LookupViewModel : ObservableObject
         OnPropertyChanged(nameof(CanUseAiFallback));
         Analysis = null;
         HasSavedContext = false;
+        _savedDraft = null;
         IsTranslatingSentence = false;
         SentenceTranslationFailed = false;
         LastSentenceTranslationUsedAi = false;
@@ -486,6 +496,8 @@ public sealed partial class LookupViewModel : ObservableObject
         SaveFailed = false;
         IsEditingDefinition = false;
         var wasSaved = IsSaved;
+        var hadSavedContext = HasSavedContext;
+        var savedDraft = new LearningEdits(EditDefinition, EditTranslation, LearningNote);
         var collectionVersion = ++_collectionVersion;
         SavedStatusText = "正在保存到生词库…";
         var version = _lookupVersion;
@@ -504,11 +516,14 @@ public sealed partial class LookupViewModel : ObservableObject
             if (version != _lookupVersion) return;
 
             IsSaved = true;
+            HasSavedContext = true;
+            _savedDraft = savedDraft;
             _wasSavedBeforeCollection = wasSaved;
             _undoOccurrenceId = occ.WasCreated ? occ.Id : null;
             CanUndoSave = _undoOccurrenceId != null;
             IsSaving = false;
-            SavedStatusText = HasSavedContext ? "已更新当前语境" : wasSaved ? "已新增语境记录" : "已存入生词库";
+            RefreshSaveAvailability();
+            SavedStatusText = hadSavedContext ? "已更新当前语境" : wasSaved ? "已新增语境记录" : "已存入生词库";
             SyncStatusText = _settingsService.Current.Anki.Enabled ? "已保存在本地，将在后台同步到 Anki" : string.Empty;
 
             if (_settingsService.Current.Ui.ClosePopupAfterSave)
@@ -544,6 +559,8 @@ public sealed partial class LookupViewModel : ObservableObject
             CanUndoSave = false;
             _undoOccurrenceId = null;
             IsSaved = _wasSavedBeforeCollection;
+            HasSavedContext = false;
+            _savedDraft = null;
             CanSave = true;
             SavedStatusText = "已撤销本次本地收藏";
             SyncStatusText = _settingsService.Current.Anki.Enabled ? "已发送到 Anki 的卡片可在 Anki 中删除。" : string.Empty;
