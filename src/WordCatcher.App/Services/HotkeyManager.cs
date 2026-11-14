@@ -82,6 +82,7 @@ public sealed class HotkeyManager : IDisposable
     {
         if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == _registeredId)
         {
+            _logger?.LogInformation("WM_HOTKEY received (id={HotkeyId}, enabled={Enabled})", _registeredId, _isEnabled);
             if (_isEnabled)
             {
                 HotkeyTriggered?.Invoke();

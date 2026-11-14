@@ -261,10 +261,19 @@ public class SelectionCaptureTests
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var platform = new FakePlatform { ModifierGate = gate.Task };
         var service = new SelectionCaptureService(platform);
-        var first = service.CaptureSelectionAsync();
-        Assert.Null(await service.CaptureSelectionAsync());
+        var captured = new List<CaptureResult>();
+        var failures = new List<CaptureException>();
+        Task ShowResult(CaptureResult result) { captured.Add(result); return Task.CompletedTask; }
+        void ShowFailure(CaptureException error) { platform.Current = false; failures.Add(error); }
+        var first = HotkeyCaptureHandler.HandleAsync(service, ShowResult, ShowFailure);
+        await HotkeyCaptureHandler.HandleAsync(service, ShowResult, ShowFailure);
+        Assert.Empty(captured);
+        Assert.Empty(failures);
+        Assert.True(platform.Current);
         gate.SetResult();
-        Assert.NotNull(await first);
+        await first;
+        Assert.Equal("ocean", Assert.Single(captured).SelectedText);
+        Assert.Empty(failures);
         Assert.Equal(1, platform.Copies);
     }
 

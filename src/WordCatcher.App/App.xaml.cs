@@ -122,6 +122,12 @@ public partial class App : System.Windows.Application
             var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
             settingsVm.UpdateInstallRequested += InstallDownloadedUpdate;
 
+            if (!e.Args.Contains("--startup", StringComparer.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Interactive launch: opening the library window");
+                _libraryWindow.ShowLibrary();
+            }
+
             if (settingsService.Current.WebDav.Enabled
                 && settingsService.Current.WebDav.AutoSync
                 && !string.IsNullOrWhiteSpace(settingsService.Current.WebDav.Url))
@@ -217,27 +223,27 @@ public partial class App : System.Windows.Application
 
     private async void OnHotkeyTriggered()
     {
+        _logger?.LogInformation("Global hotkey handler invoked; capturing selected text");
         var captureService = _serviceProvider?.GetRequiredService<ISelectionCaptureService>();
         if (captureService == null) return;
 
-        CaptureResult? capture;
-        try
+        await HotkeyCaptureHandler.HandleAsync(captureService, ShowCapturedLookupAsync, ex =>
         {
-            capture = await captureService.CaptureSelectionAsync().ConfigureAwait(true);
-        }
-        catch (CaptureException ex)
-        {
+            _logger?.LogWarning(ex, "Global hotkey selection capture failed");
+            if (_serviceProvider?.GetService<WordLookupViewModel>() is { } lookupViewModel)
+            {
+                lookupViewModel.QueryError = ex.Message;
+                _libraryWindow?.ShowLookup();
+            }
             _trayManager?.ShowNotification("取词未完成", ex.Message + "\n点击此通知，打开查词页手动粘贴。",
                 System.Windows.Forms.ToolTipIcon.Warning, () => _libraryWindow?.ShowLookup());
-            return;
-        }
-        catch (OperationCanceledException) { return; }
-        if (capture == null || string.IsNullOrWhiteSpace(capture.SelectedText))
-        {
-            _logger?.LogInformation("No text captured on hotkey trigger");
-            // 重复热键请求由取词服务忽略，不重复弹出失败提示。
-            return;
-        }
+        });
+    }
+
+    private async Task ShowCapturedLookupAsync(CaptureResult capture)
+    {
+        _logger?.LogInformation("Hotkey captured selected text ({Length} characters) from {ProcessName}",
+            capture.SelectedText.Length, capture.SourceProcess);
 
         // A pinned card acts as a fixed lookup surface: preserve its position
         // and refresh the result in place for every subsequent capture.
@@ -273,6 +279,7 @@ public partial class App : System.Windows.Application
         };
 
         lookupWindow.Show();
+        _logger?.LogInformation("Lookup popup shown for hotkey capture");
         // The window must be attached to a presentation source before reading
         // its DPI. This is especially important on a secondary high-DPI monitor.
         lookupWindow.PositionNearCursor(capture.CursorPosition);
