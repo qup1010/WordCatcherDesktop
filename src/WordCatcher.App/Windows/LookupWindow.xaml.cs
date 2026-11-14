@@ -201,7 +201,7 @@ public partial class LookupWindow : Window
         }
         else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None
                  && !IsButtonSource(Keyboard.FocusedElement as DependencyObject)
-                 && Keyboard.FocusedElement is not System.Windows.Controls.TextBox)
+                 && Keyboard.FocusedElement is not System.Windows.Controls.TextBox { IsReadOnly: false })
         {
             if (_viewModel.SaveCommand.CanExecute(null))
             {
@@ -240,15 +240,15 @@ public partial class LookupWindow : Window
     {
         _viewModel.KeepOpenAfterSave = true;
         Topmost = true;
-        PinToggle.ToolTip = "取消钉住（Ctrl+P）";
-        System.Windows.Automation.AutomationProperties.SetName(PinToggle, "取消钉住查词浮窗");
+        PinToggle.ToolTip = "取消固定（Ctrl+P）";
+        System.Windows.Automation.AutomationProperties.SetName(PinToggle, "取消固定查词浮窗");
     }
 
     private void PinToggle_Unchecked(object sender, RoutedEventArgs e)
     {
         _viewModel.KeepOpenAfterSave = false;
-        PinToggle.ToolTip = "钉住卡片；保持位置并在这里刷新后续取词 (Ctrl+P)";
-        System.Windows.Automation.AutomationProperties.SetName(PinToggle, "钉住查词浮窗");
+        PinToggle.ToolTip = "固定卡片；保持位置并在此刷新后续取词 (Ctrl+P)";
+        System.Windows.Automation.AutomationProperties.SetName(PinToggle, "固定查词浮窗");
     }
 
     protected override void OnClosed(EventArgs e)

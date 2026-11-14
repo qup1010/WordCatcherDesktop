@@ -1,4 +1,5 @@
 using System.Windows;
+using WordCatcher.App.Services;
 using Wpf.Ui.Markup;
 
 namespace WordCatcher.App.Themes;
@@ -9,7 +10,10 @@ internal static class WpfUiResourceScope
     {
         if (Application.Current is not { } application
             || !application.Resources.MergedDictionaries.Any(IsDesignSystem))
+        {
+            ThemeManager.SyncElementResources(element);
             return;
+        }
 
         // 保留 DesignSystem：其中的原生模板会在显示时延迟解析 StaticResource。
         // InitializeComponent 后移除该字典会使模板的字号等资源失效。
@@ -19,6 +23,8 @@ internal static class WpfUiResourceScope
             if (element.Resources.MergedDictionaries[i] is ThemesDictionary or ControlsDictionary)
                 element.Resources.MergedDictionaries.RemoveAt(i);
         }
+
+        ThemeManager.SyncElementResources(element);
     }
 
     private static bool IsDesignSystem(ResourceDictionary dictionary)

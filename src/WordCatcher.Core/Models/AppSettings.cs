@@ -66,4 +66,5 @@ public sealed class UiSettings
 {
     public bool ClosePopupAfterSave { get; set; } = true;
     public bool ClosePopupOnDeactivate { get; set; } = true;
+    public string ThemeMode { get; set; } = "Light";
 }

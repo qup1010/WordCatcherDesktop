@@ -188,6 +188,7 @@ public sealed partial class LookupViewModel : ObservableObject
     }
 
     public event Action? RequestClose;
+    public event Action<string, bool>? OpenInMainRequested;
 
     public bool KeepOpenAfterSave { get; set; }
 
@@ -618,6 +619,14 @@ public sealed partial class LookupViewModel : ObservableObject
     private void Close()
     {
         RequestClose?.Invoke();
+    }
+
+    [RelayCommand]
+    private void OpenInMain()
+    {
+        var query = IsSaved && !string.IsNullOrWhiteSpace(Word) ? Word : SelectedText;
+        if (string.IsNullOrWhiteSpace(query)) return;
+        OpenInMainRequested?.Invoke(query, IsSaved);
     }
 
     [RelayCommand]

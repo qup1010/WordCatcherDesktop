@@ -208,6 +208,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _closePopupOnDeactivate = true;
 
     [ObservableProperty]
+    private string _themeMode = ThemeManager.LightMode;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DraftStatusText))]
     private bool _hasUnsavedChanges;
     public string DraftStatusText => HasUnsavedChanges ? "有未保存的修改" : "设置已保存";
@@ -221,7 +224,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
         nameof(WebDavEnabled), nameof(WebDavUrl), nameof(WebDavUsername), nameof(WebDavPassword),
         nameof(WebDavRemotePath), nameof(WebDavAutoSync),
-        nameof(ClosePopupAfterSave), nameof(ClosePopupOnDeactivate)
+        nameof(ClosePopupAfterSave), nameof(ClosePopupOnDeactivate), nameof(ThemeMode)
     };
 
     private string EditorState() => JsonSerializer.Serialize(new
@@ -241,7 +244,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             || ExplainLanguage.Trim() != current.ExplainLanguage
             || MachineTranslationProvider != current.Translation.MachineTranslationProvider
             || ClosePopupAfterSave != current.Ui.ClosePopupAfterSave
-            || ClosePopupOnDeactivate != current.Ui.ClosePopupOnDeactivate;
+            || ClosePopupOnDeactivate != current.Ui.ClosePopupOnDeactivate
+            || ThemeMode != ThemeManager.NormalizeMode(current.Ui.ThemeMode);
     }
 
     private void SavePreferences()
@@ -251,6 +255,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         var provider = MachineTranslationProvider;
         var closeAfterSave = ClosePopupAfterSave;
         var closeOnDeactivate = ClosePopupOnDeactivate;
+        var themeMode = ThemeManager.NormalizeMode(ThemeMode);
         var previous = PreferenceSaveTask;
         PreferenceSaveTask = PersistAsync();
         async Task PersistAsync()
@@ -263,6 +268,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 current.Translation.MachineTranslationProvider = provider;
                 current.Ui.ClosePopupAfterSave = closeAfterSave;
                 current.Ui.ClosePopupOnDeactivate = closeOnDeactivate;
+                current.Ui.ThemeMode = themeMode;
                 await _settingsService.SaveSettingsAsync(current).ConfigureAwait(true);
                 StatusMessage = "已自动保存。";
             }
@@ -276,8 +282,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         base.OnPropertyChanged(e);
         if (!_initializing && _savedEditorState != null && e.PropertyName != null && EditableProperties.Contains(e.PropertyName))
         {
+            if (e.PropertyName == nameof(ThemeMode))
+                ThemeManager.ApplyTheme(ThemeMode);
             RefreshUnsavedChanges();
-            if (e.PropertyName is nameof(ExplainLanguage) or nameof(MachineTranslationProvider) or nameof(ClosePopupAfterSave) or nameof(ClosePopupOnDeactivate)) SavePreferences();
+            if (e.PropertyName is nameof(ExplainLanguage) or nameof(MachineTranslationProvider) or nameof(ClosePopupAfterSave) or nameof(ClosePopupOnDeactivate) or nameof(ThemeMode)) SavePreferences();
         }
     }
 
@@ -461,6 +469,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
             ClosePopupOnDeactivate = s.Ui.ClosePopupOnDeactivate;
+            ThemeMode = ThemeManager.NormalizeMode(s.Ui.ThemeMode);
 
             RefreshDictStatus();
             OnPropertyChanged(nameof(AppliedHotkey));
@@ -651,6 +660,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
             s.Ui.ClosePopupOnDeactivate = ClosePopupOnDeactivate;
+            s.Ui.ThemeMode = ThemeManager.NormalizeMode(ThemeMode);
 
             _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();
             _webDavPasswordFallback = WebDavPassword;

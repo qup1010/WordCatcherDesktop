@@ -10,6 +10,7 @@ internal static class WindowBackdrop
 {
     private const int SystemBackdropType = 38;
     private const int MainWindowBackdrop = 2;
+    private const int ImmersiveDarkModeAttribute = 20;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Margins
@@ -26,8 +27,10 @@ internal static class WindowBackdrop
     [DllImport("dwmapi.dll")]
     private static extern int DwmExtendFrameIntoClientArea(IntPtr window, ref Margins margins);
 
-    public static bool TryApply(Window window, double titleBarHeight)
+    public static bool TryApply(Window window, double titleBarHeight, bool isDark = false)
     {
+        SetDarkMode(window, isDark);
+
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621) || SystemParameters.HighContrast)
             return false;
 
@@ -54,5 +57,23 @@ internal static class WindowBackdrop
         }
         catch (DllNotFoundException) { return false; }
         catch (EntryPointNotFoundException) { return false; }
+    }
+
+    public static void SetDarkMode(Window window, bool isDark)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
+            return;
+
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero)
+            return;
+
+        try
+        {
+            var darkValue = isDark ? 1 : 0;
+            _ = DwmSetWindowAttribute(handle, ImmersiveDarkModeAttribute, ref darkValue, sizeof(int));
+        }
+        catch (DllNotFoundException) { }
+        catch (EntryPointNotFoundException) { }
     }
 }

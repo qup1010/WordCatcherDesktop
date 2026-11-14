@@ -41,9 +41,11 @@ public sealed partial class WordLookupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private Task SearchAsync() => SearchForQueryAsync(Query);
+
+    public async Task SearchForQueryAsync(string rawQuery)
     {
-        var query = Query.Trim();
+        var query = (rawQuery ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(query))
         {
             QueryError = "请输入要查询的单词或短语";

@@ -48,7 +48,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -62,7 +62,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="HeaderActionSurface" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                                <Setter TargetName="HeaderActionSurface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="HeaderActionSurface" Property="Opacity" Value="0.4" />
@@ -73,11 +73,11 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource HoverSurfaceBrush}" />
-                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="{StaticResource SelectedSurfaceBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -85,8 +85,8 @@
         <Style x:Key="CloseIconButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource IconButton}">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
-                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -98,7 +98,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Template">
@@ -119,14 +119,14 @@
                                     <Condition Property="IsMouseOver" Value="True" />
                                     <Condition Property="IsChecked" Value="False" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="ButtonSurface" Property="Background" Value="{StaticResource HoverSurfaceBrush}" />
-                                <Setter TargetName="ButtonSurface" Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource HoverSurfaceBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
                             </MultiTrigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background" Value="{StaticResource SelectedSurfaceBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.55" />
@@ -138,12 +138,12 @@
         </Style>
 
         <Style x:Key="PinToggleButton" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource HeaderIconAction}">
-            <Setter Property="Margin" Value="6,0" />
+            <Setter Property="Margin" Value="4,0" />
             <Setter Property="Padding" Value="0" />
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentSubtleBrush}" />
-                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -152,11 +152,11 @@
             <Setter Property="Width" Value="Auto" />
             <Setter Property="Height" Value="Auto" />
             <Setter Property="Padding" Value="6,2" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="{StaticResource SubtleSurfaceBrush}" />
-                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -166,7 +166,7 @@
     <Grid Margin="10">
         <!-- Keep the shadow off the text subtree so its intermediate bitmap cannot soften glyphs. -->
         <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" IsHitTestVisible="False">
-            <Border.Effect><DropShadowEffect BlurRadius="18" Opacity="0.14" ShadowDepth="4" Color="#334155" /></Border.Effect>
+            <Border.Effect><DropShadowEffect BlurRadius="18" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
         </Border>
         <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" RenderOptions.ClearTypeHint="Enabled">
         <Grid Margin="16,14">
@@ -181,7 +181,7 @@
                         Background="Transparent" Cursor="SizeAll" HorizontalAlignment="Center"
                         ToolTip="拖动此处移动卡片"
                         MouseLeftButtonDown="DragSurface_MouseLeftButtonDown">
-                    <Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource TextMutedBrush}"
+                    <Border Width="40" Height="4" CornerRadius="2" Background="{DynamicResource TextMutedBrush}" Opacity="0.45"
                             HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <Grid x:Name="CardHeaderContent" Grid.Row="1">
@@ -190,11 +190,11 @@
                         ToolTip="拖动标题区域移动卡片"
                         MouseLeftButtonDown="DragSurface_MouseLeftButtonDown">
                     <StackPanel>
-                        <TextBlock FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
+                        <TextBlock FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
                             <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="FontSize" Value="24" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                         </TextBlock>
-                        <TextBlock Text="{Binding Reading}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
-                        <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+                        <TextBox Text="{Binding Reading, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
+                        <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Text" Value="离线词典 · 常用义优先" />
@@ -209,19 +209,16 @@
                 </Border>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                     <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读" AutomationProperties.Name="朗读">
-                        <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
-                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M3,9 L7,9 L12,5 L12,19 L7,15 L3,15 Z M16,8 C19,10 19,14 16,16 M19,5 C24,9 24,15 19,19" />
-                        </Canvas></Viewbox>
+                        <ui:SymbolIcon Symbol="Speaker224" FontSize="17" />
+                    </ui:Button>
+                    <ui:Button x:Name="OpenInMainButton" Command="{Binding OpenInMainCommand}" Style="{StaticResource IconButton}" Margin="2,0,0,0" ToolTip="在主窗口中打开" AutomationProperties.Name="在主窗口中打开" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+                        <ui:SymbolIcon Symbol="Open24" FontSize="16" />
                     </ui:Button>
                     <ToggleButton x:Name="PinToggle" AutomationProperties.Name="固定查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="固定卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
-                        <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
-                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M8,3 L16,3 M9,3 L9,10 L6,14 L6,16 L18,16 L18,14 L15,10 L15,3 M12,16 L12,22" />
-                        </Canvas></Viewbox>
+                        <ui:SymbolIcon Symbol="Pin24" FontSize="16" />
                     </ToggleButton>
                     <ui:Button Command="{Binding CloseCommand}" Style="{StaticResource CloseIconButton}" ToolTip="关闭（Esc）" AutomationProperties.Name="关闭查词浮窗">
-                        <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24">
-                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M6,6 L18,18 M18,6 L6,18" />
-                        </Canvas></Viewbox>
+                        <ui:SymbolIcon Symbol="Dismiss24" FontSize="15" />
                     </ui:Button>
                 </StackPanel>
                 </Grid>
@@ -229,14 +226,14 @@
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <StackPanel Margin="0,18" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                    <ProgressBar IsIndeterminate="True" Height="3" Foreground="{StaticResource AccentBrush}" Background="{StaticResource AccentSubtleBrush}" />
-                    <TextBlock Text="{Binding StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,10,0,0" HorizontalAlignment="Center" />
+                    <ProgressBar IsIndeterminate="True" Height="3" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource AccentSubtleBrush}" />
+                    <TextBlock Text="{Binding StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,10,0,0" HorizontalAlignment="Center" />
                 </StackPanel>
                 <StackPanel x:Name="LookupErrorPanel" Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
-                    <Border Background="{StaticResource DangerSurfaceBrush}" CornerRadius="8" Padding="12">
+                    <Border Background="{DynamicResource DangerSurfaceBrush}" BorderBrush="{DynamicResource DangerBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="查询未完成" FontWeight="Medium" Foreground="{StaticResource DangerBrush}" />
-                            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                            <TextBlock Text="查询未完成" FontWeight="Medium" Foreground="{DynamicResource DangerBrush}" />
+                            <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,5,0,0" />
                         </StackPanel>
                     </Border>
                     <WrapPanel><ui:Button Content="重新查询" Command="{Binding RetryCommand}" Style="{StaticResource PopupButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
@@ -245,14 +242,15 @@
                                Visibility="{Binding CanUseAiFallback, Converter={StaticResource BoolToVis}}"
                                Style="{StaticResource QuietActionButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
                 </WrapPanel>
-</StackPanel>
+                </StackPanel>
                 <ScrollViewer Grid.Row="1" x:Name="ResultScroll" MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                     <StackPanel Margin="0,0,4,0">
-                        <StackPanel Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-<TextBlock Text="原文" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
-<TextBlock Text="{Binding SelectedText}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" />
-<TextBlock Text="译文" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,0" />
-</StackPanel><TextBlock Text="{Binding Definition}" FontSize="{StaticResource BodyFontSize}" LineHeight="23" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,10" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource InverseBoolToVis}}" />
+                        <StackPanel Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" Margin="0,0,0,14">
+                            <TextBlock Text="原文" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding SelectedText, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="译文" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,12,0,0" />
+                        </StackPanel>
+                        <TextBox Text="{Binding Definition, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource BodyFontSize}" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource InverseBoolToVis}}" />
                         <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}"
                                     Visibility="{Binding IsEditingDefinition, Converter={StaticResource BoolToVis}}"
                                     AcceptsReturn="True"
@@ -260,9 +258,9 @@
                                     MinHeight="54"
                                     Padding="8,6"
                                     FontSize="13"
-                                    Foreground="{StaticResource TextPrimaryBrush}"
-                                    Background="{StaticResource SurfaceBrush}"
-                                    BorderBrush="{StaticResource ControlBorderBrush}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Background="{DynamicResource SurfaceBrush}"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
                                     BorderThickness="1"
                                     Margin="0,0,0,8"
                                     ToolTip="保存前可直接修改释义内容" />
@@ -272,57 +270,62 @@
                                 <DataTemplate>
                                     <Grid Margin="0,0,0,9">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                        <Border Background="{StaticResource AccentSubtleBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4,2" VerticalAlignment="Top" Margin="0,1,7,0">
-                                            <TextBlock Text="{Binding DisplayPos, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" FontStyle="Italic" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" />
+                                        <Border Background="{DynamicResource AccentSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" VerticalAlignment="Top" Margin="0,1,8,0">
+                                            <TextBlock Text="{Binding DisplayPos, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" FontStyle="Italic" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" />
                                         </Border>
-                                        <TextBlock Grid.Column="1" Text="{Binding QuickSummary}" FontSize="{StaticResource BodyFontSize}" LineHeight="21" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                        <TextBox Grid.Column="1" Text="{Binding QuickSummary, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource BodyFontSize}" Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}" Style="{StaticResource PopupButton}" HorizontalContentAlignment="Left" Background="{StaticResource SubtleSurfaceBrush}" Foreground="{StaticResource TextSecondaryBrush}" Padding="10,7" Margin="0,0,0,6" Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
+                        <ui:Button Content="{Binding DetailsToggleText}" Command="{Binding ToggleDetailsCommand}" Style="{StaticResource PopupButton}" HorizontalContentAlignment="Left" Background="{DynamicResource SubtleSurfaceBrush}" Foreground="{DynamicResource TextSecondaryBrush}" Padding="10,7" Margin="0,2,0,8" Visibility="{Binding CanExpandDetails, Converter={StaticResource BoolToVis}}" />
                         <ItemsControl ItemsSource="{Binding DisplayPosGroups}" Visibility="{Binding IsDetailsExpanded, Converter={StaticResource BoolToVis}}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Margin="0,10,0,2">
-                                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,7" TextWrapping="Wrap"><Run Text="{Binding DisplayPos, Mode=OneWay}" FontWeight="Bold" /><Run Text="  " /><Run Text="{Binding Summary}" /></TextBlock>
+                                    <StackPanel Margin="0,6,0,6">
+                                        <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,8" TextWrapping="Wrap"><Run Text="{Binding DisplayPos, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" /><Run Text="  " /><Run Text="{Binding Summary}" /></TextBlock>
                                         <ItemsControl ItemsSource="{Binding Meanings}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" CornerRadius="0" Padding="0,8" Margin="0,0,0,8" Background="{StaticResource SurfaceBrush}">
+                                                    <Border Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="6" Padding="10,9" Margin="0,0,0,8">
                                                         <StackPanel>
-                                                            <StackPanel>
-                                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding DisplayHeading}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" /><TextBlock Grid.Column="1" Text="{Binding PriorityLabel}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextMutedBrush}" Margin="8,1,0,0" /></Grid>
-                                                            </StackPanel>
-                                                            <StackPanel Margin="4,10,4,2">
-                                                                <TextBlock Text="{Binding DetailExplanation}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" Visibility="{Binding DetailExplanation, Converter={StaticResource StringToVis}}" />
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                                <TextBox Text="{Binding DisplayHeading, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding PriorityLabel}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="8,1,0,0" />
+                                                            </Grid>
+                                                            <StackPanel Margin="0,8,0,0">
+                                                                <TextBox Text="{Binding DetailExplanation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Visibility="{Binding DetailExplanation, Converter={StaticResource StringToVis}}" />
                                                                 <ItemsControl ItemsSource="{Binding FirstExamples}" Margin="0,7,0,0">
                                                                     <ItemsControl.ItemTemplate>
                                                                         <DataTemplate>
-                                                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" Padding="9,2" Margin="0,0,0,8">
+                                                                            <Border BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="2,0,0,0" Padding="8,2" Margin="0,0,0,6">
                                                                                 <StackPanel>
-                                                                                    <TextBlock Text="{Binding Text}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                                                                    <TextBlock Text="{Binding Translation}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
+                                                                                    <TextBox Text="{Binding Text, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                                    <TextBox Text="{Binding Translation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
                                                                                 </StackPanel>
                                                                             </Border>
                                                                         </DataTemplate>
                                                                     </ItemsControl.ItemTemplate>
                                                                 </ItemsControl>
-<Expander Header="{Binding AdditionalExamplesLabel}" Visibility="{Binding HasAdditionalExamples, Converter={StaticResource BoolToVis}}" Margin="0,0,0,6"><ItemsControl ItemsSource="{Binding AdditionalExamples}" Margin="0,7,0,0">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="2,0,0,0" Padding="9,2" Margin="0,0,0,8">
-                                                                                <StackPanel>
-                                                                                    <TextBlock Text="{Binding Text}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                                                                    <TextBlock Text="{Binding Translation}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
-                                                                                </StackPanel>
-                                                                            </Border>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl></Expander>
-                                                                <StackPanel TextElement.FontSize="{StaticResource CaptionFontSize}" TextElement.Foreground="{StaticResource TextSecondaryBrush}" Visibility="{Binding UsageNote, Converter={StaticResource StringToVis}}"><TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" Margin="0,8,0,0" />
-                                                                    <TextBlock Text="{Binding UsageNote}" FontSize="{StaticResource CaptionFontSize}" LineHeight="20" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                                <Expander Header="{Binding AdditionalExamplesLabel}" Visibility="{Binding HasAdditionalExamples, Converter={StaticResource BoolToVis}}" Margin="0,2,0,4">
+                                                                    <ItemsControl ItemsSource="{Binding AdditionalExamples}" Margin="0,6,0,0">
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Border BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="2,0,0,0" Padding="8,2" Margin="0,0,0,6">
+                                                                                    <StackPanel>
+                                                                                        <TextBox Text="{Binding Text, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                                        <TextBox Text="{Binding Translation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Translation, Converter={StaticResource StringToVis}}" />
+                                                                                    </StackPanel>
+                                                                                </Border>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </Expander>
+                                                                <StackPanel TextElement.FontSize="{StaticResource CaptionFontSize}" TextElement.Foreground="{DynamicResource TextSecondaryBrush}" Visibility="{Binding UsageNote, Converter={StaticResource StringToVis}}">
+                                                                    <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AccentBrush}" Margin="0,6,0,2" />
+                                                                    <TextBox Text="{Binding UsageNote, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                                 </StackPanel>
                                                             </StackPanel>
                                                         </StackPanel>
@@ -334,66 +337,66 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
                         <StackPanel Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
                             <Grid Margin="0,0,0,4">
-                                <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                                 <WrapPanel HorizontalAlignment="Right">
                                     <ui:Button Content="{Binding TranslateSentenceButtonText}"
                                                Command="{Binding TranslateSentenceCommand}"
                                                Visibility="{Binding CanTranslateSentence, Converter={StaticResource BoolToVis}}"
                                                IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
                                                Style="{StaticResource QuietActionButton}"
-                                               Padding="6,2" FontSize="{StaticResource CaptionFontSize}" />
+                                               Padding="6,2" MinHeight="24" FontSize="{StaticResource CaptionFontSize}" />
                                     <ui:Button Content="改用 AI" Command="{Binding UseAiSentenceTranslationCommand}"
                                                Visibility="{Binding CanUseAiSentenceTranslation, Converter={StaticResource BoolToVis}}"
                                                IsEnabled="{Binding IsTranslatingSentence, Converter={StaticResource InverseBool}}"
                                                Style="{StaticResource QuietActionButton}"
-                                               Padding="6,2" Margin="4,0,0,0" FontSize="{StaticResource CaptionFontSize}" />
+                                               Padding="6,2" MinHeight="24" Margin="4,0,0,0" FontSize="{StaticResource CaptionFontSize}" />
                                 </WrapPanel>
                             </Grid>
-                            <TextBlock Text="{Binding OriginalSentence}" TextWrapping="Wrap" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding SentenceTranslationError}" Foreground="{StaticResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
+                            <TextBox Text="{Binding OriginalSentence, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SentenceTranslationError}" Foreground="{DynamicResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
                                        TextWrapping="Wrap" Margin="0,5,0,0"
                                        Visibility="{Binding SentenceTranslationError, Converter={StaticResource StringToVis}}" />
                         </StackPanel>
                         <Expander Header="解析与例句" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
                                 <StackPanel Visibility="{Binding Analysis.KeyExplanation, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
-                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
-                                    <TextBlock Text="{Binding Analysis.KeyExplanation}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="语境解析" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBox Text="{Binding Analysis.KeyExplanation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" Foreground="{DynamicResource TextPrimaryBrush}" />
                                 </StackPanel>
                                 <StackPanel Visibility="{Binding Analysis.UsageNote, Converter={StaticResource StringToVis}}" Margin="0,0,0,8">
-                                    <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
-                                    <TextBlock Text="{Binding Analysis.UsageNote}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="用法提示" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBox Text="{Binding Analysis.UsageNote, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" Foreground="{DynamicResource TextPrimaryBrush}" />
                                 </StackPanel>
                                 <StackPanel Visibility="{Binding Analysis.Example, Converter={StaticResource StringToVis}}">
-                                    <TextBlock Text="拓展例句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,2" />
-                                    <TextBlock Text="{Binding Analysis.Example}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding Analysis.ExampleTranslation}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Analysis.ExampleTranslation, Converter={StaticResource StringToVis}}" />
+                                    <TextBlock Text="拓展例句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,2" />
+                                    <TextBox Text="{Binding Analysis.Example, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBox Text="{Binding Analysis.ExampleTranslation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" Visibility="{Binding Analysis.ExampleTranslation, Converter={StaticResource StringToVis}}" />
                                 </StackPanel>
                             </StackPanel>
                         </Expander>
                         <Expander Header="编辑与笔记" Margin="0,4,0,10" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">
-                                <TextBlock Text="释义" />
+                                <TextBlock Text="释义" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
-                                <TextBlock Text="原句翻译" />
+                                <TextBlock Text="原句翻译" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <ui:TextBox Text="{Binding EditTranslation, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
-                                <TextBlock Text="个人笔记" />
+                                <TextBlock Text="个人笔记" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
                             </StackPanel>
                         </Expander>
-<Border Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8" Padding="11,9" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
+                        <Border Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="8" Padding="11,9" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                             <StackPanel>
-                                <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" />
-                                <TextBlock Text="{Binding ContextTranslation}" FontSize="13" LineHeight="21" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBox Text="{Binding ContextTranslation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" />
                             </StackPanel>
                         </Border>
-<Border Background="{StaticResource AmberHookSurfaceBrush}" BorderBrush="{StaticResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
+                        <Border Background="{DynamicResource AmberHookSurfaceBrush}" BorderBrush="{DynamicResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,6">
-                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{StaticResource AmberHookLabelBrush}" />
+                                <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AmberHookLabelBrush}" VerticalAlignment="Center" />
                                 <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource DisclosureToggleButton}" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}" AutomationProperties.Name="展开或收起记忆线索">
                                         <TextBlock>
                                             <TextBlock.Style>
@@ -402,34 +405,61 @@
                                         </TextBlock>
                                     </ToggleButton>
                                 </Grid>
-                                <TextBlock Text="{Binding MemoryHook}" FontSize="{StaticResource CaptionFontSize}" LineHeight="19" Foreground="{StaticResource AmberHookTextBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock"><Setter Property="MaxHeight" Value="57" /><Style.Triggers><DataTrigger Binding="{Binding IsMemoryHookExpanded}" Value="True"><Setter Property="MaxHeight" Value="Infinity" /></DataTrigger></Style.Triggers></Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding MemoryHook, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource AmberHookTextBrush}">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox" BasedOn="{StaticResource SelectableTextBlockBox}">
+                                            <Setter Property="MaxHeight" Value="57" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMemoryHookExpanded}" Value="True">
+                                                    <Setter Property="MaxHeight" Value="Infinity" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
+                <!-- Floating action toast overlay to avoid jumping card height -->
+                <Border Grid.Row="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,8"
+                        Padding="12,6"
+                        CornerRadius="16"
+                        Background="{DynamicResource ToastSurfaceBrush}"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding ActionStatusText, Converter={StaticResource StringToVis}}">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" Opacity="0.2" ShadowDepth="2" Color="#000000" />
+                    </Border.Effect>
+                    <TextBlock Text="{Binding ActionStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource ToastForegroundBrush}" />
+                </Border>
             </Grid>
-            <Border Grid.Row="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,10,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+            <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,10,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
-                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{StaticResource AccentBrush}" Background="Transparent" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)">
+                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Foreground="{DynamicResource AccentBrush}" Background="Transparent" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)">
                             <ui:Button.Style><Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource PopupButton}" /></ui:Button.Style>
                         </ui:Button>
-                        <ui:Button Grid.Column="2" Content="&#xE70F;" AutomationProperties.Name="编辑释义" FontFamily="Segoe Fluent Icons" Width="32" Padding="0" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前修改释义" />
-                        <ui:Button Grid.Column="3" Content="&#xE8C8;" AutomationProperties.Name="复制词条" FontFamily="Segoe Fluent Icons" Width="32" Padding="0" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{StaticResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" />
+                        <ui:Button Grid.Column="2" Width="32" Padding="0" Command="{Binding ToggleEditDefinitionCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,4,0" ToolTip="保存前修改释义" AutomationProperties.Name="编辑释义">
+                            <ui:SymbolIcon Symbol="Edit20" FontSize="15" />
+                        </ui:Button>
+                        <ui:Button Grid.Column="3" Width="32" Padding="0" Command="{Binding CopyResultCommand}" Style="{StaticResource PopupButton}" Background="Transparent" Foreground="{DynamicResource TextMutedBrush}" ToolTip="复制单词与释义 (Ctrl+C)" AutomationProperties.Name="复制词条">
+                            <ui:SymbolIcon Symbol="Copy20" FontSize="15" />
+                        </ui:Button>
                     </Grid>
-                    <Grid Margin="0,8,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding SavedStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <ui:Button Grid.Column="1" Content="撤销" Command="{Binding UndoSaveCommand}" Visibility="{Binding CanUndoSave, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsUndoingSave, Converter={StaticResource InverseBool}}" Style="{StaticResource QuietActionButton}" Padding="6,2" MinHeight="24" MinWidth="0" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource AccentBrush}" Background="Transparent" BorderThickness="0" ToolTip="撤销本次本地收藏" AutomationProperties.Name="撤销本地收藏" />
-                    </Grid>
-                    <TextBlock Text="{Binding SyncStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding SyncStatusText, Converter={StaticResource StringToVis}}" />
-                    <TextBlock Text="{Binding ActionStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding ActionStatusText, Converter={StaticResource StringToVis}}" />
+                    <Border Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="6" Padding="10,6" Margin="0,8,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding SavedStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <ui:Button Grid.Column="1" Content="撤销" Command="{Binding UndoSaveCommand}" Visibility="{Binding CanUndoSave, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding IsUndoingSave, Converter={StaticResource InverseBool}}" Style="{StaticResource QuietActionButton}" Padding="6,2" MinHeight="24" MinWidth="0" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource AccentBrush}" Background="Transparent" BorderThickness="0" ToolTip="撤销本次本地收藏" AutomationProperties.Name="撤销本地收藏" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding SyncStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding SyncStatusText, Converter={StaticResource StringToVis}}" />
                 </StackPanel>
             </Border>
         </Grid>

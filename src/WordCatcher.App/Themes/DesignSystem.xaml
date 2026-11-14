@@ -4,47 +4,17 @@
     <ResourceDictionary.MergedDictionaries>
         <ui:ThemesDictionary Theme="Light" />
         <ui:ControlsDictionary />
+        <ResourceDictionary Source="/WordCatcher.App;component/Themes/LightTheme.xaml" />
     </ResourceDictionary.MergedDictionaries>
     <FontFamily x:Key="UiFontFamily">Segoe UI, Microsoft YaHei UI</FontFamily>
     <FontFamily x:Key="HeadwordFontFamily">Georgia, Cambria, Microsoft YaHei UI</FontFamily>
     <FontFamily x:Key="PhoneticFontFamily">Georgia, Cambria, Segoe UI</FontFamily>
-    <SolidColorBrush x:Key="CanvasBrush" Color="#FAF8F3" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFEFB" />
-    <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F3EFE6" />
-    <SolidColorBrush x:Key="BorderBrush" Color="#E6E0D3" />
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1E1B16" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5C554B" />
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#8C8478" />
-    <SolidColorBrush x:Key="AccentBrush" Color="#0F766E" />
-    <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#E8F3EF" />
-    <SolidColorBrush x:Key="FocusBrush" Color="#168C82" />
-    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#F3EFE6" />
-    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#E8F3EF" />
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#D5CEC0" />
-    <SolidColorBrush x:Key="DangerBrush" Color="#A43739" />
-    <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#FEF2F2" />
-    <SolidColorBrush x:Key="DangerBorderBrush" Color="#FECACA" />
-    <SolidColorBrush x:Key="WarningBrush" Color="#A75D17" />
-    <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#FAF5ED" />
-    <SolidColorBrush x:Key="WarningBorderBrush" Color="#E8BD7C" />
-    <SolidColorBrush x:Key="WarningTextBrush" Color="#786D5E" />
-    <SolidColorBrush x:Key="AmberHookSurfaceBrush" Color="#FAF3E4" />
-    <SolidColorBrush x:Key="AmberHookBorderBrush" Color="#B45309" />
-    <SolidColorBrush x:Key="AmberHookLabelBrush" Color="#92400E" />
-    <SolidColorBrush x:Key="AmberHookTextBrush" Color="#635B4F" />
-
-    <SolidColorBrush x:Key="TextControlFocusedBorderBrush" Color="#168C82" />
-    <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="#0F766E" />
-    <SolidColorBrush x:Key="SystemAccentColorSecondaryBrush" Color="#0F766E" />
-    <!-- 原生导航指示条引用颜色值，单独覆盖同名画刷无法改变它。 -->
-    <Color x:Key="SystemAccentColorPrimary">#0F766E</Color>
 
     <!-- Native text editing keeps IME, selection and keyboard behavior without the Fluent underline. -->
     <Style x:Key="LookupQueryTextBox" TargetType="TextBox">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-        <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}" />
         <Setter Property="Padding" Value="10,6" />
         <Setter Property="FontSize" Value="15" />
         <Setter Property="MinHeight" Value="36" />
@@ -56,7 +26,7 @@
                     <Grid Background="{TemplateBinding Background}">
                         <ScrollViewer x:Name="PART_ContentHost" />
                         <TextBlock x:Name="Placeholder" Text="{TemplateBinding Tag}" Margin="{TemplateBinding Padding}"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"
                                    IsHitTestVisible="False" Visibility="Collapsed" />
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -72,8 +42,37 @@
         </Setter>
     </Style>
 
+    <!-- Borderless read-only TextBox allowing partial text selection and copying without visual chrome. -->
+    <Style x:Key="SelectableTextBlockBox" TargetType="TextBox">
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="IsReadOnlyCaretVisible" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource AccentSubtleBrush}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <ScrollViewer x:Name="PART_ContentHost"
+                                  Focusable="False"
+                                  Padding="{TemplateBinding Padding}"
+                                  Background="{TemplateBinding Background}"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Disabled" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="QuietDisclosureToggle" TargetType="ToggleButton">
-        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -88,7 +87,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90" /></Setter.Value></Setter></Trigger>
-                        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" /></Trigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" /></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -103,7 +102,7 @@
         <Setter Property="MinHeight" Value="36" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontWeight" Value="Medium" />
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
@@ -113,7 +112,7 @@
         <Setter Property="Appearance" Value="Transparent" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
 
     <Style x:Key="UtilityIconButton" TargetType="{x:Type ui:Button}"
@@ -124,8 +123,8 @@
     </Style>
 
     <Style x:Key="PrimaryActionButton" TargetType="{x:Type ui:Button}">
-        <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource OnAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="MinHeight" Value="36" />
         <Setter Property="FontSize" Value="13" />
@@ -144,17 +143,17 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ActionSurface" Property="Background" Value="{StaticResource FocusBrush}" />
+                            <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource FocusBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="ActionSurface" Property="Opacity" Value="0.8" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="ActionSurface" Property="BorderBrush" Value="{StaticResource TextPrimaryBrush}" />
+                            <Setter TargetName="ActionSurface" Property="BorderBrush" Value="{DynamicResource TextPrimaryBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="ActionSurface" Property="Background" Value="{StaticResource AccentSubtleBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                            <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -168,20 +167,20 @@
     <Style x:Key="PageTitleStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="26" />
         <Setter Property="FontWeight" Value="Medium" />
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
 
     <Style x:Key="PageSubtitleStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         <Setter Property="Margin" Value="0,6,0,0" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="LineHeight" Value="20" />
     </Style>
 
     <Style x:Key="SurfaceCardStyle" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
     </Style>

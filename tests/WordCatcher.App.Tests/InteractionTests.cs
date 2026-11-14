@@ -350,4 +350,36 @@ public class InteractionTests
         Assert.False(vm.HasUnsavedChanges);
         Assert.Equal("draft", service.Settings.ActiveTranslation.Model);
     }
+
+    [Fact]
+    public async Task ThemeModePersistsAndNormalizes()
+    {
+        var (vm, service) = Settings();
+        await vm.InitializeAsync();
+        Assert.Equal(ThemeManager.LightMode, vm.ThemeMode);
+
+        vm.ThemeMode = ThemeManager.DarkMode;
+        await vm.PreferenceSaveTask;
+        Assert.Equal(ThemeManager.DarkMode, service.Settings.Ui.ThemeMode);
+        Assert.True(ThemeManager.ResolveIsDark(ThemeManager.DarkMode));
+        Assert.False(ThemeManager.ResolveIsDark(ThemeManager.LightMode));
+        Assert.Equal(ThemeManager.LightMode, ThemeManager.NormalizeMode("unknown"));
+
+        vm.ThemeMode = ThemeManager.LightMode;
+        await vm.PreferenceSaveTask;
+    }
+
+    [Fact]
+    public void MultiSelectFlagTracksMultipleSelectedWords()
+    {
+        var repo = DispatchProxy.Create<IWordRepository, Proxy>();
+        var vm = new LibraryViewModel(repo, new WordCollectionEvents());
+        Assert.False(vm.HasMultipleSelectedWords);
+
+        vm.SetSelectedWords([new Word { Id = "w1", DisplayWord = "one" }]);
+        Assert.False(vm.HasMultipleSelectedWords);
+
+        vm.SetSelectedWords([new Word { Id = "w1", DisplayWord = "one" }, new Word { Id = "w2", DisplayWord = "two" }]);
+        Assert.True(vm.HasMultipleSelectedWords);
+    }
 }

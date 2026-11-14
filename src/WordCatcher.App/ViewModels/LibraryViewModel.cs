@@ -43,19 +43,22 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private int _selectedSortIndex;
     [ObservableProperty] private string _sourceFilter = string.Empty;
     partial void OnSelectedSortIndexChanged(int value) => _ = SearchAsync();
-    partial void OnSourceFilterChanged(string value) { RefreshFilterLabels(); OnSearchQueryChanged(SearchQuery); }
+    partial void OnSourceFilterChanged(string value) { RefreshFilterLabels(); if (!_isFocusingWord) OnSearchQueryChanged(SearchQuery); }
     public string BatchSelectionText => $"已选 {SelectedWords.Count} 个 · Ctrl / Shift 多选";
+    public bool HasMultipleSelectedWords => SelectedWords.Count > 1;
     public void SetSelectedWords(IEnumerable<Word> words)
     {
         SelectedWords.Clear();
         foreach (var word in words) SelectedWords.Add(word);
         OnPropertyChanged(nameof(BatchSelectionText));
+        OnPropertyChanged(nameof(HasMultipleSelectedWords));
         DeleteSelectedCommand.NotifyCanExecuteChanged();
     }
     private const int PageSize = 100;
     private int _loadVersion;
     private int _occurrenceVersion;
     private CancellationTokenSource? _searchDelay;
+    private bool _isFocusingWord;
     private bool _refreshPending;
 
     [ObservableProperty] private Occurrence? _editingOccurrence;
@@ -441,7 +444,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     [ObservableProperty] private bool _canUndoDelete;
     [ObservableProperty] private string _deleteStatusText = string.Empty;
     [ObservableProperty] private int _selectedFilterIndex;
-    partial void OnSelectedFilterIndexChanged(int value) { RefreshFilterLabels(); _ = SearchAsync(); }
+    partial void OnSelectedFilterIndexChanged(int value) { RefreshFilterLabels(); if (!_isFocusingWord) _ = SearchAsync(); }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
@@ -462,6 +465,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     partial void OnSearchQueryChanged(string value)
     {
+        if (_isFocusingWord) return;
         _searchDelay?.Cancel();
         _searchDelay?.Dispose();
         _searchDelay = new CancellationTokenSource();
@@ -482,6 +486,32 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     [RelayCommand]
     private void ClearSearch() => SearchQuery = string.Empty;
+
+    public async Task FocusWordAsync(string wordText)
+    {
+        if (string.IsNullOrWhiteSpace(wordText)) return;
+        if (!CanChangeCollection || IsSavingEdit) return;
+        var target = await _wordRepository.FindWordAsync(wordText.Trim()).ConfigureAwait(true);
+        if (!CanChangeCollection || IsSavingEdit || target == null) return;
+        _searchDelay?.Cancel();
+        _isFocusingWord = true;
+        try
+        {
+            SelectedFilterIndex = 0;
+            SourceFilter = string.Empty;
+            SearchQuery = target.DisplayWord;
+        }
+        finally { _isFocusingWord = false; }
+        await LoadWordsAsync().ConfigureAwait(true);
+        while (CanChangeCollection && !IsSavingEdit && !HasLoadError && HasMore && Words.All(w => w.Id != target.Id))
+        {
+            var count = Words.Count;
+            await LoadWordsAsync(append: true).ConfigureAwait(true);
+            if (Words.Count <= count) break;
+        }
+        if (!CanChangeCollection || IsSavingEdit) return;
+        SelectedWord = Words.FirstOrDefault(w => w.Id == target.Id);
+    }
 
     [RelayCommand]
     private Task LoadMoreAsync() => LoadWordsAsync(append: true);

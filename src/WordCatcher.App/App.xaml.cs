@@ -99,6 +99,8 @@ public partial class App : System.Windows.Application
             // 5. Initialize Services & Tray
             _hotkeyManager = _serviceProvider.GetRequiredService<HotkeyManager>();
             var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+            ThemeManager.ApplyTheme(settingsService.Current.Ui.ThemeMode);
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
             var registered = _hotkeyManager.Register(settingsService.Current.Hotkey);
             if (!registered)
@@ -255,6 +257,15 @@ public partial class App : System.Windows.Application
         var settingsService = _serviceProvider!.GetRequiredService<ISettingsService>();
         var lookupWindow = new LookupWindow(vm, settingsService);
         _activeLookupWindow = lookupWindow;
+        vm.OpenInMainRequested += (query, isSaved) =>
+        {
+            if (!lookupWindow.IsPinned)
+            {
+                try { lookupWindow.Close(); } catch { }
+            }
+            if (isSaved) _libraryWindow?.ShowLibraryForWord(query);
+            else _libraryWindow?.ShowLookupWithQuery(query);
+        };
         lookupWindow.Closed += (_, _) =>
         {
             if (ReferenceEquals(_activeLookupWindow, lookupWindow))
@@ -308,8 +319,19 @@ public partial class App : System.Windows.Application
         }
     }
 
+    private void OnUserPreferenceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category != Microsoft.Win32.UserPreferenceCategory.General) return;
+        var settingsService = _serviceProvider?.GetService<ISettingsService>();
+        if (settingsService == null) return;
+        if (!string.Equals(ThemeManager.NormalizeMode(settingsService.Current.Ui.ThemeMode), ThemeManager.SystemMode, StringComparison.Ordinal))
+            return;
+        Dispatcher?.InvokeAsync(() => ThemeManager.ApplyTheme(ThemeManager.SystemMode));
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _logger?.LogInformation("Word Catcher shutting down...");
         _serviceProvider?.GetService<SettingsViewModel>()?.CheckForUpdatesCancelCommand.Execute(null);
 

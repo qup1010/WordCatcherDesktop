@@ -10,6 +10,70 @@ namespace WordCatcher.App.Tests;
 
 public class LibraryViewModelTests
 {
+    [Theory]
+    [InlineData("context")]
+    [InlineData("word")]
+    [InlineData("savingContext")]
+    [InlineData("savingWord")]
+    public async Task FocusWordPreservesActiveEditor(string state)
+    {
+        var (vm, _) = Create();
+        var original = new Word { Id = "a", DisplayWord = "alpha" };
+        var other = new Word { Id = "b", DisplayWord = "beta" };
+        vm.Words.Add(original);
+        vm.Words.Add(other);
+        vm.SelectedWord = original;
+        var occurrence = new Occurrence { Id = "context", WordId = "a" };
+        if (state == "context") vm.EditContextCommand.Execute(occurrence);
+        vm.ContextNote = "unsaved note";
+        vm.ContextTranslation = "unsaved translation";
+        vm.EditDefinition = "unsaved definition";
+        if (state == "word") vm.IsEditing = true;
+        if (state == "savingContext") vm.IsSavingContext = true;
+        if (state == "savingWord") vm.IsSavingEdit = true;
+
+        await vm.FocusWordAsync("beta");
+
+        Assert.Same(original, vm.SelectedWord);
+        if (state == "context") Assert.Same(occurrence, vm.EditingOccurrence);
+        if (state == "word") Assert.True(vm.IsEditing);
+        if (state == "savingContext") Assert.True(vm.IsSavingContext);
+        if (state == "savingWord") Assert.True(vm.IsSavingEdit);
+        Assert.Equal("unsaved note", vm.ContextNote);
+        Assert.Equal("unsaved translation", vm.ContextTranslation);
+        Assert.Equal("unsaved definition", vm.EditDefinition);
+        Assert.Empty(vm.SearchQuery);
+    }
+
+    [Fact]
+    public async Task FocusWordClearsExcludingFiltersAndFindsTargetBeyondFirstPage()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"focus-view-{Guid.NewGuid():N}.json");
+        try
+        {
+            new LibraryViewPreferences(4, 1, "chrome").Save(path);
+            var repository = DispatchProxy.Create<IWordRepository, RepositoryProxy>();
+            var repo = (RepositoryProxy)repository;
+            var target = new Word { Id = "target", DisplayWord = "bank" };
+            var words = Enumerable.Range(0, 105).Select(i => new Word { Id = $"w{i}", DisplayWord = $"bank-{i}" }).Append(target).ToArray();
+            repo.Find = _ => Task.FromResult<Word?>(target);
+            repo.ReadFiltered = (_, filter, limit, offset) => Task.FromResult<IReadOnlyList<Word>>(
+                filter == WordFilter.All ? words.Skip(offset).Take(limit).ToArray() : []);
+            var vm = new LibraryViewModel(repository, new WordCollectionEvents(), preferencesPath: path);
+            await vm.InitializeAsync();
+            Assert.Empty(vm.Words);
+
+            await vm.FocusWordAsync("bank");
+
+            Assert.Equal(0, vm.SelectedFilterIndex);
+            Assert.Empty(vm.SourceFilter);
+            Assert.Equal("bank", vm.SearchQuery);
+            Assert.Same(target, vm.SelectedWord);
+            Assert.Equal(words.Length, vm.Words.Count);
+            Assert.False(vm.HasMore);
+        }
+        finally { File.Delete(path); }
+    }
     [Fact]
     public async Task PartialBatchDeletionAndUndoRemainRetryable()
     {
@@ -117,6 +181,7 @@ public class LibraryViewModelTests
 
     public class RepositoryProxy : DispatchProxy
     {
+        public Func<string, Task<Word?>> Find = _ => Task.FromResult<Word?>(null);
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public Func<string, Task<IReadOnlyList<Occurrence>>> ReadOccurrences = _ => Task.FromResult<IReadOnlyList<Occurrence>>([]);
         public Func<Word, Task> Update = _ => Task.CompletedTask;
@@ -126,6 +191,7 @@ public class LibraryViewModelTests
         public Func<string, Task<int>> ImportJson = _ => Task.FromResult(0);
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
+            nameof(IWordRepository.FindWordAsync) => Find((string)args![0]!),
             nameof(IWordRepository.GetFilteredWordsAsync) => ReadFiltered((string?)args![0], (WordFilter)args[1]!, (int)args[2]!, (int)args[3]!),
             nameof(IWordRepository.MoveWordToTrashAsync) => Trash((string)args![0]!),
             nameof(IWordRepository.RestoreWordAsync) => Restore((string)args![0]!),

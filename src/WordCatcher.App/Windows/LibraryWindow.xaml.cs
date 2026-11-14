@@ -115,10 +115,10 @@ public partial class LibraryWindow : Window
         SourceInitialized += (_, _) =>
         {
             FitToCurrentDisplay();
-            if (WindowBackdrop.TryApply(this, 42))
+            if (WindowBackdrop.TryApply(this, 42, ThemeManager.IsDarkActive))
             {
                 Background = System.Windows.Media.Brushes.Transparent;
-                TitleBar.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(221, 242, 247, 245));
+                TitleBar.SetResourceReference(Border.BackgroundProperty, "TitleBarGlassBrush");
             }
             UpdateWindowStateVisuals();
         };
@@ -365,6 +365,21 @@ public partial class LibraryWindow : Window
         MainTabs.SelectedItem = LibraryTab;
         ShowAndActivate();
         if (IsLoaded && !_libraryVm.IsEditing) _ = _libraryVm.InitializeAsync();
+    }
+
+    public void ShowLibraryForWord(string word)
+    {
+        MainTabs.SelectedItem = LibraryTab;
+        ShowAndActivate();
+        _ = _libraryVm.FocusWordAsync(word);
+    }
+
+    public void ShowLookupWithQuery(string query)
+    {
+        MainTabs.SelectedItem = LookupTab;
+        ShowAndActivate();
+        if (_lookupVm != null) _ = _lookupVm.SearchForQueryAsync(query);
+        Dispatcher.BeginInvoke(new Action(() => LookupPage.FocusQuery()));
     }
 
     private void WordList_SelectionChanged(object sender, SelectionChangedEventArgs e)
