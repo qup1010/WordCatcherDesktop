@@ -18,11 +18,13 @@ AppVersion={#AppVersion}
 AppPublisher=qup1010
 AppPublisherURL=https://github.com/qup1010/WordCatcherDesktop
 AppSupportURL=https://github.com/qup1010/WordCatcherDesktop/issues
-DefaultDirName={localappdata}\Programs\WordCatcherDesktop
+DefaultDirName={code:GetDefaultInstallDir}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 DisableDirPage=no
 UsePreviousAppDir=yes
+; A recovered installation may have lost its Inno uninstall registration.
+DirExistsWarning=no
 Uninstallable=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64
@@ -56,3 +58,24 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "WordCatcherDesktop"; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\WordCatcherDesktop"; ValueType: string; ValueName: "InstallLocation"; ValueData: "{app}"; Flags: uninsdeletevalue
+
+[Code]
+function GetDefaultInstallDir(Param: String): String;
+var
+  InstallDir: String;
+begin
+  { UsePreviousAppDir and an explicit /DIR still take precedence over this fallback. }
+  if RegQueryStringValue(HKCU64, 'Software\WordCatcherDesktop', 'InstallLocation', InstallDir)
+    and FileExists(AddBackslash(InstallDir) + '{#AppExeName}') then
+  begin
+    Result := InstallDir;
+    Exit;
+  end;
+  if RegQueryStringValue(HKCU32, 'Software\WordCatcherDesktop', 'InstallLocation', InstallDir)
+    and FileExists(AddBackslash(InstallDir) + '{#AppExeName}') then
+  begin
+    Result := InstallDir;
+    Exit;
+  end;
+  Result := ExpandConstant('{localappdata}\Programs\WordCatcherDesktop');
+end;

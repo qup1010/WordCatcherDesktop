@@ -94,12 +94,20 @@ public sealed class AppUpdater : IAppUpdater
         var installerPath = GetPendingInstallerPath()
             ?? throw new InvalidOperationException("尚未下载可安装的更新。");
 
-        var process = Process.Start(new ProcessStartInfo
+        var process = Process.Start(CreateInstallerStartInfo(installerPath, AppContext.BaseDirectory));
+        if (process is null) throw new InvalidOperationException("无法启动安装向导。");
+    }
+
+    internal static ProcessStartInfo CreateInstallerStartInfo(string installerPath, string installDirectory)
+    {
+        var startInfo = new ProcessStartInfo
         {
             FileName = installerPath,
             UseShellExecute = true
-        });
-        if (process is null) throw new InvalidOperationException("无法启动安装向导。");
+        };
+        // ArgumentList quotes paths containing spaces and handles trailing separators.
+        startInfo.ArgumentList.Add("/DIR=" + Path.TrimEndingDirectorySeparator(installDirectory));
+        return startInfo;
     }
 
     private string? GetPendingInstallerPath()

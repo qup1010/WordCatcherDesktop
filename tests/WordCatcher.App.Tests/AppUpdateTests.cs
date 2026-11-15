@@ -10,6 +10,19 @@ namespace WordCatcher.App.Tests;
 
 public sealed class AppUpdateTests
 {
+    [Theory]
+    [InlineData(@"D:\1_Software\WordCatcherDesktop\", @"D:\1_Software\WordCatcherDesktop")]
+    [InlineData(@"D:\我的应用\Word Catcher\", @"D:\我的应用\Word Catcher")]
+    [InlineData(@"D:\", @"D:\")]
+    public void InstallerTargetsCurrentApplicationDirectory(string currentDirectory, string expectedDirectory)
+    {
+        var startInfo = AppUpdater.CreateInstallerStartInfo(@"C:\Downloads\WordCatcher Setup.exe", currentDirectory);
+
+        Assert.Equal(@"C:\Downloads\WordCatcher Setup.exe", startInfo.FileName);
+        Assert.True(startInfo.UseShellExecute);
+        Assert.Equal(new[] { "/DIR=" + expectedDirectory }, startInfo.ArgumentList);
+    }
+
     [Fact]
     public void DevelopmentBuildDoesNotClaimToBeInnoManagedInstallation()
     {

@@ -7,9 +7,9 @@
 - `WordCatcherDesktop-win-Setup.exe`：标准安装向导，可选择安装目录和是否创建桌面快捷方式；默认当前用户安装，无需管理员权限，并创建开始菜单快捷方式。
 - `WordCatcherDesktop-win-Portable.zip`：解压后直接运行的便携包，不提供应用内安装更新。
 
-安装目录默认是 `%LOCALAPPDATA%\Programs\WordCatcherDesktop`，后续 Inno Setup 更新默认沿用用户上次选择的目录。个人数据保留在 `%LOCALAPPDATA%\WordCatcher`；卸载只移除程序、快捷方式和卸载项，不删除数据库、词典或配置。
+安装目录默认是 `%LOCALAPPDATA%\Programs\WordCatcherDesktop`，后续 Inno Setup 更新默认沿用用户上次选择的目录。如果 Inno 卸载注册项缺失，安装器会读取当前用户 `Software\WordCatcherDesktop\InstallLocation`（兼容 64 位和 32 位注册表视图），确认目录中存在应用程序后沿用该路径；无有效记录时使用默认目录。覆盖已有目录时不再重复显示“文件夹已经存在”的确认。个人数据保留在 `%LOCALAPPDATA%\WordCatcher`；卸载只移除程序、快捷方式和卸载项，不删除数据库、词典或配置。
 
-应用不会在启动时或后台自动检查更新。用户在「设置 → 关于」点击「检查更新」后，安装版检查最新 Release 并下载 `WordCatcherDesktop-win-Setup.exe`；下载完成后点击「安装更新」，应用确认编辑、保存、导出、词典安装和手动同步操作已经结束，再退出并打开安装向导。向导默认填入原安装目录，用户确认后完成覆盖更新。下载支持取消，失败后可重新手动检查。便携版可从 GitHub Release 下载新版便携包。
+应用不会在启动时或后台自动检查更新。用户在「设置 → 关于」点击「检查更新」后，安装版检查最新 Release 并下载 `WordCatcherDesktop-win-Setup.exe`；下载完成后点击「安装更新」，应用确认编辑、保存、导出、词典安装和手动同步操作已经结束，再退出并打开安装向导。应用通过 `/DIR` 参数把当前运行目录传给安装器，向导默认填入该目录，用户确认后完成覆盖更新。下载支持取消，失败后可重新手动检查。便携版可从 GitHub Release 下载新版便携包。
 
 GitHub 标签发布工作流会在 Windows runner 上发布 win-x64 自包含应用，使用 Inno Setup 生成 `WordCatcherDesktop-win-Setup.exe`，并生成 `WordCatcherDesktop-win-Portable.zip`。Release 只上传这两个产物；不再生成或发布 Velopack 更新 feed。
 

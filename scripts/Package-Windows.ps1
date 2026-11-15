@@ -23,7 +23,7 @@ try {
         'C:\Program Files\Inno Setup 6\ISCC.exe'
     ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
     if (!$isccCandidates) { throw '未找到 Inno Setup 6 编译器 ISCC.exe。请先安装 Inno Setup 6。' }
-    $iscc = $isccCandidates[0]
+    $iscc = @($isccCandidates)[0]
 
     # Clear only known output names from previous package runs.
     $staleArtifacts = Get-ChildItem -LiteralPath $releases -File | Where-Object {
