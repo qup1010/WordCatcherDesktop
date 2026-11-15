@@ -40,6 +40,7 @@ internal static class Program
             Word("familiar", "fəˈmɪliə", "adj.", "熟悉的；常见的。")
         };
         library.Words = new ObservableCollection<Word>(words);
+        library.MatchingWordCount = words.Length;
         library.StatusMessage = "5 个词条 · 最近更新优先";
         library.SelectedWord = words[0];
         var lookup = new LookupViewModel(null!, repo, null!, null!, null!, events)
