@@ -1068,7 +1068,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         StatusMessage = "正在与 WebDAV 云端同步词库…";
         try
         {
-            var res = await _webDavSyncService.SyncAsync(forcePush: true).ConfigureAwait(true);
+            var res = await _webDavSyncService.SyncAsync().ConfigureAwait(true);
             await LoadWordsAsync().ConfigureAwait(true);
             var parts = new List<string>();
             if (res.Added > 0) parts.Add($"新增 {res.Added} 条");

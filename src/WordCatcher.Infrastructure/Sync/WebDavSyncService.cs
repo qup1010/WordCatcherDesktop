@@ -11,6 +11,9 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
@@ -284,81 +287,134 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
             int updated = 0;
             int removed = 0;
             int total = 0;
-            bool shouldPush = forcePush;
-            string? remoteEtag = null;
-            bool remoteMissing = false;
+            bool pushed = false;
+            const int maxAttempts = 3;
+            string? overrideEtag = null;
+            string? previousHash = null;
+            string? previousEtag = null;
 
-            using (var getReq = CreateRequest(HttpMethod.Get, fileUrl, webdav.Username, password))
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                getReq.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
-                using var getRes = await _httpClient.SendAsync(getReq, ct).ConfigureAwait(false);
+                if (attempt > 1 && automaticTarget != null && !CanAutoSync(automaticTarget))
+                    throw new OperationCanceledException("自动同步配置已变更。");
 
-                if (getRes.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                    throw new InvalidOperationException("WebDAV 认证失败（401/403），请检查用户名或应用密码。");
+                bool shouldPush = forcePush;
+                string? remoteEtag = null;
+                string? remoteHash = null;
+                bool remoteMissing = false;
 
-                if (getRes.IsSuccessStatusCode)
+                async Task PullOnceAsync()
                 {
-                    remoteEtag = getRes.Headers.ETag is { IsWeak: false } etag ? etag.ToString() : null;
-                    var remoteJson = await getRes.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                    if (string.IsNullOrWhiteSpace(remoteJson))
-                        throw new InvalidOperationException("远端同步文件为空，已停止同步以保留远端数据。");
-                    // Once a remote snapshot is fetched, a later edit must not cancel its merge.
-                    (int Added, int Updated, int Removed, int Total, bool NeedsPush) merged;
-                    try { merged = await _wordRepository.MergeSyncJsonAsync(remoteJson, CancellationToken.None).ConfigureAwait(false); }
-                    catch (SyncConflictException ex)
+                    using var getReq = CreateRequest(HttpMethod.Get, fileUrl, webdav.Username, password);
+                    getReq.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true, NoStore = true };
+                    using var getRes = await _httpClient.SendAsync(getReq, ct).ConfigureAwait(false);
+
+                    if (getRes.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                        throw new InvalidOperationException("WebDAV 认证失败（401/403），请检查用户名或应用密码。");
+
+                    if (getRes.IsSuccessStatusCode)
                     {
-                        var local = JsonNode.Parse(await _wordRepository.ExportSyncJsonAsync(CancellationToken.None).ConfigureAwait(false))!["records"]!
-                            .AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == ex.RecordId);
-                        var remote = JsonNode.Parse(remoteJson)!["records"]!.AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == ex.RecordId);
-                        if (local != null && remote != null)
+                        remoteEtag = getRes.Headers.ETag is { IsWeak: false } etag ? etag.ToString() : null;
+                        var remoteJson = await getRes.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                        if (string.IsNullOrWhiteSpace(remoteJson))
+                            throw new InvalidOperationException("远端同步文件为空，已停止同步以保留远端数据。");
+                        remoteMissing = false;
+                        remoteHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(remoteJson)));
+                        // Once a remote snapshot is fetched, a later edit must not cancel its merge.
+                        (int Added, int Updated, int Removed, int Total, bool NeedsPush) merged;
+                        try { merged = await _wordRepository.MergeSyncJsonAsync(remoteJson, CancellationToken.None).ConfigureAwait(false); }
+                        catch (SyncConflictException ex)
                         {
-                            Conflict = new(ex.RecordId, local.ToJsonString(), remote.ToJsonString());
-                            _conflictTarget = target;
+                            var local = JsonNode.Parse(await _wordRepository.ExportSyncJsonAsync(CancellationToken.None).ConfigureAwait(false))!["records"]!
+                                .AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == ex.RecordId);
+                            var remote = JsonNode.Parse(remoteJson)!["records"]!.AsArray().FirstOrDefault(r => r?["id"]?.GetValue<string>() == ex.RecordId);
+                            if (local != null && remote != null)
+                            {
+                                Conflict = new(ex.RecordId, local.ToJsonString(), remote.ToJsonString());
+                                _conflictTarget = target;
+                            }
+                            throw;
                         }
-                        throw;
+                        added += merged.Added;
+                        updated += merged.Updated;
+                        removed += merged.Removed;
+                        total = merged.Total;
+                        shouldPush = shouldPush || merged.NeedsPush;
                     }
-                    added = merged.Added;
-                    updated = merged.Updated;
-                    removed = merged.Removed;
-                    total = merged.Total;
-                    shouldPush = shouldPush || merged.NeedsPush || added > 0 || updated > 0 || removed > 0;
+                    else if (getRes.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        remoteMissing = true;
+                        remoteEtag = null;
+                        remoteHash = null;
+                        await EnsureDirectoriesAsync(directoryUrls, webdav.Username, password, ct).ConfigureAwait(false);
+                        total = (await _wordRepository.GetWordsAsync(limit: -1, ct: ct).ConfigureAwait(false)).Count;
+                        shouldPush = true;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"拉取远端生词库失败（HTTP {(int)getRes.StatusCode}）。");
+                    }
                 }
-                else if (getRes.StatusCode == HttpStatusCode.NotFound)
+
+                await PullOnceAsync().ConfigureAwait(false);
+                if (attempt > 1 && !remoteMissing && remoteHash == previousHash && remoteEtag == previousEtag)
                 {
-                    remoteMissing = true;
-                    await EnsureDirectoriesAsync(directoryUrls, webdav.Username, password, ct).ConfigureAwait(false);
-                    total = (await _wordRepository.GetWordsAsync(limit: -1, ct: ct).ConfigureAwait(false)).Count;
-                    shouldPush = true;
+                    if (overrideEtag == null)
+                    {
+                        var fileEtag = await ReadFileEtagAsync(fileUrl, webdav.Username, password, ct).ConfigureAwait(false);
+                        if (fileEtag != null && fileEtag != remoteEtag)
+                        {
+                            await PullOnceAsync().ConfigureAwait(false);
+                            if (!remoteMissing && remoteHash == previousHash && remoteEtag == previousEtag)
+                                overrideEtag = fileEtag;
+                        }
+                    }
                 }
                 else
                 {
-                    throw new InvalidOperationException($"拉取远端生词库失败（HTTP {(int)getRes.StatusCode}）。");
+                    overrideEtag = null;
                 }
-            }
 
-            bool pushed = false;
-            if (shouldPush)
-            {
-                if (!remoteMissing && remoteEtag == null)
+                if (!shouldPush)
+                    break;
+
+                var writeEtag = overrideEtag ?? remoteEtag;
+                if (!remoteMissing && writeEtag == null)
                     throw new InvalidOperationException("WebDAV 服务器未提供强 ETag，无法安全合并写入，请检查服务器配置。");
                 var syncPayload = await _wordRepository.ExportSyncJsonAsync(ct).ConfigureAwait(false);
                 using var putReq = CreateRequest(HttpMethod.Put, fileUrl, webdav.Username, password);
-                SetWriteCondition(putReq, remoteEtag, remoteMissing);
+                SetWriteCondition(putReq, writeEtag, remoteMissing);
                 putReq.Content = new StringContent(syncPayload, Encoding.UTF8, "application/json");
                 using var putRes = await _httpClient.SendAsync(putReq, ct).ConfigureAwait(false);
 
                 if (putRes.StatusCode == HttpStatusCode.PreconditionFailed)
+                {
+                    if (attempt < maxAttempts)
+                    {
+                        previousHash = remoteHash;
+                        previousEtag = remoteEtag;
+                        continue;
+                    }
                     throw new InvalidOperationException("远端词库已被其他设备更新，请重新同步以合并最新数据。");
+                }
 
                 if (putRes.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Conflict)
                 {
                     await EnsureDirectoriesAsync(directoryUrls, webdav.Username, password, ct).ConfigureAwait(false);
                     using var retryReq = CreateRequest(HttpMethod.Put, fileUrl, webdav.Username, password);
-                    SetWriteCondition(retryReq, remoteEtag, remoteMissing);
+                    SetWriteCondition(retryReq, writeEtag, remoteMissing);
                     retryReq.Content = new StringContent(syncPayload, Encoding.UTF8, "application/json");
                     using var retryRes = await _httpClient.SendAsync(retryReq, ct).ConfigureAwait(false);
                     if (retryRes.StatusCode == HttpStatusCode.PreconditionFailed)
+                    {
+                        if (attempt < maxAttempts)
+                        {
+                            previousHash = remoteHash;
+                            previousEtag = remoteEtag;
+                            continue;
+                        }
                         throw new InvalidOperationException("远端词库已被其他设备更新，请重新同步以合并最新数据。");
+                    }
                     if (!retryRes.IsSuccessStatusCode)
                         throw new InvalidOperationException($"上传生词库至 WebDAV 失败（HTTP {(int)retryRes.StatusCode}）。");
                 }
@@ -371,6 +427,7 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
                     throw new InvalidOperationException($"上传生词库至 WebDAV 失败（HTTP {(int)putRes.StatusCode}）。");
                 }
                 pushed = true;
+                break;
             }
 
             var syncedAt = DateTimeOffset.UtcNow;
@@ -430,7 +487,7 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
         try
         {
             await Task.Delay(2500, cts.Token).ConfigureAwait(false);
-            await SyncCoreAsync(forcePush: true, CancellationToken.None, target).ConfigureAwait(false);
+            await SyncCoreAsync(forcePush: false, CancellationToken.None, target).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested || !CanAutoSync(target)) { }
         catch (Exception ex)
@@ -476,6 +533,41 @@ public sealed class WebDavSyncService : IWebDavSyncService, IDisposable
             NotifyStatus();
         }
         await SyncAsync(forcePush: true, ct).ConfigureAwait(false);
+    }
+
+    private async Task<string?> ReadFileEtagAsync(string fileUrl, string username, string password, CancellationToken ct)
+    {
+        try
+        {
+            using var req = CreateRequest(new HttpMethod("PROPFIND"), fileUrl, username, password);
+            req.Headers.TryAddWithoutValidation("Depth", "0");
+            req.Content = new StringContent(
+                "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\"><d:prop><d:getetag/></d:prop></d:propfind>",
+                Encoding.UTF8,
+                "application/xml");
+            using var res = await _httpClient.SendAsync(req, ct).ConfigureAwait(false);
+            if (!res.IsSuccessStatusCode && (int)res.StatusCode != 207) return null;
+            var xmlText = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            var doc = XDocument.Parse(xmlText, LoadOptions.None);
+            var dav = XNamespace.Get("DAV:");
+            foreach (var propstat in doc.Descendants(dav + "propstat"))
+            {
+                var status = propstat.Element(dav + "status")?.Value ?? string.Empty;
+                if (!Regex.IsMatch(status, @"\s200(?:\s|$)")) continue;
+                var rawEtag = propstat.Descendants(dav + "getetag").FirstOrDefault()?.Value.Trim();
+                if (!string.IsNullOrEmpty(rawEtag)
+                    && EntityTagHeaderValue.TryParse(rawEtag, out var parsed)
+                    && !parsed.IsWeak)
+                {
+                    return parsed.ToString();
+                }
+            }
+            return null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or XmlException or FormatException)
+        {
+            return null;
+        }
     }
 
     private static void SetWriteCondition(HttpRequestMessage request, string? etag, bool missing)

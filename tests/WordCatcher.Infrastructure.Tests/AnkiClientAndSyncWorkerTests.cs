@@ -180,6 +180,7 @@ public class AnkiClientAndSyncWorkerTests : IDisposable
         var handler = new MockHttpMessageHandler(_ => throw new HttpRequestException("Connection refused"));
         var httpClient = new HttpClient(handler);
         var settings = new MemorySettingsService();
+        settings.Current.Anki.Enabled = true;
         var anki = new AnkiConnectClient(httpClient, settings);
 
         using var worker = new AnkiSyncWorker(_repo, anki, settings);
@@ -191,5 +192,34 @@ public class AnkiClientAndSyncWorkerTests : IDisposable
         Assert.Equal(SyncStatus.Retryable, updatedJob.Status);
         Assert.Equal(1, updatedJob.Attempts);
         Assert.NotNull(updatedJob.NextAttemptAtUtc);
+    }
+
+    [Fact]
+    public async Task DefaultSettingsDisableAnkiAndWorkerSkipsWhenDisabled()
+    {
+        var defaults = new AppSettings();
+        Assert.False(defaults.Anki.Enabled);
+
+        await _runner.MigrateAsync();
+        var capture = new CaptureResult("cat", "notepad.exe", "Notes", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
+        var trans = new TranslationResult("cat", "/kæt/", "n.", "猫", "", null, LookupSource.OpenDictionary, "e1", "v5");
+        var (_, _, job) = await _repo.SaveAsync(new SaveCardCommand(capture, trans));
+
+        var requests = 0;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            Interlocked.Increment(ref requests);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        var settings = new MemorySettingsService();
+        var anki = new AnkiConnectClient(new HttpClient(handler), settings);
+
+        using var worker = new AnkiSyncWorker(_repo, anki, settings);
+        await worker.SyncNowAsync();
+
+        Assert.Equal(0, requests);
+        var unchangedJob = await _repo.GetSyncJobByIdAsync(job.Id);
+        Assert.NotNull(unchangedJob);
+        Assert.Equal(SyncStatus.Pending, unchangedJob.Status);
     }
 }

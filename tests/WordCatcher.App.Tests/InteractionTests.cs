@@ -85,7 +85,9 @@ public class InteractionTests
         var repo = DispatchProxy.Create<IWordRepository, Proxy>();
         var job = new SyncJob { Status = SyncStatus.Retryable, NextAttemptAtUtc = DateTimeOffset.UtcNow.AddMinutes(2) };
         ((Proxy)repo).Jobs.Add(job);
-        var vm = new SyncViewModel(repo, DispatchProxy.Create<IAnkiSyncQueue, Proxy>(), DispatchProxy.Create<ISettingsService, Proxy>());
+        var settings = DispatchProxy.Create<ISettingsService, Proxy>();
+        ((Proxy)settings).Settings.Anki.Enabled = true;
+        var vm = new SyncViewModel(repo, DispatchProxy.Create<IAnkiSyncQueue, Proxy>(), settings);
         await vm.RefreshAsync();
         Assert.Equal(SyncPageState.Waiting, vm.PageState);
         Assert.Equal(1, vm.WaitingCount);
@@ -268,6 +270,7 @@ public class InteractionTests
         proxy.Jobs.Add(new SyncJob { Id = "failed", Status = SyncStatus.Failed });
         var queue = DispatchProxy.Create<IAnkiSyncQueue, Proxy>();
         var settings = DispatchProxy.Create<ISettingsService, Proxy>();
+        ((Proxy)settings).Settings.Anki.Enabled = true;
         var vm = new SyncViewModel(repo, queue, settings);
         await vm.InitializeAsync();
         Assert.Equal(SyncPageState.Attention, vm.PageState);
@@ -290,6 +293,7 @@ public class InteractionTests
         var jobs = (Proxy)repo;
         var queue = DispatchProxy.Create<IAnkiSyncQueue, Proxy>();
         var settings = DispatchProxy.Create<ISettingsService, Proxy>();
+        ((Proxy)settings).Settings.Anki.Enabled = true;
         var vm = new SyncViewModel(repo, queue, settings);
 
         await vm.RefreshAsync();
@@ -333,6 +337,7 @@ public class InteractionTests
     {
         var (vm, service) = Settings();
         await vm.InitializeAsync();
+        Assert.False(vm.AnkiEnabled);
         Assert.False(vm.HasUnsavedChanges);
         var original = vm.ApiModel;
         vm.ApiModel = "draft";

@@ -166,7 +166,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _explainLanguage = "简体中文";
 
     [ObservableProperty]
-    private bool _ankiEnabled = true;
+    private bool _ankiEnabled;
 
     [ObservableProperty]
     private string _ankiUrl = "http://127.0.0.1:8765";
@@ -975,7 +975,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         StatusMessage = "正在与 WebDAV 云端同步生词库…";
         try
         {
-            var res = await _webDavSyncService.SyncAsync(forcePush: true).ConfigureAwait(true);
+            var res = await _webDavSyncService.SyncAsync().ConfigureAwait(true);
             var parts = new List<string>();
             if (res.Added > 0) parts.Add($"新增 {res.Added} 条");
             if (res.Updated > 0) parts.Add($"更新 {res.Updated} 条");

@@ -12,6 +12,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly Icon _applicationIcon;
     private readonly HotkeyManager _hotkeyManager;
     private readonly IAnkiSyncQueue _syncQueue;
+    private readonly ISettingsService? _settingsService;
     private Action? _notificationAction;
 
     public event Action? OpenLibraryRequested;
@@ -20,10 +21,12 @@ public sealed class TrayIconManager : IDisposable
 
     public TrayIconManager(
         HotkeyManager hotkeyManager,
-        IAnkiSyncQueue syncQueue)
+        IAnkiSyncQueue syncQueue,
+        ISettingsService? settingsService = null)
     {
         _hotkeyManager = hotkeyManager;
         _syncQueue = syncQueue;
+        _settingsService = settingsService;
         _applicationIcon = LoadApplicationIcon();
 
         _notifyIcon = new NotifyIcon
@@ -54,6 +57,7 @@ public sealed class TrayIconManager : IDisposable
         var retrySyncItem = new ToolStripMenuItem("重试 Anki 待同步任务 (&R)");
         retrySyncItem.Click += (s, e) => _syncQueue.TriggerSync();
         menu.Items.Add(retrySyncItem);
+        menu.Opening += (_, _) => retrySyncItem.Visible = _settingsService?.Current.Anki.Enabled ?? true;
 
         var toggleHotKeyItem = new ToolStripMenuItem("启用全局快捷键");
         toggleHotKeyItem.Checked = _hotkeyManager.IsEnabled;

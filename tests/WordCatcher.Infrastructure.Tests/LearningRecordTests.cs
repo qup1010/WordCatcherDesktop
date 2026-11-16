@@ -409,8 +409,166 @@ UPDATE app_meta SET value = '3' WHERE key = 'schema_version';";
         using var service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SyncAsync(forcePush: true));
         Assert.Contains("其他设备", error.Message);
-        Assert.Equal(1, uploads);
+        Assert.Equal(3, uploads);
         Assert.Null(service.LastSyncedAtUtc);
+    }
+
+    [Fact]
+    public async Task WebDavPullOnlyDoesNotPushBackWhenLocalHasNoNewChanges()
+    {
+        await Init();
+        var remoteOccId = Guid.NewGuid().ToString();
+        var remotePayload = JsonSerializer.Serialize(new
+        {
+            format = "word-catcher-learning",
+            version = 3,
+            exportedAt = DateTimeOffset.UtcNow.ToString("o"),
+            records = new object[]
+            {
+                new
+                {
+                    id = remoteOccId,
+                    revision = 1,
+                    versionVector = new Dictionary<string, long> { ["remote-device"] = 1 },
+                    savedAt = 1729000000000L,
+                    updatedAt = 1729000000000L,
+                    card = new
+                    {
+                        recordId = remoteOccId,
+                        selection = "render",
+                        sentence = "Render the image.",
+                        sentenceOffset = 0,
+                        pageUrl = "https://example.test",
+                        pageTitle = "Docs",
+                        createdAt = 1729000000000L,
+                        entry = new
+                        {
+                            word = "render",
+                            reading = "",
+                            partOfSpeech = "v.",
+                            definition = "渲染",
+                            contextTranslation = "渲染图像。"
+                        }
+                    }
+                }
+            }
+        });
+
+        var puts = 0;
+        var settings = new Settings();
+        settings.Current.WebDav.Url = "https://dav.example.test/dav";
+        var handler = new Handler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Put) puts++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(remotePayload, Encoding.UTF8, "application/json"),
+                Headers = { ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"v1\"") }
+            });
+        });
+
+        using var service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
+        var result = await service.SyncAsync();
+
+        Assert.Equal(1, result.Added);
+        Assert.False(result.Pushed);
+        Assert.Equal(0, puts);
+        Assert.NotNull(await _repo.FindWordAsync("render"));
+    }
+
+    [Fact]
+    public async Task WebDavRecoversFrom412ByRefetchingMergingAndRetryingPut()
+    {
+        await Init();
+        await _repo.SaveAsync(new(Capture(), Result()));
+        var remoteOccId = Guid.NewGuid().ToString();
+        var v1Payload = JsonSerializer.Serialize(new
+        {
+            format = "word-catcher-learning",
+            version = 3,
+            exportedAt = DateTimeOffset.UtcNow.ToString("o"),
+            records = Array.Empty<object>()
+        });
+        var v2Payload = JsonSerializer.Serialize(new
+        {
+            format = "word-catcher-learning",
+            version = 3,
+            exportedAt = DateTimeOffset.UtcNow.ToString("o"),
+            records = new object[]
+            {
+                new
+                {
+                    id = remoteOccId,
+                    revision = 1,
+                    versionVector = new Dictionary<string, long> { ["remote-device"] = 1 },
+                    savedAt = 1729000000000L,
+                    updatedAt = 1729000000000L,
+                    card = new
+                    {
+                        recordId = remoteOccId,
+                        selection = "caption",
+                        sentence = "Add a caption.",
+                        sentenceOffset = 6,
+                        pageUrl = "https://example.test",
+                        pageTitle = "Docs",
+                        createdAt = 1729000000000L,
+                        entry = new
+                        {
+                            word = "caption",
+                            reading = "",
+                            partOfSpeech = "n.",
+                            definition = "说明文字",
+                            contextTranslation = "添加说明文字。"
+                        }
+                    }
+                }
+            }
+        });
+
+        var gets = 0;
+        var puts = 0;
+        string? finalUpload = null;
+        var settings = new Settings();
+        settings.Current.WebDav.Url = "https://dav.example.test/dav";
+        var handler = new Handler(async (request, ct) =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                gets++;
+                var isFirst = gets == 1;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(isFirst ? v1Payload : v2Payload, Encoding.UTF8, "application/json"),
+                    Headers = { ETag = new System.Net.Http.Headers.EntityTagHeaderValue(isFirst ? "\"v1\"" : "\"v2\"") }
+                };
+            }
+            if (request.Method == HttpMethod.Put)
+            {
+                puts++;
+                var ifMatch = Assert.Single(request.Headers.IfMatch).Tag;
+                if (puts == 1)
+                {
+                    Assert.Equal("\"v1\"", ifMatch);
+                    return new HttpResponseMessage(HttpStatusCode.PreconditionFailed);
+                }
+                Assert.Equal("\"v2\"", ifMatch);
+                finalUpload = await request.Content!.ReadAsStringAsync(ct);
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var service = new WebDavSyncService(new HttpClient(handler), _repo, settings, new Secret());
+        var result = await service.SyncAsync();
+
+        Assert.Equal(2, gets);
+        Assert.Equal(2, puts);
+        Assert.True(result.Pushed);
+        Assert.Equal(1, result.Added);
+        Assert.Equal(2, result.Total);
+        Assert.NotNull(await _repo.FindWordAsync("bank"));
+        Assert.NotNull(await _repo.FindWordAsync("caption"));
+        Assert.NotNull(finalUpload);
     }
 
     [Theory]

@@ -180,7 +180,7 @@ public sealed partial class SyncViewModel : ObservableObject
         try
         {
             if (keepLocal.HasValue) await _webDav!.ResolveConflictAsync(keepLocal.Value);
-            else await _webDav!.SyncAsync(forcePush: true);
+            else await _webDav!.SyncAsync();
             WebDavActionMessage = "本轮同步完成。";
         }
         catch (Exception ex) { WebDavActionMessage = ex.Message; }

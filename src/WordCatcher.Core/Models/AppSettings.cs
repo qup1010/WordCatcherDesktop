@@ -45,7 +45,7 @@ public sealed class DictionarySettings
 
 public sealed class AnkiSettings
 {
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; }
     public string Url { get; set; } = "http://127.0.0.1:8765";
     public string DeckName { get; set; } = "Word Catcher";
     public string NoteTypeName { get; set; } = "Word Catcher";

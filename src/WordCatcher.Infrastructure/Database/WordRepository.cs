@@ -1342,11 +1342,11 @@ WHERE word_id = $id;";
     {
         var lr = occ.LearningResult;
         var entryWord = word.DisplayWord;
-        var entryReading = !string.IsNullOrWhiteSpace(lr?.Reading) ? lr!.Reading : word.Reading;
-        var entryPos = !string.IsNullOrWhiteSpace(lr?.PartOfSpeech) ? lr!.PartOfSpeech : word.PartOfSpeech;
+        var entryReading = lr != null ? lr.Reading : word.Reading;
+        var entryPos = lr != null ? lr.PartOfSpeech : word.PartOfSpeech;
         var entryDef = !string.IsNullOrWhiteSpace(lr?.Definition) ? lr!.Definition : word.Definition;
-        var entryTrans = !string.IsNullOrWhiteSpace(lr?.ContextTranslation) ? lr!.ContextTranslation : occ.ContextTranslation;
-        var entryHook = !string.IsNullOrWhiteSpace(lr?.MemoryHook) ? lr!.MemoryHook : word.MemoryHook;
+        var entryTrans = lr != null ? lr.ContextTranslation : occ.ContextTranslation;
+        var entryHook = lr != null ? lr.MemoryHook : word.MemoryHook;
 
         var entryObj = new Dictionary<string, object?>
         {
@@ -1951,11 +1951,7 @@ WHERE word_id = $id;";
             : original with
             {
                 Word = word.DisplayWord,
-                Reading = !string.IsNullOrWhiteSpace(original.Reading) ? original.Reading : word.Reading,
-                PartOfSpeech = !string.IsNullOrWhiteSpace(original.PartOfSpeech) ? original.PartOfSpeech : word.PartOfSpeech,
-                Definition = !string.IsNullOrWhiteSpace(original.Definition) ? original.Definition : word.Definition,
-                ContextTranslation = !string.IsNullOrWhiteSpace(original.ContextTranslation) ? original.ContextTranslation : occurrence.ContextTranslation,
-                MemoryHook = !string.IsNullOrWhiteSpace(original.MemoryHook) ? original.MemoryHook : word.MemoryHook
+                Definition = !string.IsNullOrWhiteSpace(original.Definition) ? original.Definition : word.Definition
             };
         var other = remote.Translation with { Word = GetRemoteDisplayWord(remote) };
         return local.Word == other.Word && local.Reading == other.Reading

@@ -68,6 +68,61 @@ public sealed class SyncRegressionTests : IDisposable
         await restored._repo.MergeSyncJsonAsync(await _repo.ExportSyncJsonAsync());
         Assert.Single((await restored.Payload())["records"]!.AsArray());
     }
+
+    [Fact]
+    public async Task EmptyFieldsOnNewContextDoNotBackfillFromWordSummaryOrConflictOnRoundTrip()
+    {
+        await new SqliteMigrationRunner(_factory).MigrateAsync();
+        await _repo.SaveAsync(new(
+            new CaptureResult("hypothesis", "reader", "Book", new(0, 0), DateTimeOffset.UtcNow,
+                "Test the hypothesis first.", 9, "https://example.test/1"),
+            new TranslationResult("hypothesis", "/haɪˈpɒθəsɪs/", "n.", "假说", "先验证假说。", "词根 hypo+thesis", LookupSource.Ai, null, null)));
+
+        var secondId = Guid.NewGuid().ToString("N");
+        var secondEnvelope = new JsonObject
+        {
+            ["format"] = "word-catcher-learning",
+            ["version"] = 3,
+            ["records"] = new JsonArray(new JsonObject
+            {
+                ["id"] = secondId,
+                ["revision"] = 1,
+                ["versionVector"] = new JsonObject { ["ext-device"] = 1 },
+                ["savedAt"] = 1729000000000L,
+                ["updatedAt"] = 1729000000000L,
+                ["card"] = new JsonObject
+                {
+                    ["recordId"] = secondId,
+                    ["recordRevision"] = 1,
+                    ["selection"] = "hypothesis",
+                    ["sentence"] = "Another hypothesis emerged.",
+                    ["sentenceOffset"] = 8,
+                    ["pageUrl"] = "https://example.test/2",
+                    ["pageTitle"] = "Page 2",
+                    ["createdAt"] = 1729000000000L,
+                    ["entry"] = new JsonObject
+                    {
+                        ["word"] = "hypothesis",
+                        ["reading"] = "",
+                        ["partOfSpeech"] = "",
+                        ["definition"] = "假设",
+                        ["contextTranslation"] = ""
+                    }
+                }
+            })
+        };
+
+        await _repo.MergeSyncJsonAsync(secondEnvelope.ToJsonString());
+        var exported = await _repo.ExportSyncJsonAsync();
+        var secondExported = JsonNode.Parse(exported)!["records"]!.AsArray()
+            .First(r => r!["id"]!.GetValue<string>() == secondId)!["card"]!["entry"]!;
+        Assert.Equal("", secondExported["reading"]!.GetValue<string>());
+        Assert.Equal("", secondExported["partOfSpeech"]!.GetValue<string>());
+        Assert.Null(secondExported["memoryHook"]);
+
+        var roundTrip = await _repo.MergeSyncJsonAsync(exported);
+        Assert.False(roundTrip.NeedsPush);
+    }
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"sync-regression-{Guid.NewGuid():N}.db");
     private readonly SqliteConnectionFactory _factory;
     private readonly WordRepository _repo;
