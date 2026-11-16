@@ -414,7 +414,7 @@
                                     FontSize="{StaticResource CaptionFontSize}">
                                 <StackPanel Orientation="Horizontal">
                                     <controls:CrispSymbolIcon Symbol="Flash20" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="卡片复习" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding StartReviewButtonText}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 </StackPanel>
                             </ui:Button>
                             <ui:Button x:Name="SyncWebDavButton" Command="{Binding SyncWebDavCommand}"
@@ -806,7 +806,16 @@
                                                             <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="8,3">
                                                                 <TextBlock Text="语境自测复习" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
                                                             </Border>
-                                                            <TextBlock Text="{Binding ReviewProgressText}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                            <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="8,0,0,0"
+                                                                    Visibility="{Binding ReviewScopeLabel, Converter={StaticResource StringToVis}}">
+                                                                <TextBlock Text="{Binding ReviewScopeLabel}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding ReviewProgressText}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                                       Visibility="{Binding IsActiveReviewCard, Converter={StaticResource BoolToVis}}" />
+                                                            <Border Background="{DynamicResource WarningSurfaceBrush}" CornerRadius="4" Padding="7,2" Margin="8,0,0,0"
+                                                                    Visibility="{Binding MarkedAgainBadgeText, Converter={StaticResource StringToVis}}">
+                                                                <TextBlock Text="{Binding MarkedAgainBadgeText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource WarningTextBrush}" />
+                                                            </Border>
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                                                             <ui:Button Content="乱序" Command="{Binding ShuffleReviewCommand}" Style="{StaticResource QuietActionButton}" Padding="10,4" Margin="0,0,6,0" ToolTip="随机打乱复习顺序" />
@@ -814,6 +823,8 @@
                                                         </StackPanel>
                                                     </Grid>
 
+                                                    <!-- Active Review Card -->
+                                                    <StackPanel Visibility="{Binding IsActiveReviewCard, Converter={StaticResource BoolToVis}}">
                                                     <!-- Front: Context Sentence Prompt -->
                                                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16,14" Margin="0,0,0,14">
                                                         <StackPanel>
@@ -835,7 +846,7 @@
                                                             Visibility="{Binding IsAnswerRevealed, Converter={StaticResource BoolToVis}}">
                                                         <StackPanel>
                                                             <WrapPanel VerticalAlignment="Center" Margin="0,0,0,10">
-                                                                <TextBlock Text="{Binding ReviewEffectiveExpression}" FontFamily="{StaticResource HeadwordFontFamily}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                <TextBlock Text="{Binding ReviewEffectiveExpression}" FontFamily="{StaticResource HeadwordFontFamily}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
                                                                 <TextBlock Text="{Binding CurrentReviewWord.Reading}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0"
                                                                            Visibility="{Binding CurrentReviewWord.Reading, Converter={StaticResource StringToVis}}" />
                                                                 <ui:Button Command="{Binding SpeakWordCommand}" Style="{StaticResource QuietActionButton}" Padding="8,4" Margin="10,0,0,0" ToolTip="朗读（快捷键 P）">
@@ -883,23 +894,57 @@
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <ui:Button Content="上一张 (←)" Command="{Binding PrevReviewCardCommand}" Style="{StaticResource SecondaryActionButton}" Padding="14,7" />
-                                                        <ui:Button Grid.Column="1" Command="{Binding ToggleAnswerCommand}" Style="{StaticResource PrimaryActionButton}" HorizontalAlignment="Center" Padding="24,7" Margin="12,0">
-                                                            <TextBlock>
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="Text" Value="显示答案 (Space)" />
+                                                        <ui:Button Content="上一张 (←)" Command="{Binding PrevReviewCardCommand}" IsEnabled="{Binding CanGoPrevReviewCard}" Style="{StaticResource SecondaryActionButton}" Padding="14,7" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="12,0">
+                                                            <ui:Button Command="{Binding ToggleAnswerCommand}" Style="{StaticResource PrimaryActionButton}" Padding="22,7">
+                                                                <TextBlock>
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Text" Value="显示答案 (Space)" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsAnswerRevealed}" Value="True">
+                                                                                    <Setter Property="Text" Value="隐藏答案 (Space)" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </ui:Button>
+                                                            <ui:Button Content="{Binding MarkAgainButtonText}" Command="{Binding ToggleMarkReviewAgainCommand}" Padding="12,7" Margin="8,0,0,0" ToolTip="标记为本轮结束后再练（快捷键 M）">
+                                                                <ui:Button.Style>
+                                                                    <Style TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}">
                                                                         <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsAnswerRevealed}" Value="True">
-                                                                                <Setter Property="Text" Value="隐藏答案 (Space)" />
+                                                                            <DataTrigger Binding="{Binding IsCurrentReviewMarkedAgain}" Value="True">
+                                                                                <Setter Property="Background" Value="{DynamicResource AmberHookSurfaceBrush}" />
+                                                                                <Setter Property="Foreground" Value="{DynamicResource AmberHookLabelBrush}" />
+                                                                                <Setter Property="BorderBrush" Value="{DynamicResource AmberHookBorderBrush}" />
                                                                             </DataTrigger>
                                                                         </Style.Triggers>
                                                                     </Style>
-                                                                </TextBlock.Style>
-                                                            </TextBlock>
-                                                        </ui:Button>
-                                                        <ui:Button Grid.Column="2" Content="下一张 (→)" Command="{Binding NextReviewCardCommand}" Style="{StaticResource SecondaryActionButton}" Padding="14,7" />
+                                                                </ui:Button.Style>
+                                                            </ui:Button>
+                                                        </StackPanel>
+                                                        <ui:Button Grid.Column="2" Content="{Binding NextReviewButtonText}" Command="{Binding NextReviewCardCommand}" Style="{StaticResource SecondaryActionButton}" Padding="14,7" />
                                                     </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Round Completion Summary -->
+                                                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,18"
+                                                            Visibility="{Binding IsReviewCompleted, Converter={StaticResource BoolToVis}}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="本轮复习完成" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                            <TextBlock Text="{Binding ReviewCompletionSummary}" FontSize="14" LineHeight="22" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,16" />
+                                                            <WrapPanel>
+                                                                <ui:Button Content="{Binding PracticeMarkedButtonText}" Command="{Binding PracticeMarkedAgainCommand}"
+                                                                           Style="{StaticResource PrimaryActionButton}" Padding="16,7" Margin="0,0,8,8"
+                                                                           Visibility="{Binding HasMarkedAgainItems, Converter={StaticResource BoolToVis}}" />
+                                                                <ui:Button Content="再练本轮" Command="{Binding RestartReviewCommand}" Style="{StaticResource SecondaryActionButton}" Padding="14,7" Margin="0,0,8,8" />
+                                                                <ui:Button Content="乱序重练" Command="{Binding ShuffleReviewCommand}" Style="{StaticResource SecondaryActionButton}" Padding="14,7" Margin="0,0,8,8" />
+                                                                <ui:Button Content="回到上一张" Command="{Binding PrevReviewCardCommand}" Style="{StaticResource QuietActionButton}" Padding="12,7" Margin="0,0,8,8" />
+                                                                <ui:Button Content="返回生词库" Command="{Binding ExitReviewCommand}" Style="{StaticResource QuietActionButton}" Padding="12,7" Margin="0,0,0,8" />
+                                                            </WrapPanel>
+                                                        </StackPanel>
+                                                    </Border>
                                                 </StackPanel>
                                             </Border>
 
@@ -915,8 +960,8 @@
                                                 <WrapPanel VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding SelectedWord.DisplayWord}"
                                                                FontFamily="{StaticResource HeadwordFontFamily}"
-                                                               TextWrapping="Wrap" FontSize="28"
-                                                               FontWeight="Bold"
+                                                               TextWrapping="Wrap" FontSize="26"
+                                                               FontWeight="SemiBold"
                                                                Foreground="{DynamicResource TextPrimaryBrush}" />
                                                     <TextBlock Text="{Binding SelectedWord.Reading}"
                                                                FontFamily="{StaticResource PhoneticFontFamily}"
@@ -984,17 +1029,47 @@
                                                         </StackPanel>
                                                         <ListBox x:Name="OccurrenceList"
                                                                  ItemsSource="{Binding Occurrences}"
+                                                                 SelectedItem="{Binding SelectedOccurrence, Mode=TwoWay}"
+                                                                 SelectionChanged="OccurrenceList_SelectionChanged"
                                                                  BorderThickness="0"
                                                                  Background="Transparent"
                                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                            <ListBox.ItemContainerStyle>
+                                                                <Style TargetType="ListBoxItem">
+                                                                    <Setter Property="Padding" Value="0" />
+                                                                    <Setter Property="Margin" Value="0" />
+                                                                    <Setter Property="Background" Value="Transparent" />
+                                                                    <Setter Property="BorderThickness" Value="0" />
+                                                                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                                <ContentPresenter />
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                </Style>
+                                                            </ListBox.ItemContainerStyle>
                                                             <ListBox.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Border Padding="14,12"
-                                                                            Background="{DynamicResource SurfaceBrush}"
-                                                                            BorderBrush="{DynamicResource BorderBrush}"
-                                                                            BorderThickness="1"
                                                                             CornerRadius="8"
                                                                             Margin="0,0,0,10">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+                                                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                                                                <Setter Property="BorderThickness" Value="1" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                                                        <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+                                                                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                                        <Setter Property="BorderThickness" Value="1.5" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
                                                                         <StackPanel>
                                                                             <TextBlock Text="{Binding DefinitionLabel}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" Visibility="{Binding AdditionalDefinition, Converter={StaticResource StringToVis}}" />
                                                                             <TextBlock Text="{Binding AdditionalDefinition}" TextWrapping="Wrap" FontSize="13" LineHeight="20" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0"
@@ -1417,20 +1492,64 @@
                                         <Border Margin="0,14,0,0" Background="{DynamicResource WarningSurfaceBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14"
                                                 Visibility="{Binding HasWebDavConflict, Converter={StaticResource BoolToVis}}">
                                             <StackPanel>
-                                                <TextBlock Text="检测到两端数据冲突：请选择要保留的版本，所选版本及其删除状态将覆盖冲突记录。多个冲突需逐条处理。" Foreground="{DynamicResource WarningTextBrush}" TextWrapping="Wrap" />
-                                                <TextBlock Text="{Binding ConflictRecordId, StringFormat=记录：{0}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,10" TextWrapping="Wrap" />
+                                                <TextBlock Text="检测到两端数据冲突：仅高亮存在差异的字段，请选择要保留的版本（所选版本及其删除状态将覆盖冲突记录）。" Foreground="{DynamicResource WarningTextBrush}" TextWrapping="Wrap" />
+                                                <WrapPanel Margin="0,4,0,10">
+                                                    <TextBlock Text="{Binding ConflictRecordId, StringFormat=记录：{0}}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,12,0" />
+                                                    <TextBlock Text="{Binding ConflictSummaryText}" FontSize="12" FontWeight="Medium" Foreground="{DynamicResource WarningTextBrush}" />
+                                                </WrapPanel>
+                                                <Grid Margin="0,0,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="92" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="12" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="1" Text="本地版本" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Grid.Column="3" Text="云端版本" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                </Grid>
+                                                <ItemsControl ItemsSource="{Binding ConflictChangedFields}" Visibility="{Binding HasConflictChangedFields, Converter={StaticResource BoolToVis}}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="82" />
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="12" />
+                                                                        <ColumnDefinition Width="*" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,2,8,0" />
+                                                                    <Border Grid.Column="1" Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="8,6">
+                                                                        <TextBox Text="{Binding LocalDisplay, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                    </Border>
+                                                                    <Border Grid.Column="3" Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="4" Padding="8,6">
+                                                                        <TextBox Text="{Binding RemoteDisplay, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                    </Border>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <Expander Header="相同字段（点击展开核对）" Margin="0,2,0,10" Visibility="{Binding HasConflictUnchangedFields, Converter={StaticResource BoolToVis}}">
+                                                    <ItemsControl ItemsSource="{Binding ConflictUnchangedFields}" Margin="0,6,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid Margin="0,0,0,5">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="92" />
+                                                                        <ColumnDefinition Width="*" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                                                    <TextBox Grid.Column="1" Text="{Binding LocalDisplay, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Expander>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                    <StackPanel>
-                                                        <TextBlock Text="本地版本" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                        <TextBox Text="{Binding LocalConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="260" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
-                                                        <ui:Button Content="保留本地并继续同步" Command="{Binding KeepLocalConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="2">
-                                                        <TextBlock Text="云端版本" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                        <TextBox Text="{Binding RemoteConflictText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="260" VerticalScrollBarVisibility="Auto" Margin="0,6,0,8" />
-                                                        <ui:Button Content="保留云端并继续同步" Command="{Binding KeepRemoteConflictCommand}" Style="{StaticResource SecondaryActionButton}" />
-                                                    </StackPanel>
+                                                    <ui:Button Content="保留本地（覆盖云端）" Command="{Binding KeepLocalConflictCommand}" Style="{StaticResource SecondaryActionButton}" HorizontalAlignment="Stretch" />
+                                                    <ui:Button Grid.Column="2" Content="采用云端（覆盖本地）" Command="{Binding KeepRemoteConflictCommand}" Style="{StaticResource SecondaryActionButton}" HorizontalAlignment="Stretch" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>

@@ -216,6 +216,12 @@ public partial class LibraryWindow : Window
                         e.Handled = true;
                         return;
                     }
+                    if (e.Key == Key.M)
+                    {
+                        _libraryVm.ToggleMarkReviewAgainCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
                     if (e.Key == Key.Escape)
                     {
                         _libraryVm.ExitReviewCommand.Execute(null);
@@ -373,8 +379,28 @@ public partial class LibraryWindow : Window
     public void ShowLibraryForWord(string word)
     {
         MainTabs.SelectedItem = LibraryTab;
+        if (_libraryVm.IsReviewMode) _libraryVm.ExitReviewCommand.Execute(null);
         ShowAndActivate();
         _ = _libraryVm.FocusWordAsync(word);
+    }
+
+    public async Task ShowLibraryForHandoffAsync(MainWindowLookupHandoff handoff)
+    {
+        MainTabs.SelectedItem = LibraryTab;
+        if (_libraryVm.IsReviewMode) _libraryVm.ExitReviewCommand.Execute(null);
+        ShowAndActivate();
+        var wordText = !string.IsNullOrWhiteSpace(handoff.Result?.Word)
+            ? handoff.Result.Word
+            : handoff.Capture.SelectedText;
+        await _libraryVm.FocusWordAsync(wordText, handoff.SavedWordId, handoff.SavedOccurrenceId).ConfigureAwait(true);
+        var focusedMatched = _libraryVm.SelectedWord != null
+            && (string.IsNullOrWhiteSpace(handoff.SavedWordId)
+                ? string.Equals(_libraryVm.SelectedWord.DisplayWord, wordText.Trim(), StringComparison.OrdinalIgnoreCase)
+                : _libraryVm.SelectedWord.Id == handoff.SavedWordId);
+        if (!focusedMatched && _lookupVm != null)
+        {
+            await ShowLookupHandoffAsync(handoff).ConfigureAwait(true);
+        }
     }
 
     public void ShowLookupWithQuery(string query)
@@ -383,6 +409,25 @@ public partial class LibraryWindow : Window
         ShowAndActivate();
         if (_lookupVm != null) _ = _lookupVm.SearchForQueryAsync(query);
         Dispatcher.BeginInvoke(new Action(() => LookupPage.FocusQuery()));
+    }
+
+    public async Task ShowLookupHandoffAsync(MainWindowLookupHandoff handoff)
+    {
+        MainTabs.SelectedItem = LookupTab;
+        ShowAndActivate();
+        if (_lookupVm != null)
+        {
+            await _lookupVm.OpenHandoffAsync(handoff).ConfigureAwait(true);
+        }
+        Dispatcher.BeginInvoke(new Action(() => LookupPage.FocusQuery()));
+    }
+
+    private void OccurrenceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (OccurrenceList.SelectedItem != null)
+        {
+            OccurrenceList.ScrollIntoView(OccurrenceList.SelectedItem);
+        }
     }
 
     private void WordList_SelectionChanged(object sender, SelectionChangedEventArgs e)

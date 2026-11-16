@@ -263,14 +263,15 @@ public partial class App : System.Windows.Application
         var settingsService = _serviceProvider!.GetRequiredService<ISettingsService>();
         var lookupWindow = new LookupWindow(vm, settingsService);
         _activeLookupWindow = lookupWindow;
-        vm.OpenInMainRequested += (query, isSaved) =>
+        vm.OpenInMainHandoffRequested += handoff =>
         {
             if (!lookupWindow.IsPinned)
             {
                 try { lookupWindow.Close(); } catch { }
             }
-            if (isSaved) _libraryWindow?.ShowLibraryForWord(query);
-            else _libraryWindow?.ShowLookupWithQuery(query);
+            if (_libraryWindow == null) return;
+            if (handoff.ShouldOpenInLibrary) _ = _libraryWindow.ShowLibraryForHandoffAsync(handoff);
+            else _ = _libraryWindow.ShowLookupHandoffAsync(handoff);
         };
         lookupWindow.Closed += (_, _) =>
         {

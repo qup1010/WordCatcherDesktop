@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,6 +19,12 @@ public enum SyncPageState
     Waiting,
     Complete,
     Empty
+}
+
+public sealed record ConflictDiffField(string Label, string LocalValue, string RemoteValue, bool IsDifferent)
+{
+    public string LocalDisplay => string.IsNullOrWhiteSpace(LocalValue) ? "（空）" : LocalValue;
+    public string RemoteDisplay => string.IsNullOrWhiteSpace(RemoteValue) ? "（空）" : RemoteValue;
 }
 
 public sealed partial class SyncViewModel : ObservableObject
@@ -54,6 +61,76 @@ public sealed partial class SyncViewModel : ObservableObject
     public string LocalConflictText => DescribeConflict(_webDav?.Conflict?.LocalRecordJson);
     public string RemoteConflictText => DescribeConflict(_webDav?.Conflict?.RemoteRecordJson);
     public string ConflictRecordId => _webDav?.Conflict?.RecordId ?? "";
+    public IReadOnlyList<ConflictDiffField> ConflictChangedFields => BuildConflictFields(changedOnly: true);
+    public IReadOnlyList<ConflictDiffField> ConflictUnchangedFields => BuildConflictFields(changedOnly: false);
+    public bool HasConflictChangedFields => ConflictChangedFields.Count > 0;
+    public bool HasConflictUnchangedFields => ConflictUnchangedFields.Count > 0;
+    public string ConflictSummaryText => _webDav?.Conflict == null
+        ? ""
+        : ConflictChangedFields.Count > 0
+            ? $"共有 {ConflictChangedFields.Count} 项差异已高亮（已收起 {ConflictUnchangedFields.Count} 项相同字段）"
+            : $"未检测到核心文本差异（已收起 {ConflictUnchangedFields.Count} 项相同字段，可能仅同步时间戳变化）";
+
+    private IReadOnlyList<ConflictDiffField> BuildConflictFields(bool changedOnly)
+    {
+        var conflict = _webDav?.Conflict;
+        if (conflict == null) return [];
+        var localFields = ExtractConflictFields(conflict.LocalRecordJson);
+        var remoteFields = ExtractConflictFields(conflict.RemoteRecordJson);
+        if (localFields.Count == 0 && remoteFields.Count == 0) return [];
+        var result = new List<ConflictDiffField>();
+        var count = Math.Max(localFields.Count, remoteFields.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var label = i < localFields.Count ? localFields[i].Label : remoteFields[i].Label;
+            var localVal = i < localFields.Count ? localFields[i].Value : "";
+            var remoteVal = i < remoteFields.Count ? remoteFields[i].Value : "";
+            var isDiff = !string.Equals(localVal, remoteVal, StringComparison.Ordinal);
+            if (!isDiff && string.IsNullOrWhiteSpace(localVal) && string.IsNullOrWhiteSpace(remoteVal))
+                continue;
+            if (isDiff == changedOnly)
+                result.Add(new ConflictDiffField(label, localVal, remoteVal, isDiff));
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<(string Label, string Value)> ExtractConflictFields(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        JsonNode? r;
+        try { r = JsonNode.Parse(json); }
+        catch { return []; }
+        if (r == null) return [];
+        var entry = r["card"]?["entry"];
+        var edits = r["edits"];
+        var meta = r["wordMeta"];
+        static string Text(JsonNode? value) => value?.ToString() ?? "";
+        return
+        [
+            ("状态", r["deletedAt"] != null ? "已删除（选择此版本将删除该语境）" : "保留记录"),
+            ("表达", Text(r["card"]?["selection"])),
+            ("原句", Text(r["card"]?["sentence"])),
+            ("选词偏移", Text(r["card"]?["sentenceOffset"])),
+            ("释义", Text(edits?["definition"] ?? entry?["definition"])),
+            ("译文", Text(edits?["contextTranslation"] ?? entry?["contextTranslation"])),
+            ("备注", Text(edits?["note"])),
+            ("重点表达", Text(entry?["expression"])),
+            ("语境解析", Text(entry?["keyExplanation"])),
+            ("用法提示", Text(entry?["usageNote"])),
+            ("拓展例句", Text(entry?["example"])),
+            ("例句译文", Text(entry?["exampleTranslation"])),
+            ("读音", Text(entry?["reading"])),
+            ("词性", Text(entry?["partOfSpeech"])),
+            ("记忆线索", Text(entry?["memoryHook"])),
+            ("来源标题", Text(r["card"]?["pageTitle"])),
+            ("来源链接", Text(r["card"]?["pageUrl"])),
+            ("词条摘要名称", Text(meta?["displayWord"])),
+            ("词条摘要释义", Text(meta?["definition"])),
+            ("词条摘要读音", Text(meta?["reading"])),
+            ("词条摘要词性", Text(meta?["partOfSpeech"])),
+            ("词条摘要记忆线索", Text(meta?["memoryHook"]))
+        ];
+    }
 
     private static string DescribeConflict(string? json)
     {
@@ -77,7 +154,9 @@ public sealed partial class SyncViewModel : ObservableObject
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess()) { dispatcher.BeginInvoke(new Action(RefreshWebDavState)); return; }
         foreach (var name in new[] { nameof(IsWebDavBusy), nameof(HasWebDavConflict), nameof(WebDavError), nameof(WebDavLastSuccess),
-            nameof(IsWebDavEnabled), nameof(WebDavTitle), nameof(WebDavDescription), nameof(LocalConflictText), nameof(RemoteConflictText), nameof(ConflictRecordId) })
+            nameof(IsWebDavEnabled), nameof(WebDavTitle), nameof(WebDavDescription), nameof(LocalConflictText), nameof(RemoteConflictText),
+            nameof(ConflictRecordId), nameof(ConflictChangedFields), nameof(ConflictUnchangedFields),
+            nameof(HasConflictChangedFields), nameof(HasConflictUnchangedFields), nameof(ConflictSummaryText) })
             OnPropertyChanged(name);
         RetryWebDavCommand.NotifyCanExecuteChanged();
         KeepLocalConflictCommand.NotifyCanExecuteChanged();

@@ -204,7 +204,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.ColumnSpan="2">
-                                    <TextBlock TextWrapping="Wrap" FontSize="27" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+                                    <TextBlock TextWrapping="Wrap" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                         <TextBox Text="{Binding Reading, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
                                                  Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
@@ -350,7 +350,7 @@
                                             </StackPanel>
                                         </StackPanel>
                                     </Expander>
-                                    <Expander Header="编辑与笔记" IsEnabled="{Binding CanSave}" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
+                                    <Expander Header="编辑与笔记" IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBool}}" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
                                         <StackPanel Margin="0,8,0,0">
                                             <TextBlock Text="释义" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <ui:TextBox Text="{Binding EditDefinition, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,8" />
@@ -378,25 +378,27 @@
                                             </WrapPanel>
                                         </Grid>
                                         <TextBox Text="{Binding OriginalSentence, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding CaptureSourceSummary, StringFormat=来源：{0}}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                   Visibility="{Binding CaptureSourceSummary, Converter={StaticResource StringToVis}}" />
                                         <TextBlock Text="{Binding SentenceTranslationError}" Foreground="{DynamicResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
                                                    TextWrapping="Wrap" Margin="0,5,0,0"
                                                    Visibility="{Binding SentenceTranslationError, Converter={StaticResource StringToVis}}" />
                                     </StackPanel>
-                                    <Border Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="8" Padding="12,10"
+                                    <Border Style="{StaticResource ReadingTonalBoxStyle}" Padding="12,10"
                                             Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                                         <StackPanel>
                                             <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <TextBox Text="{Binding ContextTranslation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,5,0,0" />
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="{DynamicResource AmberHookSurfaceBrush}" BorderBrush="{DynamicResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0"
+                                    <Border Style="{StaticResource MemoryHookCardStyle}"
                                             Padding="12,10" Margin="0,10,0,0" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                                         <StackPanel>
                                             <Grid>
                                                 <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AmberHookLabelBrush}" VerticalAlignment="Center" />
-                                                <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" HorizontalAlignment="Right"
-                                                              Background="Transparent" BorderThickness="0" Foreground="{DynamicResource AmberHookLabelBrush}"
-                                                              FontSize="{StaticResource CaptionFontSize}" Cursor="Hand" Padding="4,0">
+                                                <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource CompactPillToggleStyle}" HorizontalAlignment="Right"
+                                                              Foreground="{DynamicResource AmberHookLabelBrush}"
+                                                              FontSize="{StaticResource CaptionFontSize}">
                                                     <TextBlock>
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock"><Setter Property="Text" Value="展开" /><Style.Triggers><DataTrigger Binding="{Binding IsMemoryHookExpanded}" Value="True"><Setter Property="Text" Value="收起" /></DataTrigger></Style.Triggers></Style>

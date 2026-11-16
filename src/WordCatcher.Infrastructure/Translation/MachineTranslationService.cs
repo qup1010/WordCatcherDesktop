@@ -11,9 +11,10 @@ namespace WordCatcher.Infrastructure.Translation;
 
 public sealed class MachineTranslationService : IMachineTranslationService
 {
+    private sealed record CachedMicrosoftToken(string Value, DateTimeOffset ExpiresAt);
+
     private static readonly SemaphoreSlim MicrosoftTokenGate = new(1, 1);
-    private static string? _microsoftToken;
-    private static DateTimeOffset _microsoftTokenExpiresAt;
+    private static CachedMicrosoftToken? _microsoftToken;
 
     private readonly HttpClient _httpClient;
 
@@ -50,10 +51,16 @@ public sealed class MachineTranslationService : IMachineTranslationService
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
 
-        var query = $"client=gtx&sl=auto&tl={Uri.EscapeDataString(target)}&dt=t&dt=bd&q={Uri.EscapeDataString(text)}";
-        using var response = await _httpClient.GetAsync(
-            $"https://translate.googleapis.com/translate_a/single?{query}",
-            timeoutCts.Token).ConfigureAwait(false);
+        var baseParams = $"client=gtx&sl=auto&tl={Uri.EscapeDataString(target)}&ie=UTF-8&oe=UTF-8&dt=t&dt=bd";
+        var query = $"{baseParams}&q={Uri.EscapeDataString(text)}";
+        using var response = query.Length <= 1500
+            ? await _httpClient.GetAsync(
+                $"https://translate.googleapis.com/translate_a/single?{query}",
+                timeoutCts.Token).ConfigureAwait(false)
+            : await _httpClient.PostAsync(
+                $"https://translate.googleapis.com/translate_a/single?{baseParams}",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("q", text)]),
+                timeoutCts.Token).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
@@ -150,10 +157,43 @@ public sealed class MachineTranslationService : IMachineTranslationService
     private async Task<string> TranslateMicrosoftAsync(string text, string target, CancellationToken ct)
     {
         var token = await GetMicrosoftTokenAsync(ct).ConfigureAwait(false);
+        var response = await SendMicrosoftTranslateAsync(text, target, token, ct).ConfigureAwait(false);
+        if ((int)response.StatusCode == 401)
+        {
+            response.Dispose();
+            await InvalidateMicrosoftTokenAsync(token, ct).ConfigureAwait(false);
+            token = await GetMicrosoftTokenAsync(ct).ConfigureAwait(false);
+            response = await SendMicrosoftTranslateAsync(text, target, token, ct).ConfigureAwait(false);
+        }
+
+        using (response)
+        {
+            if ((int)response.StatusCode == 401)
+            {
+                await InvalidateMicrosoftTokenAsync(token, ct).ConfigureAwait(false);
+                throw new InvalidOperationException("微软翻译 token 已失效。");
+            }
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
+                throw new InvalidOperationException("微软翻译返回了无法解析的内容。");
+
+            var result = root[0].GetProperty("translations")[0].GetProperty("text").GetString();
+            if (string.IsNullOrWhiteSpace(result))
+                throw new InvalidOperationException("微软翻译未返回译文。");
+            return result;
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendMicrosoftTranslateAsync(string text, string target, string token, CancellationToken ct)
+    {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
 
-        var query = $"to={Uri.EscapeDataString(target)}&api-version=3.0";
+        var query = $"to={Uri.EscapeDataString(target)}&api-version=3.0&textType=plain";
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             $"https://api-edge.cognitive.microsofttranslator.com/translate?{query}");
@@ -163,41 +203,44 @@ public sealed class MachineTranslationService : IMachineTranslationService
             Encoding.UTF8,
             "application/json");
 
-        using var response = await _httpClient.SendAsync(request, timeoutCts.Token).ConfigureAwait(false);
-        if ((int)response.StatusCode == 401)
+        return await _httpClient.SendAsync(request, timeoutCts.Token).ConfigureAwait(false);
+    }
+
+    private static async Task InvalidateMicrosoftTokenAsync(string failedToken, CancellationToken ct)
+    {
+        await MicrosoftTokenGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            _microsoftToken = null;
-            throw new InvalidOperationException("微软翻译 token 已失效。");
+            if (string.Equals(_microsoftToken?.Value, failedToken, StringComparison.Ordinal))
+            {
+                _microsoftToken = null;
+            }
         }
-        response.EnsureSuccessStatusCode();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: timeoutCts.Token).ConfigureAwait(false);
-        var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
-            throw new InvalidOperationException("微软翻译返回了无法解析的内容。");
-
-        var result = root[0].GetProperty("translations")[0].GetProperty("text").GetString();
-        if (string.IsNullOrWhiteSpace(result))
-            throw new InvalidOperationException("微软翻译未返回译文。");
-        return result;
+        finally
+        {
+            MicrosoftTokenGate.Release();
+        }
     }
 
     private async Task<string> GetMicrosoftTokenAsync(CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(_microsoftToken)
-            && _microsoftTokenExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
+        var cached = _microsoftToken;
+        if (cached != null
+            && !string.IsNullOrWhiteSpace(cached.Value)
+            && cached.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
         {
-            return _microsoftToken;
+            return cached.Value;
         }
 
         await MicrosoftTokenGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!string.IsNullOrWhiteSpace(_microsoftToken)
-                && _microsoftTokenExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
+            cached = _microsoftToken;
+            if (cached != null
+                && !string.IsNullOrWhiteSpace(cached.Value)
+                && cached.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
             {
-                return _microsoftToken;
+                return cached.Value;
             }
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -210,8 +253,7 @@ public sealed class MachineTranslationService : IMachineTranslationService
             if (string.IsNullOrWhiteSpace(token))
                 throw new InvalidOperationException("微软翻译未返回 token。");
 
-            _microsoftToken = token;
-            _microsoftTokenExpiresAt = ParseTokenExpiry(token);
+            _microsoftToken = new CachedMicrosoftToken(token, ParseTokenExpiry(token));
             return token;
         }
         finally

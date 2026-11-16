@@ -37,10 +37,14 @@ public sealed partial class LookupViewModel : ObservableObject
     private LearningEdits? _savedDraft;
     partial void OnEditDefinitionChanged(string value) => RefreshSaveAvailability();
     partial void OnEditTranslationChanged(string value) => RefreshSaveAvailability();
-    partial void OnLearningNoteChanged(string value) => RefreshSaveAvailability();
+    partial void OnLearningNoteChanged(string value)
+    {
+        RefreshSaveAvailability();
+        OnPropertyChanged(nameof(HasSecondaryContent));
+    }
     private void RefreshSaveAvailability()
     {
-        if (_savedDraft != null && !IsLoading && !IsSaving && HasResult)
+        if (_savedDraft != null && !IsSaving && HasResult && _currentTranslation != null)
             CanSave = _savedDraft != new LearningEdits(EditDefinition, EditTranslation, LearningNote);
     }
     [ObservableProperty]
@@ -59,6 +63,8 @@ public sealed partial class LookupViewModel : ObservableObject
     private string _sentenceTranslationError = string.Empty;
     private bool _lastForceAi;
     private string? _undoOccurrenceId;
+    private string? _savedWordId;
+    private string? _savedOccurrenceId;
     private int _collectionVersion;
     private bool _wasSavedBeforeCollection;
     [ObservableProperty] private bool _canUndoSave;
@@ -78,7 +84,7 @@ public sealed partial class LookupViewModel : ObservableObject
     partial void OnSourceChanged(LookupSource value) => OnPropertyChanged(nameof(AiButtonText));
     partial void OnHasErrorChanged(bool value) { OnPropertyChanged(nameof(CanUseAiFallback)); OnPropertyChanged(nameof(CanUseQuickFallback)); }
     partial void OnAnalysisChanged(LearningAnalysis? value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(HasAnalysis)); OnPropertyChanged(nameof(HasLearningDetails)); }
-    partial void OnWordChanged(string value) => OnPropertyChanged(nameof(LearningExpression));
+    partial void OnWordChanged(string value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(IsMediumHeadword)); OnPropertyChanged(nameof(IsExtraLongHeadword)); }
     partial void OnHasSavedContextChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
 
     [ObservableProperty]
@@ -169,11 +175,29 @@ public sealed partial class LookupViewModel : ObservableObject
     private string _originalSentence = string.Empty;
 
     public bool IsLongText => SelectedText.Length > 45 || SelectedText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 5;
-    public bool HasSecondaryContent => !string.IsNullOrWhiteSpace(ContextTranslation) || !string.IsNullOrWhiteSpace(MemoryHook) || !string.IsNullOrWhiteSpace(OriginalSentence);
+    public bool IsMediumHeadword => !IsLongText && Word.Length >= 13 && Word.Length < 22;
+    public bool IsExtraLongHeadword => !IsLongText && Word.Length >= 22;
+    public bool HasSecondaryContent => !string.IsNullOrWhiteSpace(ContextTranslation)
+        || !string.IsNullOrWhiteSpace(MemoryHook)
+        || !string.IsNullOrWhiteSpace(OriginalSentence)
+        || !string.IsNullOrWhiteSpace(LearningNote)
+        || !string.IsNullOrWhiteSpace(CaptureSourceSummary);
+    public string CaptureSourceSummary
+    {
+        get
+        {
+            if (_currentCapture == null) return string.Empty;
+            var process = _currentCapture.SourceProcess?.Trim() ?? string.Empty;
+            var title = _currentCapture.SourceWindowTitle?.Trim() ?? string.Empty;
+            if (string.Equals(process, "WordCatcher", StringComparison.OrdinalIgnoreCase) && title == "查词页面")
+                return string.Empty;
+            return string.Join(" · ", new[] { process, title }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        }
+    }
     public string SaveButtonText => IsSaving ? "保存中…" : SaveFailed ? "重试保存" : !CanSave && IsSaved ? "已收藏 ✓" : HasSavedContext ? "更新这条语境" : IsSaved ? "保存新语境" : "存入生词库";
     partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
-    partial void OnSelectedTextChanged(string value) { OnPropertyChanged(nameof(IsLongText)); OnPropertyChanged(nameof(CanTranslateSentence)); }
+    partial void OnSelectedTextChanged(string value) { OnPropertyChanged(nameof(IsLongText)); OnPropertyChanged(nameof(IsMediumHeadword)); OnPropertyChanged(nameof(IsExtraLongHeadword)); OnPropertyChanged(nameof(CanTranslateSentence)); }
     partial void OnContextTranslationChanged(string value) { OnPropertyChanged(nameof(HasSecondaryContent)); OnPropertyChanged(nameof(CanTranslateSentence)); }
     partial void OnMemoryHookChanged(string? value) => OnPropertyChanged(nameof(HasSecondaryContent));
     partial void OnOriginalSentenceChanged(string value) { OnPropertyChanged(nameof(HasSecondaryContent)); OnPropertyChanged(nameof(CanTranslateSentence)); }
@@ -189,6 +213,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
     public event Action? RequestClose;
     public event Action<string, bool>? OpenInMainRequested;
+    public event Action<MainWindowLookupHandoff>? OpenInMainHandoffRequested;
 
     public bool KeepOpenAfterSave { get; set; }
 
@@ -215,15 +240,40 @@ public sealed partial class LookupViewModel : ObservableObject
         _history = history;
     }
 
-    public async Task StartLookupAsync(CaptureResult capture, bool forceAi = false, bool bypassCache = false, TranslationResult? historyResult = null)
+    public Task StartLookupAsync(CaptureResult capture, bool forceAi = false, bool bypassCache = false, TranslationResult? historyResult = null)
+        => StartLookupCoreAsync(capture, forceAi, bypassCache, historyResult, restoredEdits: null, recordHistory: true);
+
+    public async Task RestoreHandoffAsync(MainWindowLookupHandoff handoff)
+    {
+        if (handoff.Result == null)
+        {
+            await StartLookupCoreAsync(handoff.Capture, handoff.WasForceAi, bypassCache: false, historyResult: null, restoredEdits: handoff.Edits, recordHistory: false).ConfigureAwait(true);
+            return;
+        }
+
+        await StartLookupCoreAsync(handoff.Capture, handoff.WasForceAi, bypassCache: false, historyResult: handoff.Result, restoredEdits: handoff.Edits, recordHistory: false).ConfigureAwait(true);
+        if (HasResult)
+        {
+            UpdateStructuredDetails(handoff.IsDetailsExpanded);
+            IsMemoryHookExpanded = handoff.IsMemoryHookExpanded && !string.IsNullOrWhiteSpace(MemoryHook);
+        }
+    }
+
+    private async Task StartLookupCoreAsync(
+        CaptureResult capture,
+        bool forceAi,
+        bool bypassCache,
+        TranslationResult? historyResult,
+        LearningEdits? restoredEdits,
+        bool recordHistory)
     {
         _sentenceCancellation?.Cancel();
-        var keepEdits = _currentTranslation != null && _currentCapture?.SelectedText == capture.SelectedText
+        var keepEdits = restoredEdits != null || (_currentTranslation != null && _currentCapture?.SelectedText == capture.SelectedText
             && _currentCapture?.Sentence == capture.Sentence && _currentCapture?.SentenceOffset == capture.SentenceOffset
-            && _currentCapture?.SourceUri == capture.SourceUri;
-        var previousEdits = keepEdits ? new LearningEdits(
+            && _currentCapture?.SourceUri == capture.SourceUri);
+        var previousEdits = restoredEdits ?? (keepEdits ? new LearningEdits(
             EditDefinition != _currentTranslation?.Definition ? EditDefinition : null,
-            EditTranslation != _currentTranslation?.ContextTranslation ? EditTranslation : null, LearningNote) : null;
+            EditTranslation != _currentTranslation?.ContextTranslation ? EditTranslation : null, LearningNote) : null);
         var previousSavedContext = HasSavedContext;
         var previousSaved = IsSaved;
         _lastForceAi = forceAi;
@@ -231,6 +281,8 @@ public sealed partial class LookupViewModel : ObservableObject
         Analysis = null;
         HasSavedContext = false;
         _savedDraft = null;
+        _savedWordId = null;
+        _savedOccurrenceId = null;
         IsTranslatingSentence = false;
         SentenceTranslationFailed = false;
         LastSentenceTranslationUsedAi = false;
@@ -248,6 +300,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
         _currentCapture = capture;
         OnPropertyChanged(nameof(CanUseAiFallback));
+        OnPropertyChanged(nameof(CaptureSourceSummary));
         SelectedText = capture.SelectedText;
         Word = capture.SelectedText;
         Reading = string.Empty;
@@ -326,7 +379,7 @@ public sealed partial class LookupViewModel : ObservableObject
 
             HasResult = true;
             CanSave = true;
-            if (_history != null)
+            if (recordHistory && _history != null)
             {
                 try { await _history.RecordAsync(capture, result, currentLookup.Token); await RefreshHistoryAsync(); }
                 catch (Exception) when (!currentLookup.IsCancellationRequested) { }
@@ -338,6 +391,7 @@ public sealed partial class LookupViewModel : ObservableObject
                 var existing = await _wordRepository.FindWordAsync(result.Word, currentLookup.Token).ConfigureAwait(true);
                 if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
                 IsSaved = existing != null;
+                _savedWordId = existing?.Id;
                 if (existing != null)
                 {
                     var contexts = await _wordRepository.GetOccurrencesByWordIdAsync(existing.Id, currentLookup.Token).ConfigureAwait(true);
@@ -346,14 +400,25 @@ public sealed partial class LookupViewModel : ObservableObject
                         && o.Sentence == (string.IsNullOrWhiteSpace(capture.Sentence) ? capture.SelectedText : capture.Sentence)
                         && o.SelectionOffset == capture.SentenceOffset && o.SourceUri == capture.SourceUri);
                     HasSavedContext = saved != null;
-                    if (saved?.Edits != null && previousEdits == null)
+                    _savedOccurrenceId = saved?.Id;
+                    if (saved != null)
                     {
-                        EditDefinition = saved.Edits.Definition ?? result.Definition;
-                        EditTranslation = saved.Edits.ContextTranslation ?? result.ContextTranslation;
-                        LearningNote = saved.Edits.Note;
+                        var baseline = new LearningEdits(
+                            saved.Edits?.Definition ?? result.Definition,
+                            saved.Edits?.ContextTranslation ?? result.ContextTranslation,
+                            saved.Edits?.Note ?? string.Empty);
+                        _savedDraft = baseline;
+                        if (previousEdits == null)
+                        {
+                            EditDefinition = baseline.Definition ?? result.Definition;
+                            EditTranslation = baseline.ContextTranslation ?? result.ContextTranslation;
+                            LearningNote = baseline.Note;
+                        }
+                        RefreshSaveAvailability();
                     }
                 }
-                if (IsSaved) SavedStatusText = "该词已在生词库中，可补充保存当前语境。";
+                if (IsSaved && !HasSavedContext) SavedStatusText = "该词已在生词库中，可补充保存当前语境。";
+                else if (HasSavedContext) SavedStatusText = CanSave ? "已修改草稿，可点击更新当前语境。" : "该语境已收藏在生词库。";
             }
             catch (Exception) when (!currentLookup.IsCancellationRequested) { }
         }
@@ -518,6 +583,8 @@ public sealed partial class LookupViewModel : ObservableObject
 
             IsSaved = true;
             HasSavedContext = true;
+            _savedWordId = savedWord.Id;
+            _savedOccurrenceId = occ.Id;
             _savedDraft = savedDraft;
             _wasSavedBeforeCollection = wasSaved;
             _undoOccurrenceId = occ.WasCreated ? occ.Id : null;
@@ -559,6 +626,8 @@ public sealed partial class LookupViewModel : ObservableObject
             if (version != _lookupVersion) return;
             CanUndoSave = false;
             _undoOccurrenceId = null;
+            _savedOccurrenceId = null;
+            if (!_wasSavedBeforeCollection) _savedWordId = null;
             IsSaved = _wasSavedBeforeCollection;
             HasSavedContext = false;
             _savedDraft = null;
@@ -626,6 +695,36 @@ public sealed partial class LookupViewModel : ObservableObject
     {
         var query = IsSaved && !string.IsNullOrWhiteSpace(Word) ? Word : SelectedText;
         if (string.IsNullOrWhiteSpace(query)) return;
+        if (_currentCapture != null)
+        {
+            var hasCompletedResult = HasResult && _currentTranslation != null;
+            LearningEdits? edits = hasCompletedResult
+                ? new LearningEdits(
+                    EditDefinition != _currentTranslation!.Definition ? EditDefinition : null,
+                    EditTranslation != _currentTranslation.ContextTranslation ? EditTranslation : null,
+                    LearningNote)
+                : !string.IsNullOrWhiteSpace(LearningNote)
+                    ? new LearningEdits(null, null, LearningNote)
+                    : null;
+            var hasUnsavedEdits = hasCompletedResult && CanSave && (
+                HasSavedContext
+                || edits?.Definition != null
+                || edits?.ContextTranslation != null
+                || !string.IsNullOrWhiteSpace(edits?.Note));
+            var handoff = new MainWindowLookupHandoff(
+                _currentCapture,
+                _currentTranslation,
+                edits,
+                IsSaved,
+                HasSavedContext,
+                hasUnsavedEdits,
+                _savedWordId,
+                _savedOccurrenceId,
+                IsDetailsExpanded,
+                IsMemoryHookExpanded,
+                _lastForceAi);
+            OpenInMainHandoffRequested?.Invoke(handoff);
+        }
         OpenInMainRequested?.Invoke(query, IsSaved);
     }
 
@@ -672,4 +771,20 @@ public sealed partial class LookupViewModel : ObservableObject
             ActionStatusText = $"复制失败: {ex.Message}";
         }
     }
+}
+
+public sealed record MainWindowLookupHandoff(
+    CaptureResult Capture,
+    TranslationResult? Result,
+    LearningEdits? Edits,
+    bool IsSaved,
+    bool HasSavedContext,
+    bool HasUnsavedEdits,
+    string? SavedWordId,
+    string? SavedOccurrenceId,
+    bool IsDetailsExpanded,
+    bool IsMemoryHookExpanded,
+    bool WasForceAi)
+{
+    public bool ShouldOpenInLibrary => IsSaved && HasSavedContext && !HasUnsavedEdits;
 }

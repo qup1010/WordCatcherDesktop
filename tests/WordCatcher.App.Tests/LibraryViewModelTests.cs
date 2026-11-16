@@ -182,6 +182,7 @@ public class LibraryViewModelTests
     public class RepositoryProxy : DispatchProxy
     {
         public Func<string, Task<Word?>> Find = _ => Task.FromResult<Word?>(null);
+        public Func<string, Task<Word?>> FindById = _ => Task.FromResult<Word?>(null);
         public Func<string?, int, int, Task<IReadOnlyList<Word>>> ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([]);
         public Func<string, Task<IReadOnlyList<Occurrence>>> ReadOccurrences = _ => Task.FromResult<IReadOnlyList<Occurrence>>([]);
         public Func<Word, Task> Update = _ => Task.CompletedTask;
@@ -192,6 +193,7 @@ public class LibraryViewModelTests
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
         {
             nameof(IWordRepository.FindWordAsync) => Find((string)args![0]!),
+            nameof(IWordRepository.GetWordByIdAsync) => FindById((string)args![0]!),
             nameof(IWordRepository.GetFilteredWordsAsync) => ReadFiltered((string?)args![0], (WordFilter)args[1]!, (int)args[2]!, (int)args[3]!),
             nameof(IWordRepository.MoveWordToTrashAsync) => Trash((string)args![0]!),
             nameof(IWordRepository.RestoreWordAsync) => Restore((string)args![0]!),
@@ -416,5 +418,66 @@ public class LibraryViewModelTests
         await vm.LoadMoreCommand.ExecuteAsync(null);
         Assert.Equal(120, vm.Words.Count);
         Assert.Equal(new[] { 0, 100 }, offsets);
+    }
+
+    [Fact]
+    public async Task FocusWordWithPreferredOccurrenceSelectsTargetOccurrence()
+    {
+        var (vm, repo) = Create();
+        var word = new Word { Id = "w1", DisplayWord = "alpha" };
+        var occ1 = new Occurrence { Id = "o1", WordId = "w1", Sentence = "First sentence." };
+        var occ2 = new Occurrence { Id = "o2", WordId = "w1", Sentence = "Second sentence." };
+        repo.FindById = id => Task.FromResult<Word?>(id == "w1" ? word : null);
+        repo.ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([word]);
+        repo.ReadOccurrences = _ => Task.FromResult<IReadOnlyList<Occurrence>>([occ1, occ2]);
+
+        await vm.InitializeAsync();
+        await vm.FocusWordAsync("alpha", "w1", "o2");
+
+        Assert.Same(word, vm.SelectedWord);
+        Assert.Equal("o2", vm.SelectedOccurrence?.Id);
+    }
+
+    [Fact]
+    public async Task StartReviewLoadsAllMatchingPagesCompletesAndSupportsMarkedRepractice()
+    {
+        var (vm, repo) = Create();
+        var words = Enumerable.Range(0, 105)
+            .Select(i => new Word { Id = $"w{i}", DisplayWord = $"word-{i}", Definition = $"def-{i}" })
+            .ToArray();
+        repo.ReadWords = (_, limit, offset) => Task.FromResult<IReadOnlyList<Word>>(words.Skip(offset).Take(limit).ToArray());
+        repo.ReadOccurrences = _ => Task.FromResult<IReadOnlyList<Occurrence>>([]);
+
+        await vm.InitializeAsync();
+        Assert.Equal(100, vm.Words.Count);
+
+        await vm.StartReviewCommand.ExecuteAsync(null);
+        Assert.True(vm.IsReviewMode);
+        Assert.False(vm.IsReviewCompleted);
+        Assert.Equal(105, vm.ReviewTotal);
+
+        // When multiple words are selected, review scopes explicitly to those selected words.
+        vm.ExitReviewCommand.Execute(null);
+        vm.SetSelectedWords([words[0], words[2]]);
+        await vm.StartReviewCommand.ExecuteAsync(null);
+        Assert.Equal(2, vm.ReviewTotal);
+        Assert.Contains("已选 2 词", vm.ReviewScopeLabel);
+
+        vm.ToggleMarkReviewAgainCommand.Execute(null);
+        Assert.True(vm.IsCurrentReviewMarkedAgain);
+        Assert.Equal(1, vm.MarkedAgainCount);
+
+        vm.NextReviewCardCommand.Execute(null);
+        Assert.Equal(1, vm.ReviewIndex);
+        Assert.True(vm.IsLastReviewCard);
+
+        vm.NextReviewCardCommand.Execute(null);
+        Assert.True(vm.IsReviewCompleted);
+        Assert.True(vm.HasMarkedAgainItems);
+
+        vm.PracticeMarkedAgainCommand.Execute(null);
+        Assert.False(vm.IsReviewCompleted);
+        Assert.Equal(1, vm.ReviewTotal);
+        Assert.Equal("w0", vm.CurrentReviewWord?.Id);
     }
 }

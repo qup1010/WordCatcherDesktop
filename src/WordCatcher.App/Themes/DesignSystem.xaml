@@ -7,9 +7,9 @@
         <ui:ControlsDictionary />
         <ResourceDictionary Source="/WordCatcher.App;component/Themes/LightTheme.xaml" />
     </ResourceDictionary.MergedDictionaries>
-    <FontFamily x:Key="UiFontFamily">Segoe UI, Microsoft YaHei UI</FontFamily>
-    <FontFamily x:Key="HeadwordFontFamily">Georgia, Cambria, Microsoft YaHei UI</FontFamily>
-    <FontFamily x:Key="PhoneticFontFamily">Georgia, Cambria, Segoe UI</FontFamily>
+    <FontFamily x:Key="UiFontFamily">Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI</FontFamily>
+    <FontFamily x:Key="HeadwordFontFamily">Segoe UI Variable Display, Segoe UI, Microsoft YaHei UI</FontFamily>
+    <FontFamily x:Key="PhoneticFontFamily">Segoe UI Variable Text, Segoe UI, Lucida Sans Unicode</FontFamily>
 
     <!-- Force DirectWrite ideal grayscale anti-aliasing on vector icon fonts so inherited Display mode does not distort curves. -->
     <Style x:Key="CrispSymbolIconStyle" TargetType="{x:Type ui:SymbolIcon}">
@@ -387,6 +387,58 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="PillBorder" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ReadingTonalBoxStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="11,9" />
+    </Style>
+
+    <Style x:Key="MemoryHookCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource AmberHookSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AmberHookBorderBrush}" />
+        <Setter Property="BorderThickness" Value="3,0,0,0" />
+        <Setter Property="CornerRadius" Value="0,8,8,0" />
+        <Setter Property="Padding" Value="11,9" />
+    </Style>
+
+    <Style x:Key="CompactPillToggleStyle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="PillSurface"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="PillSurface" Property="Background" Value="{DynamicResource HoverSurfaceBrush}" />
+                            <Setter TargetName="PillSurface" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="PillSurface" Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+                            <Setter TargetName="PillSurface" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="PillSurface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

@@ -46,17 +46,21 @@ public sealed partial class LibraryViewModel : ObservableObject
     partial void OnSourceFilterChanged(string value) { RefreshFilterLabels(); if (!_isFocusingWord) OnSearchQueryChanged(SearchQuery); }
     public string BatchSelectionText => $"已选 {SelectedWords.Count} 个 · Ctrl / Shift 多选";
     public bool HasMultipleSelectedWords => SelectedWords.Count > 1;
+    public string StartReviewButtonText => HasMultipleSelectedWords ? $"复习所选 ({SelectedWords.Count})" : "卡片复习";
     public void SetSelectedWords(IEnumerable<Word> words)
     {
         SelectedWords.Clear();
         foreach (var word in words) SelectedWords.Add(word);
         OnPropertyChanged(nameof(BatchSelectionText));
         OnPropertyChanged(nameof(HasMultipleSelectedWords));
+        OnPropertyChanged(nameof(StartReviewButtonText));
         DeleteSelectedCommand.NotifyCanExecuteChanged();
     }
     private const int PageSize = 100;
     private int _loadVersion;
     private int _occurrenceVersion;
+    private string? _pendingFocusWordId;
+    private string? _pendingOccurrenceId;
     private CancellationTokenSource? _searchDelay;
     private bool _isFocusingWord;
     private bool _refreshPending;
@@ -116,15 +120,35 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     // ── 遮挡释义 & 卡片自测复习模式 ──────────────────────────────────────────
     private readonly List<(Word Word, Occurrence? Occurrence)> _reviewItems = new();
+    private readonly HashSet<(string WordId, string? OccurrenceId)> _markedAgainKeys = new();
     [ObservableProperty] private bool _isDefinitionMasked;
     [ObservableProperty] private bool _isReviewMode;
+    [ObservableProperty] private bool _isReviewCompleted;
     [ObservableProperty] private bool _isAnswerRevealed;
     [ObservableProperty] private int _reviewIndex;
+    [ObservableProperty] private string _reviewScopeLabel = string.Empty;
+
+    private static (string WordId, string? OccurrenceId) ReviewKey((Word Word, Occurrence? Occurrence) item)
+        => (item.Word.Id, item.Occurrence?.Id);
 
     public int ReviewTotal => _reviewItems.Count;
-    public Word? CurrentReviewWord => _reviewItems.Count > 0 && ReviewIndex >= 0 && ReviewIndex < _reviewItems.Count ? _reviewItems[ReviewIndex].Word : null;
-    public Occurrence? CurrentReviewOccurrence => _reviewItems.Count > 0 && ReviewIndex >= 0 && ReviewIndex < _reviewItems.Count ? _reviewItems[ReviewIndex].Occurrence : null;
-    public string ReviewProgressText => ReviewTotal > 0 ? $"{ReviewIndex + 1} / {ReviewTotal}" : "0 / 0";
+    public Word? CurrentReviewWord => !IsReviewCompleted && _reviewItems.Count > 0 && ReviewIndex >= 0 && ReviewIndex < _reviewItems.Count ? _reviewItems[ReviewIndex].Word : null;
+    public Occurrence? CurrentReviewOccurrence => !IsReviewCompleted && _reviewItems.Count > 0 && ReviewIndex >= 0 && ReviewIndex < _reviewItems.Count ? _reviewItems[ReviewIndex].Occurrence : null;
+    public string ReviewProgressText => ReviewTotal > 0 ? $"{Math.Min(ReviewIndex + 1, ReviewTotal)} / {ReviewTotal}" : "0 / 0";
+    public bool IsActiveReviewCard => IsReviewMode && !IsReviewCompleted;
+    public bool CanGoPrevReviewCard => IsReviewMode && (IsReviewCompleted || ReviewIndex > 0);
+    public bool IsLastReviewCard => IsReviewMode && !IsReviewCompleted && ReviewTotal > 0 && ReviewIndex >= ReviewTotal - 1;
+    public string NextReviewButtonText => IsLastReviewCard ? "完成本轮 (→)" : "下一张 (→)";
+    public int MarkedAgainCount => _markedAgainKeys.Count;
+    public bool HasMarkedAgainItems => _markedAgainKeys.Count > 0;
+    public bool IsCurrentReviewMarkedAgain => CurrentReviewWord is { } word
+        && _markedAgainKeys.Contains((word.Id, CurrentReviewOccurrence?.Id));
+    public string MarkAgainButtonText => IsCurrentReviewMarkedAgain ? "已标需再练 (M)" : "需再练 (M)";
+    public string MarkedAgainBadgeText => HasMarkedAgainItems ? $"需再练 {MarkedAgainCount}" : string.Empty;
+    public string ReviewCompletionSummary => HasMarkedAgainItems
+        ? $"已完成本轮 {ReviewTotal} 张卡片复习，其中 {MarkedAgainCount} 张标记为「需再练」。"
+        : $"已完成本轮 {ReviewTotal} 张卡片复习。";
+    public string PracticeMarkedButtonText => $"只练需再练 ({MarkedAgainCount})";
     public string ReviewPromptSentence => !string.IsNullOrWhiteSpace(CurrentReviewOccurrence?.Sentence)
         ? CurrentReviewOccurrence!.Sentence
         : CurrentReviewWord?.DisplayWord ?? string.Empty;
@@ -158,6 +182,17 @@ public sealed partial class LibraryViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentReviewWord));
         OnPropertyChanged(nameof(CurrentReviewOccurrence));
         OnPropertyChanged(nameof(ReviewProgressText));
+        OnPropertyChanged(nameof(IsActiveReviewCard));
+        OnPropertyChanged(nameof(CanGoPrevReviewCard));
+        OnPropertyChanged(nameof(IsLastReviewCard));
+        OnPropertyChanged(nameof(NextReviewButtonText));
+        OnPropertyChanged(nameof(MarkedAgainCount));
+        OnPropertyChanged(nameof(HasMarkedAgainItems));
+        OnPropertyChanged(nameof(IsCurrentReviewMarkedAgain));
+        OnPropertyChanged(nameof(MarkAgainButtonText));
+        OnPropertyChanged(nameof(MarkedAgainBadgeText));
+        OnPropertyChanged(nameof(ReviewCompletionSummary));
+        OnPropertyChanged(nameof(PracticeMarkedButtonText));
         OnPropertyChanged(nameof(ReviewPromptSentence));
         OnPropertyChanged(nameof(ReviewEffectiveExpression));
         OnPropertyChanged(nameof(ReviewEffectiveDefinition));
@@ -171,18 +206,71 @@ public sealed partial class LibraryViewModel : ObservableObject
     }
 
     partial void OnReviewIndexChanged(int value) => NotifyReviewPropertiesChanged();
+    partial void OnIsReviewModeChanged(bool value) => NotifyReviewPropertiesChanged();
+    partial void OnIsReviewCompletedChanged(bool value) => NotifyReviewPropertiesChanged();
+
+    private async Task<List<Word>> LoadAllMatchingWordsForReviewAsync()
+    {
+        var all = new List<Word>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var offset = 0;
+        const int batchSize = 200;
+
+        while (true)
+        {
+            var batch = SelectedFilterIndex == 0 && SelectedSortIndex == 0 && string.IsNullOrWhiteSpace(SourceFilter)
+                ? await _wordRepository.GetWordsAsync(SearchQuery, limit: batchSize, offset: offset).ConfigureAwait(true)
+                : await _wordRepository.GetFilteredWordsAsync(SearchQuery, (WordFilter)SelectedFilterIndex,
+                    limit: batchSize, offset: offset,
+                    sourceProcess: SourceFilter, sort: SelectedSortIndex).ConfigureAwait(true);
+
+            var addedAny = false;
+            foreach (var word in batch)
+            {
+                if (seen.Add(word.Id))
+                {
+                    all.Add(word);
+                    addedAny = true;
+                }
+            }
+
+            if (batch.Count < batchSize || !addedAny)
+                break;
+
+            offset += batch.Count;
+        }
+
+        return all.Count > 0 ? all : Words.ToList();
+    }
 
     [RelayCommand]
     private async Task StartReviewAsync()
     {
-        if (Words.Count == 0)
+        if (Words.Count == 0 && SelectedWords.Count == 0)
         {
             StatusMessage = "当前列表没有可复习的词条。";
             return;
         }
 
+        var poolWords = SelectedWords.Count > 1
+            ? SelectedWords.DistinctBy(w => w.Id).ToList()
+            : await LoadAllMatchingWordsForReviewAsync().ConfigureAwait(true);
+
+        if (poolWords.Count == 0)
+        {
+            StatusMessage = "当前列表没有可复习的词条。";
+            return;
+        }
+
+        ReviewScopeLabel = SelectedWords.Count > 1
+            ? $"已选 {poolWords.Count} 词"
+            : (ActiveFilterCount > 0 || !string.IsNullOrWhiteSpace(SearchQuery)
+                ? $"当前筛选 · {poolWords.Count} 词"
+                : $"当前词库 · {poolWords.Count} 词");
+
         _reviewItems.Clear();
-        foreach (var word in Words)
+        _markedAgainKeys.Clear();
+        foreach (var word in poolWords)
         {
             IReadOnlyList<Occurrence> contexts = Array.Empty<Occurrence>();
             try
@@ -212,11 +300,19 @@ public sealed partial class LibraryViewModel : ObservableObject
         var startIndex = SelectedWord != null
             ? Math.Max(0, _reviewItems.FindIndex(item => item.Word.Id == SelectedWord.Id))
             : 0;
-        ReviewIndex = startIndex;
+        if (startIndex > 0)
+        {
+            var rotated = _reviewItems.Skip(startIndex).Concat(_reviewItems.Take(startIndex)).ToList();
+            _reviewItems.Clear();
+            _reviewItems.AddRange(rotated);
+        }
+        IsReviewCompleted = false;
         IsAnswerRevealed = false;
+        ReviewIndex = 0;
         IsReviewMode = true;
         NotifyReviewPropertiesChanged();
-        StatusMessage = $"已进入卡片复习（共 {ReviewTotal} 张），按 Space 显示答案，← / → 切换卡片。";
+        SelectedWord = CurrentReviewWord;
+        StatusMessage = $"已进入卡片复习（{ReviewScopeLabel}，共 {ReviewTotal} 张），按 Space 显示答案，← / → 切换，M 标需再练。";
     }
 
     [RelayCommand]
@@ -224,23 +320,44 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         if (!IsReviewMode) return;
         IsReviewMode = false;
+        IsReviewCompleted = false;
         IsAnswerRevealed = false;
-        StatusMessage = $"{Words.Count} 个词条 · 按最近更新排序";
+        _markedAgainKeys.Clear();
+        ReviewScopeLabel = string.Empty;
+        StatusMessage = ResultCountText;
     }
 
     [RelayCommand]
     private void ToggleAnswer()
     {
-        if (!IsReviewMode) return;
+        if (!IsReviewMode || IsReviewCompleted) return;
         IsAnswerRevealed = !IsAnswerRevealed;
+    }
+
+    [RelayCommand]
+    private void ToggleMarkReviewAgain()
+    {
+        if (!IsReviewMode || IsReviewCompleted || _reviewItems.Count == 0) return;
+        var key = ReviewKey(_reviewItems[ReviewIndex]);
+        if (!_markedAgainKeys.Add(key))
+            _markedAgainKeys.Remove(key);
+        NotifyReviewPropertiesChanged();
     }
 
     [RelayCommand]
     private void NextReviewCard()
     {
-        if (!IsReviewMode || _reviewItems.Count == 0) return;
+        if (!IsReviewMode || _reviewItems.Count == 0 || IsReviewCompleted) return;
         IsAnswerRevealed = false;
-        ReviewIndex = (ReviewIndex + 1) % _reviewItems.Count;
+        if (ReviewIndex + 1 >= _reviewItems.Count)
+        {
+            IsReviewCompleted = true;
+            NotifyReviewPropertiesChanged();
+            StatusMessage = ReviewCompletionSummary;
+            return;
+        }
+
+        ReviewIndex++;
         SelectedWord = CurrentReviewWord;
     }
 
@@ -249,8 +366,49 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         if (!IsReviewMode || _reviewItems.Count == 0) return;
         IsAnswerRevealed = false;
-        ReviewIndex = (ReviewIndex - 1 + _reviewItems.Count) % _reviewItems.Count;
+        if (IsReviewCompleted)
+        {
+            IsReviewCompleted = false;
+            ReviewIndex = _reviewItems.Count - 1;
+            SelectedWord = CurrentReviewWord;
+            NotifyReviewPropertiesChanged();
+            return;
+        }
+
+        if (ReviewIndex <= 0) return;
+        ReviewIndex--;
         SelectedWord = CurrentReviewWord;
+    }
+
+    [RelayCommand]
+    private void RestartReview()
+    {
+        if (!IsReviewMode || _reviewItems.Count == 0) return;
+        _markedAgainKeys.Clear();
+        IsReviewCompleted = false;
+        IsAnswerRevealed = false;
+        ReviewIndex = 0;
+        SelectedWord = CurrentReviewWord;
+        NotifyReviewPropertiesChanged();
+        StatusMessage = $"已重新开始本轮复习（共 {ReviewTotal} 张）。";
+    }
+
+    [RelayCommand]
+    private void PracticeMarkedAgain()
+    {
+        if (!IsReviewMode || _markedAgainKeys.Count == 0) return;
+        var subset = _reviewItems.Where(item => _markedAgainKeys.Contains(ReviewKey(item))).ToList();
+        if (subset.Count == 0) return;
+        _reviewItems.Clear();
+        _reviewItems.AddRange(subset);
+        _markedAgainKeys.Clear();
+        IsReviewCompleted = false;
+        IsAnswerRevealed = false;
+        ReviewIndex = 0;
+        ReviewScopeLabel = $"需再练 · {_reviewItems.Count} 张";
+        SelectedWord = CurrentReviewWord;
+        NotifyReviewPropertiesChanged();
+        StatusMessage = $"已进入「需再练」复习（共 {ReviewTotal} 张）。";
     }
 
     [RelayCommand]
@@ -263,6 +421,8 @@ public sealed partial class LibraryViewModel : ObservableObject
             var j = rng.Next(i + 1);
             (_reviewItems[i], _reviewItems[j]) = (_reviewItems[j], _reviewItems[i]);
         }
+        _markedAgainKeys.Clear();
+        IsReviewCompleted = false;
         IsAnswerRevealed = false;
         ReviewIndex = 0;
         NotifyReviewPropertiesChanged();
@@ -487,11 +647,22 @@ public sealed partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void ClearSearch() => SearchQuery = string.Empty;
 
-    public async Task FocusWordAsync(string wordText)
+    public Task FocusWordAsync(string wordText) => FocusWordAsync(wordText, null, null);
+
+    public async Task FocusWordAsync(string wordText, string? preferredWordId, string? preferredOccurrenceId)
     {
-        if (string.IsNullOrWhiteSpace(wordText)) return;
+        if (string.IsNullOrWhiteSpace(wordText) && string.IsNullOrWhiteSpace(preferredWordId)) return;
         if (!CanChangeCollection || IsSavingEdit) return;
-        var target = await _wordRepository.FindWordAsync(wordText.Trim()).ConfigureAwait(true);
+        Word? target = null;
+        if (!string.IsNullOrWhiteSpace(preferredWordId))
+        {
+            try { target = await _wordRepository.GetWordByIdAsync(preferredWordId).ConfigureAwait(true); }
+            catch (NotSupportedException) { }
+        }
+        if (target == null && !string.IsNullOrWhiteSpace(wordText))
+        {
+            target = await _wordRepository.FindWordAsync(wordText.Trim()).ConfigureAwait(true);
+        }
         if (!CanChangeCollection || IsSavingEdit || target == null) return;
         _searchDelay?.Cancel();
         _isFocusingWord = true;
@@ -502,6 +673,8 @@ public sealed partial class LibraryViewModel : ObservableObject
             SearchQuery = target.DisplayWord;
         }
         finally { _isFocusingWord = false; }
+        _pendingFocusWordId = target.Id;
+        _pendingOccurrenceId = preferredOccurrenceId;
         await LoadWordsAsync().ConfigureAwait(true);
         while (CanChangeCollection && !IsSavingEdit && !HasLoadError && HasMore && Words.All(w => w.Id != target.Id))
         {
@@ -509,8 +682,25 @@ public sealed partial class LibraryViewModel : ObservableObject
             await LoadWordsAsync(append: true).ConfigureAwait(true);
             if (Words.Count <= count) break;
         }
-        if (!CanChangeCollection || IsSavingEdit) return;
-        SelectedWord = Words.FirstOrDefault(w => w.Id == target.Id);
+        if (!CanChangeCollection || IsSavingEdit)
+        {
+            _pendingFocusWordId = null;
+            _pendingOccurrenceId = null;
+            return;
+        }
+        var matched = Words.FirstOrDefault(w => w.Id == target.Id);
+        if (matched == null)
+        {
+            _pendingFocusWordId = null;
+            _pendingOccurrenceId = null;
+            return;
+        }
+        if (ReferenceEquals(SelectedWord, matched) && !string.IsNullOrWhiteSpace(_pendingOccurrenceId))
+        {
+            await LoadOccurrencesForWordAsync(matched.Id).ConfigureAwait(true);
+            return;
+        }
+        SelectedWord = matched;
     }
 
     [RelayCommand]
@@ -530,6 +720,9 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     [ObservableProperty]
     private ObservableCollection<Occurrence> _occurrences = new();
+
+    [ObservableProperty]
+    private Occurrence? _selectedOccurrence;
 
     [ObservableProperty]
     private bool _isEditing;
@@ -657,6 +850,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     partial void OnSelectedWordChanged(Word? value)
     {
         EditingOccurrence = null;
+        SelectedOccurrence = null;
         IsEditing = false;
         IsDefinitionExpanded = false;
         OnPropertyChanged(nameof(DefinitionPreview));
@@ -668,6 +862,8 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
         else
         {
+            _pendingFocusWordId = null;
+            _pendingOccurrenceId = null;
             Occurrences.Clear();
         }
     }
@@ -685,6 +881,13 @@ public sealed partial class LibraryViewModel : ObservableObject
             if (version != _occurrenceVersion || SelectedWord?.Id != wordId) return;
             foreach (var occurrence in list) occurrence.WordDefinition = SelectedWord.Definition;
             Occurrences = new ObservableCollection<Occurrence>(list);
+            if (string.Equals(_pendingFocusWordId, wordId, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(_pendingOccurrenceId))
+            {
+                var targetOcc = Occurrences.FirstOrDefault(o => o.Id == _pendingOccurrenceId);
+                _pendingFocusWordId = null;
+                _pendingOccurrenceId = null;
+                if (targetOcc != null) SelectedOccurrence = targetOcc;
+            }
             OnPropertyChanged(nameof(WordDefinitionLabel));
             OnPropertyChanged(nameof(SavedSentencesTitle));
         }

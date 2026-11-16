@@ -444,4 +444,81 @@ public class LookupViewModelTests
         Assert.Equal("用户正在输入的译文", vm.EditTranslation);
         Assert.Contains("未覆盖", vm.ActionStatusText);
     }
+
+    [Fact]
+    public async Task OpenInMainHandoffPreservesUnsavedContextAndDraftWithoutRequerying()
+    {
+        var (popupVm, lookup, repo, queue) = Create();
+        var capture = new CaptureResult(
+            "digital",
+            "chrome.exe",
+            "AI Docs - Google Chrome",
+            new ScreenPoint(10, 20),
+            DateTimeOffset.UtcNow,
+            Sentence: "Digital tools speed up learning.",
+            SentenceOffset: 0);
+        await popupVm.StartLookupAsync(capture);
+        popupVm.EditDefinition = "数字的（自定义草稿）";
+        popupVm.LearningNote = "高频搭配";
+
+        MainWindowLookupHandoff? handoff = null;
+        popupVm.OpenInMainHandoffRequested += h => handoff = h;
+        popupVm.OpenInMainCommand.Execute(null);
+
+        Assert.NotNull(handoff);
+        Assert.False(handoff!.ShouldOpenInLibrary);
+
+        var (mainPopupVm, mainLookup, _, _) = Create();
+        var lookupCalls = 0;
+        mainLookup.Lookup = _ => { lookupCalls++; return Task.FromResult(Digital()); };
+        var mainVm = new WordLookupViewModel(mainPopupVm);
+        await mainVm.OpenHandoffAsync(handoff);
+
+        Assert.Equal(0, lookupCalls);
+        Assert.Equal("Digital tools speed up learning.", mainVm.Lookup.OriginalSentence);
+        Assert.Contains("chrome.exe", mainVm.Lookup.CaptureSourceSummary);
+        Assert.Equal("数字的（自定义草稿）", mainVm.Lookup.EditDefinition);
+        Assert.Equal("高频搭配", mainVm.Lookup.LearningNote);
+        Assert.True(mainVm.Lookup.HasResult);
+        Assert.True(mainVm.Lookup.CanSave);
+    }
+
+    [Fact]
+    public async Task OpenInMainHandoffRoutesSavedContextToLibraryOrLookupBasedOnDraft()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"handoff-saved-{Guid.NewGuid():N}.db");
+        try
+        {
+            var factory = new WordCatcher.Infrastructure.Database.SqliteConnectionFactory(path);
+            await new WordCatcher.Infrastructure.Database.SqliteMigrationRunner(factory).MigrateAsync();
+            var repository = new WordCatcher.Infrastructure.Database.WordRepository(factory);
+            var lookup = DispatchProxy.Create<ILookupService, ServiceProxy>();
+            var queue = DispatchProxy.Create<IAnkiSyncQueue, ServiceProxy>();
+            var settings = DispatchProxy.Create<ISettingsService, ServiceProxy>();
+            var vm = new LookupViewModel(lookup, repository, queue, settings, new FakeSpeechService(), new WordCollectionEvents());
+            var capture = Capture() with { Sentence = "We use digital systems.", SentenceOffset = 7 };
+
+            await vm.StartLookupAsync(capture);
+            await vm.SaveCommand.ExecuteAsync(null);
+
+            MainWindowLookupHandoff? savedHandoff = null;
+            vm.OpenInMainHandoffRequested += h => savedHandoff = h;
+            vm.OpenInMainCommand.Execute(null);
+
+            Assert.NotNull(savedHandoff);
+            Assert.True(savedHandoff!.ShouldOpenInLibrary);
+            Assert.False(string.IsNullOrWhiteSpace(savedHandoff.SavedWordId));
+            Assert.False(string.IsNullOrWhiteSpace(savedHandoff.SavedOccurrenceId));
+
+            vm.LearningNote = "刚补充但未保存的笔记";
+            vm.OpenInMainCommand.Execute(null);
+            Assert.False(savedHandoff!.ShouldOpenInLibrary);
+            Assert.True(savedHandoff.HasUnsavedEdits);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
 }

@@ -40,6 +40,14 @@ public sealed partial class WordLookupViewModel : ObservableObject
         await _lookup.StartLookupAsync(item.Capture, historyResult: item.Result);
     }
 
+    public async Task OpenHandoffAsync(MainWindowLookupHandoff handoff)
+    {
+        Query = string.IsNullOrWhiteSpace(handoff.Result?.Word) ? handoff.Capture.SelectedText : handoff.Result.Word;
+        QueryError = string.Empty;
+        HasSearched = true;
+        await _lookup.RestoreHandoffAsync(handoff).ConfigureAwait(true);
+    }
+
     [RelayCommand]
     private Task SearchAsync() => SearchForQueryAsync(Query);
 

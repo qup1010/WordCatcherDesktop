@@ -42,8 +42,8 @@
         <Style x:Key="PopupButton" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource SecondaryActionButton}" />
 
         <Style x:Key="HeaderIconAction" TargetType="{x:Type ButtonBase}">
-            <Setter Property="Width" Value="32" />
-            <Setter Property="Height" Value="32" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="Transparent" />
@@ -139,25 +139,12 @@
         </Style>
 
         <Style x:Key="PinToggleButton" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource HeaderIconAction}">
-            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="Margin" Value="2,0" />
             <Setter Property="Padding" Value="0" />
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
                     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="DisclosureToggleButton" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource PopupToggleButton}">
-            <Setter Property="Width" Value="Auto" />
-            <Setter Property="Height" Value="Auto" />
-            <Setter Property="Padding" Value="6,2" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-            <Style.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
-                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -170,13 +157,13 @@
             <Border.Effect><DropShadowEffect BlurRadius="20" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
         </Border>
         <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="12" RenderOptions.ClearTypeHint="Enabled">
-        <Grid Margin="16,14">
+        <Grid Margin="14,11">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Grid x:Name="CardHeader" Margin="0,0,0,12">
+            <Grid x:Name="CardHeader" Margin="0,0,0,8">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Border x:Name="HeaderDragHandle" Grid.Row="0" Width="72" Height="18"
                         Background="Transparent" Cursor="SizeAll" HorizontalAlignment="Center"
@@ -188,11 +175,11 @@
                 <Grid x:Name="CardHeaderContent" Grid.Row="1">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <Border x:Name="HeaderDragArea" Background="Transparent" Cursor="SizeAll"
-                        ToolTip="拖动标题区域移动卡片"
+                        Margin="0,0,8,0"
                         MouseLeftButtonDown="DragSurface_MouseLeftButtonDown">
                     <StackPanel>
-                        <TextBlock FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
-                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="FontSize" Value="24" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
+                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="FontSize" Value="22" /><Setter Property="LineHeight" Value="28" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsMediumHeadword}" Value="True"><Setter Property="FontSize" Value="17" /><Setter Property="LineHeight" Value="22" /></DataTrigger><DataTrigger Binding="{Binding IsExtraLongHeadword}" Value="True"><Setter Property="FontSize" Value="15" /><Setter Property="LineHeight" Value="20" /></DataTrigger><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                         </TextBlock>
                         <TextBox Text="{Binding Reading, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
                         <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
@@ -244,7 +231,7 @@
                                Style="{StaticResource QuietActionButton}" HorizontalAlignment="Left" Margin="0,8,8,0" />
                 </WrapPanel>
                 </StackPanel>
-                <ScrollViewer Grid.Row="1" x:Name="ResultScroll" MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+                <ScrollViewer Grid.Row="1" x:Name="ResultScroll" MaxHeight="390" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                     <StackPanel Margin="0,0,4,0">
                         <StackPanel Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" Margin="0,0,0,14">
                             <TextBlock Text="原文" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
@@ -382,17 +369,17 @@
                                 <ui:TextBox Text="{Binding LearningNote, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,4,0,0" />
                             </StackPanel>
                         </Expander>
-                        <Border Background="{DynamicResource SubtleSurfaceBrush}" CornerRadius="8" Padding="11,9" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
+                        <Border Style="{StaticResource ReadingTonalBoxStyle}" Margin="0,0,0,10" Visibility="{Binding ContextTranslation, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <TextBlock Text="语境翻译" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBox Text="{Binding ContextTranslation, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" />
                             </StackPanel>
                         </Border>
-                        <Border Background="{DynamicResource AmberHookSurfaceBrush}" BorderBrush="{DynamicResource AmberHookBorderBrush}" BorderThickness="3,0,0,0" CornerRadius="0,8,8,0" Padding="11,9" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
+                        <Border Style="{StaticResource MemoryHookCardStyle}" Margin="0,2,0,12" Visibility="{Binding MemoryHook, Converter={StaticResource StringToVis}}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,6">
                                 <TextBlock Text="记忆线索" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource AmberHookLabelBrush}" VerticalAlignment="Center" />
-                                <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource DisclosureToggleButton}" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}" AutomationProperties.Name="展开或收起记忆线索">
+                                <ToggleButton IsChecked="{Binding IsMemoryHookExpanded}" Style="{StaticResource CompactPillToggleStyle}" Foreground="{DynamicResource AmberHookLabelBrush}" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}" AutomationProperties.Name="展开或收起记忆线索">
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock"><Setter Property="Text" Value="展开" /><Style.Triggers><DataTrigger Binding="{Binding IsMemoryHookExpanded}" Value="True"><Setter Property="Text" Value="收起" /></DataTrigger></Style.Triggers></Style>
