@@ -186,9 +186,9 @@
                         <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="离线词典 · 常用义优先" />
+                                    <Setter Property="Text" Value="离线词典" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.MachineTranslation}"><Setter Property="Text" Value="在线翻译" /></DataTrigger>
+                                        <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.MachineTranslation}"><Setter Property="Text" Value="在线快译" /></DataTrigger>
                                         <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}"><Setter Property="Text" Value="AI 详解" /></DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -203,7 +203,7 @@
                     <ui:Button x:Name="OpenInMainButton" Command="{Binding OpenInMainCommand}" Style="{StaticResource IconButton}" Margin="2,0,0,0" ToolTip="在主窗口中打开" AutomationProperties.Name="在主窗口中打开" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                         <controls:CrispSymbolIcon Symbol="Open20" FontSize="15" />
                     </ui:Button>
-                    <ToggleButton x:Name="PinToggle" AutomationProperties.Name="固定查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="固定卡片 (Ctrl+P)" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
+                    <ToggleButton x:Name="PinToggle" AutomationProperties.Name="固定查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="固定卡片（Ctrl+P）" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
                         <controls:CrispSymbolIcon Symbol="Pin20" FontSize="15" />
                     </ToggleButton>
                     <ui:Button Command="{Binding CloseCommand}" Style="{StaticResource CloseIconButton}" ToolTip="关闭（Esc）" AutomationProperties.Name="关闭查词浮窗">
@@ -443,11 +443,11 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
-                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Style="{StaticResource PopupButton}" Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentBrush}" ToolTip="结合语境生成 AI 详解 (Ctrl+Enter)" />
+                        <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Style="{StaticResource PopupButton}" Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentBrush}" ToolTip="结合语境生成 AI 详解（Ctrl+Enter）" />
                         <ui:Button Grid.Column="2" Style="{StaticResource UtilityIconButton}" Command="{Binding ToggleEditDefinitionCommand}" Margin="0,0,4,0" ToolTip="保存前修改释义" AutomationProperties.Name="编辑释义">
                             <controls:CrispSymbolIcon Symbol="Edit20" FontSize="15" />
                         </ui:Button>
-                        <ui:Button Grid.Column="3" Style="{StaticResource UtilityIconButton}" Command="{Binding CopyResultCommand}" ToolTip="复制单词与释义 (Ctrl+C)" AutomationProperties.Name="复制词条">
+                        <ui:Button Grid.Column="3" Style="{StaticResource UtilityIconButton}" Command="{Binding CopyResultCommand}" ToolTip="复制单词与释义（Ctrl+C）" AutomationProperties.Name="复制词条">
                             <controls:CrispSymbolIcon Symbol="Copy20" FontSize="15" />
                         </ui:Button>
                     </Grid>

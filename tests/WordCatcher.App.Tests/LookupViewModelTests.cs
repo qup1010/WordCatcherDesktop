@@ -314,7 +314,7 @@ public class LookupViewModelTests
 
         vm.SpeakCommand.Execute(null);
 
-        Assert.Contains("朗读不可用", vm.ActionStatusText);
+        Assert.Contains("无法朗读", vm.ActionStatusText);
         Assert.Empty(vm.SavedStatusText);
     }
 
@@ -452,13 +452,13 @@ public class LookupViewModelTests
         Assert.Equal("保存中…", vm.SaveButtonText);
         pending.SetResult((repo.ExistingWord, new Occurrence(), new SyncJob()));
         await save;
-        Assert.Equal("已收藏 ✓", vm.SaveButtonText);
+        Assert.Equal("已收藏", vm.SaveButtonText);
         Assert.False(vm.CanSave);
         var savedStatus = vm.SavedStatusText;
         vm.SpeakCommand.Execute(null);
         Assert.Equal(savedStatus, vm.SavedStatusText);
         Assert.Contains("新增语境", savedStatus);
-        Assert.Contains("朗读不可用", vm.ActionStatusText);
+        Assert.Contains("无法朗读", vm.ActionStatusText);
     }
 
     [Fact]

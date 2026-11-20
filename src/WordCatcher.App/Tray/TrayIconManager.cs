@@ -47,7 +47,7 @@ public sealed class TrayIconManager : IDisposable
 
         var menu = new ContextMenuStrip();
 
-        var openLibItem = new ToolStripMenuItem("打开词库 (&L)");
+        var openLibItem = new ToolStripMenuItem("打开生词库 (&L)");
         openLibItem.Click += (s, e) => OpenLibraryRequested?.Invoke();
         menu.Items.Add(openLibItem);
 

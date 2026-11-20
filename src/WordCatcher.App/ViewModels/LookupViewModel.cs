@@ -111,7 +111,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private bool _isLoading;
 
     [ObservableProperty]
-    private string _statusText = "正在解析...";
+    private string _statusText = "正在查询…";
 
     [ObservableProperty]
     private bool _hasResult;
@@ -217,7 +217,7 @@ public sealed partial class LookupViewModel : ObservableObject
             return string.Join(" · ", new[] { process, title }.Where(part => !string.IsNullOrWhiteSpace(part)));
         }
     }
-    public string SaveButtonText => IsSaving ? "保存中…" : SaveFailed ? "重试保存" : !CanSave && IsSaved ? "已收藏 ✓" : HasSavedContext ? "更新这条语境" : IsSaved ? "保存新语境" : "存入生词库";
+    public string SaveButtonText => IsSaving ? "保存中…" : SaveFailed ? "重试保存" : !CanSave && IsSaved ? "已收藏" : HasSavedContext ? "更新当前语境" : IsSaved ? "保存新语境" : "存入生词库";
     partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
     partial void OnSelectedTextChanged(string value) { OnPropertyChanged(nameof(IsLongText)); OnPropertyChanged(nameof(IsMediumHeadword)); OnPropertyChanged(nameof(IsExtraLongHeadword)); OnPropertyChanged(nameof(CanTranslateSentence)); }
@@ -668,7 +668,7 @@ public sealed partial class LookupViewModel : ObservableObject
             IsSaving = false;
             CanSave = true;
             SaveFailed = true;
-            SavedStatusText = $"保存失败: {ex.Message}";
+            SavedStatusText = $"保存失败：{ex.Message}";
         }
     }
 
@@ -802,7 +802,7 @@ public sealed partial class LookupViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ActionStatusText = $"朗读不可用: {ex.Message}";
+            ActionStatusText = $"无法朗读：{ex.Message}";
         }
     }
 
@@ -829,7 +829,7 @@ public sealed partial class LookupViewModel : ObservableObject
         catch (Exception ex)
         {
             ++_actionVersion;
-            ActionStatusText = $"复制失败: {ex.Message}";
+            ActionStatusText = $"复制失败：{ex.Message}";
         }
     }
 }

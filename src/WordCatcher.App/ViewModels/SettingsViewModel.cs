@@ -806,8 +806,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (HotkeyManager.TryParseHotkey(Hotkey, out var lookupModifiers, out var lookupKey)
             && lookupModifiers == ocrModifiers && lookupKey == ocrKey)
             return "截屏 OCR 快捷键不能与取词快捷键相同，请更换组合键。";
-        if (string.IsNullOrWhiteSpace(ExplainLanguage)) return "请填写释义语言。";
-        if (!IsWebUrl(ApiBaseUrl)) return "AI Base URL 必须是有效的 HTTP 或 HTTPS 地址。";
+        if (string.IsNullOrWhiteSpace(ExplainLanguage)) return "请填写目标语言。";
+        if (!IsWebUrl(ApiBaseUrl)) return "AI 接口地址必须以 http:// 或 https:// 开头。";
         if (string.IsNullOrWhiteSpace(ApiModel)) return "请填写 AI 模型名称。";
         if (ApiTimeoutSeconds <= 0) return "请求超时必须大于 0 秒。";
         if (AnkiEnabled && (!IsWebUrl(AnkiUrl) || string.IsNullOrWhiteSpace(AnkiDeckName) || string.IsNullOrWhiteSpace(AnkiNoteTypeName)))
@@ -994,7 +994,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (IsDictInstalling) return;
         var confirm = MessageBox.Show(
-            "确定要删除当前安装的离线词典吗？（此操作不会影响您已收藏的本地生词库）",
+            "确定删除离线词典吗？删除后将无法离线查词，已收藏的生词库不受影响。",
             "删除词典确认",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -1110,7 +1110,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         HasCheckedForUpdates = true;
         if (_updateCheckService == null)
         {
-            UpdateStatus = "更新检查服务不可用。";
+            UpdateStatus = "暂时无法检查更新，请稍后重试。";
             return;
         }
 
@@ -1127,13 +1127,13 @@ public sealed partial class SettingsViewModel : ObservableObject
             }
             if (_appUpdater?.IsInstalled != true)
             {
-                UpdateStatus = $"发现新版本 {result.LatestVersion}。请从下载页面安装 Setup 版本，以后可在应用内更新。";
+                UpdateStatus = $"发现新版本 {result.LatestVersion}。请从下载页面获取安装版，后续即可在应用内直接更新。";
                 return;
             }
             UpdateProgress = 0;
             if (string.IsNullOrWhiteSpace(result.InstallerDownloadUrl))
             {
-                UpdateStatus = "最新版本尚未提供安装包，请打开下载页面获取 Setup 版本。";
+                UpdateStatus = "最新版本尚未提供安装包，请打开下载页面获取安装版。";
                 return;
             }
 

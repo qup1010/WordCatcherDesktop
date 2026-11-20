@@ -61,7 +61,7 @@ public sealed class AppUpdateTests
         await vm.CheckForUpdatesCommand.ExecuteAsync(null);
         Assert.Equal(0, updater.Downloads);
         Assert.False(vm.IsUpdateReady);
-        Assert.Contains("Setup", vm.UpdateStatus);
+        Assert.Contains("安装版", vm.UpdateStatus);
     }
 
     [Fact]

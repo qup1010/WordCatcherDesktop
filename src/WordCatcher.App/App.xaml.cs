@@ -109,8 +109,8 @@ public partial class App : System.Windows.Application
             if (!registered)
             {
                 System.Windows.MessageBox.Show(
-                    $"默认快捷键「{settingsService.Current.Hotkey}」被占用，您可以在设置页面更换热键。",
-                    "热键占用提示",
+                    $"默认快捷键「{settingsService.Current.Hotkey}」已被占用，可在「设置 → 常规与外观」更换快捷键。",
+                    "快捷键占用提示",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }

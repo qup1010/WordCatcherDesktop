@@ -1074,8 +1074,8 @@ public sealed partial class LibraryViewModel : ObservableObject
             if (res.Added > 0) parts.Add($"新增 {res.Added} 条");
             if (res.Updated > 0) parts.Add($"更新 {res.Updated} 条");
             if (res.Removed > 0) parts.Add($"删除 {res.Removed} 条");
-            var summary = parts.Count > 0 ? string.Join("，", parts) : "数据已是最新";
-            StatusMessage = $"WebDAV 同步完成：{summary}（共 {res.Total} 个词条）。";
+            var summary = parts.Count > 0 ? string.Join("，", parts) : "云端与本地数据已一致";
+            StatusMessage = $"WebDAV 同步完成：{summary}（当前共 {res.Total} 个词条）。";
         }
         catch (Exception ex)
         {

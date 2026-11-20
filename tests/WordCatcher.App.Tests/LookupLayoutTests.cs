@@ -161,7 +161,7 @@ public class LookupLayoutTests
                     Assert.InRange(root.ActualHeight, 200, 680);
                     if (mode == "compact") Assert.True(root.ActualHeight < 460);
                     var save = Descendants(root).OfType<Button>().Single(b => b.Name == "SaveWordButton");
-                    if (mode == "saved") Assert.Equal("已收藏 ✓", save.Content);
+                    if (mode == "saved") Assert.Equal("已收藏", save.Content);
                     if (mode == "long") Assert.Contains(Descendants(root).OfType<TextBox>(), text => text.Text == vm.SelectedText && text.TextWrapping == TextWrapping.Wrap && text.IsReadOnly);
                     var position = save.TransformToAncestor(root).Transform(new Point(0, 0));
                     Assert.True(position.Y + save.ActualHeight <= root.ActualHeight);
