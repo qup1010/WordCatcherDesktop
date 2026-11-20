@@ -11,6 +11,7 @@ public sealed class AppSettings
     public string Hotkey { get; set; } = DefaultHotkey;
     public string OcrHotkey { get; set; } = DefaultOcrHotkey;
     public string ExplainLanguage { get; set; } = "简体中文";
+    public bool AutoBidirectionalTranslation { get; set; } = true;
     public TranslationSettings Translation { get; set; } = new();
     public List<TranslationProfile> TranslationProfiles { get; set; } = new();
     public string ActiveTranslationProfileId { get; set; } = "default";
@@ -18,6 +19,7 @@ public sealed class AppSettings
     public AnkiSettings Anki { get; set; } = new();
     public WebDavSettings WebDav { get; set; } = new();
     public UiSettings Ui { get; set; } = new();
+    public MouseSelectionSettings MouseSelection { get; set; } = new();
 
     [JsonIgnore]
     public TranslationSettings ActiveTranslation =>
@@ -67,6 +69,26 @@ public sealed class WebDavSettings
 public sealed class UiSettings
 {
     public bool ClosePopupAfterSave { get; set; } = true;
+    // Retained for compatibility with older settings.json files.
     public bool ClosePopupOnDeactivate { get; set; } = true;
     public string ThemeMode { get; set; } = "Light";
+}
+
+public sealed class MouseSelectionSettings
+{
+    public const string Pill = "pill";
+    public const string AutoEnglish = "auto-english";
+    public const string AutoAll = "auto-all";
+
+    public bool Enabled { get; set; }
+    public string TriggerMode { get; set; } = Pill;
+
+    public static string NormalizeTriggerMode(string? mode) => mode?.Trim().ToLowerInvariant() switch
+    {
+        AutoEnglish => AutoEnglish,
+        AutoAll => AutoAll,
+        _ => Pill
+    };
+
+    public List<string> BlacklistedProcesses { get; set; } = new() { "WindowsTerminal", "cmd", "powershell", "pwsh", "mstsc", "obs64" };
 }

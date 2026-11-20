@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using WordCatcher.Core.Enums;
+using WordCatcher.Core.Helpers;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 
@@ -36,12 +37,13 @@ public sealed class OpenAiTranslationService : IStreamingTranslationService
             : await _secretStore.GetApiKeyAsync(ct).ConfigureAwait(false);
         var config = settings.ActiveTranslation;
         return await TranslateCoreAsync(capture, config.BaseUrl, config.Model, config.TimeoutSeconds,
-            settings.ExplainLanguage, key, ct, progress, bypassCache).ConfigureAwait(false);
+            settings.ExplainLanguage, settings.AutoBidirectionalTranslation, key, ct, progress, bypassCache).ConfigureAwait(false);
     }
 
     public Task<TranslationResult> TranslateWithConfigurationAsync(CaptureResult capture, string baseUrl,
         string model, int timeoutSeconds, string explainLanguage, string apiKey, CancellationToken ct = default)
-        => TranslateCoreAsync(capture, baseUrl, model, timeoutSeconds, explainLanguage, apiKey, ct, null, true);
+        => TranslateCoreAsync(capture, baseUrl, model, timeoutSeconds, explainLanguage,
+            _settingsService.Current.AutoBidirectionalTranslation, apiKey, ct, null, true);
 
     public async Task<string> TranslateSentenceAsync(string sentence, string? selection = null, CancellationToken ct = default)
     {
@@ -61,7 +63,8 @@ public sealed class OpenAiTranslationService : IStreamingTranslationService
             throw new InvalidOperationException("未配置翻译 Base URL，请在设置页中检查。");
 
         var model = string.IsNullOrWhiteSpace(config.Model) ? "gpt-4o-mini" : config.Model.Trim();
-        var language = string.IsNullOrWhiteSpace(settings.ExplainLanguage) ? "简体中文" : settings.ExplainLanguage.Trim();
+        var language = TextLanguageDetector.ResolveEffectiveTargetLanguage(
+            sentence, settings.ExplainLanguage, settings.AutoBidirectionalTranslation);
         var seconds = config.TimeoutSeconds > 0 ? config.TimeoutSeconds : 30;
         var targetHint = !string.IsNullOrWhiteSpace(selection) && !string.Equals(selection.Trim(), sentence.Trim(), StringComparison.OrdinalIgnoreCase)
             ? $"句中重点词或短语是 \"{selection.Trim()}\"，请确保整句译文准确体现该词在当前上下文中的含义。"
@@ -122,13 +125,16 @@ public sealed class OpenAiTranslationService : IStreamingTranslationService
     }
 
     private async Task<TranslationResult> TranslateCoreAsync(CaptureResult capture, string baseUrl,
-        string model, int timeoutSeconds, string language, string? apiKey, CancellationToken ct,
+        string model, int timeoutSeconds, string? configuredExplainLanguage, bool autoBidirectionalTranslation,
+        string? apiKey, CancellationToken ct,
         IProgress<TranslationResult>? progress, bool bypassCache)
     {
         if (string.IsNullOrWhiteSpace(apiKey)) throw new InvalidOperationException("未配置翻译 API Key，请在设置页中输入。");
         baseUrl = baseUrl.Trim().TrimEnd('/');
         if (string.IsNullOrWhiteSpace(baseUrl)) throw new InvalidOperationException("未配置翻译 Base URL，请在设置页中检查。");
         model = string.IsNullOrWhiteSpace(model) ? "gpt-4o-mini" : model.Trim();
+        var language = TextLanguageDetector.ResolveEffectiveTargetLanguage(
+            capture.SelectedText, configuredExplainLanguage, autoBidirectionalTranslation);
         var credentialIdentity = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(apiKey.Trim())));
         var cacheKey = JsonSerializer.Serialize(new { baseUrl, model, language, credentialIdentity, PromptVersion, capture.SelectedText, capture.Sentence });
         ct.ThrowIfCancellationRequested();

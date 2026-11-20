@@ -104,6 +104,37 @@ public class LibraryLayoutTests
                 ((RadioButton)window.FindName("GeneralCategoryTab")).IsChecked = true;
                 root.UpdateLayout();
 
+                var selectionMode = (ComboBox)window.FindName("MouseSelectionTriggerModeBox");
+                var selectionBlacklist = (FrameworkElement)window.FindName("MouseSelectionBlacklistCard");
+                Assert.False(selectionMode.IsEnabled);
+                Assert.False(selectionBlacklist.IsEnabled);
+                settings.MouseSelectionEnabled = true;
+                Assert.True(selectionMode.IsEnabled);
+                Assert.True(selectionBlacklist.IsEnabled);
+                Assert.Equal(MouseSelectionSettings.Pill, selectionMode.SelectedValue);
+                selectionMode.SelectedIndex = 1;
+                Assert.Equal(MouseSelectionSettings.AutoEnglish, settings.MouseSelectionTriggerMode);
+                scroll.ScrollToEnd();
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-settings-mouse-selection.png", 900, 700);
+                settings.DiscardChangesCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+
+                ((RadioButton)window.FindName("LookupCategoryTab")).IsChecked = true;
+                scroll.ScrollToTop();
+                root.UpdateLayout();
+                var bidirectionalSwitch = (Wpf.Ui.Controls.ToggleSwitch)window.FindName("AutoBidirectionalTranslationSwitch");
+                Assert.True(bidirectionalSwitch.IsChecked);
+                bidirectionalSwitch.IsChecked = false;
+                settings.PreferenceSaveTask.GetAwaiter().GetResult();
+                Assert.False(service.Settings.AutoBidirectionalTranslation);
+                bidirectionalSwitch.IsChecked = true;
+                settings.PreferenceSaveTask.GetAwaiter().GetResult();
+                root.UpdateLayout();
+                RenderState(root, "wordcatcher-settings-bidirectional.png", 900, 700);
+                ((RadioButton)window.FindName("GeneralCategoryTab")).IsChecked = true;
+                scroll.ScrollToTop();
+                root.UpdateLayout();
+
                 foreach (var page in new[] { "LibraryTab", "LookupTab", "SyncTab", "SettingsTab" })
                 {
                     ((TabControl)window.FindName("MainTabs")).SelectedItem = window.FindName(page);

@@ -404,7 +404,7 @@ public sealed class MachineTranslationService : IMachineTranslationService
         return trimmed.ToLowerInvariant() switch
         {
             "繁體中文" or "繁体中文" or "zh-tw" or "zh-hant" => ("zh-TW", "zh-Hant", "繁体中文"),
-            "english" or "en" or "en-us" or "en-gb" => ("en", "en", "英语"),
+            "english" or "en" or "en-us" or "en-gb" or "英语" or "英文" => ("en", "en", "英语"),
             "日本語" or "日语" or "ja" or "ja-jp" => ("ja", "ja", "日语"),
             "简体中文" or "zh-cn" or "zh-hans" or "" => ("zh-CN", "zh-Hans", "简体中文"),
             _ => ("zh-CN", "zh-Hans", trimmed)

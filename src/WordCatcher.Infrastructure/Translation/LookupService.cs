@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using WordCatcher.Core.Helpers;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Enums;
 using WordCatcher.Core.Models;
@@ -81,12 +82,13 @@ public sealed class LookupService : IStreamingLookupService
         }
 
         var settings = _settingsService?.Current;
-        var explainLanguage = settings?.ExplainLanguage ?? "简体中文";
+        var effectiveTargetLanguage = TextLanguageDetector.ResolveEffectiveTargetLanguage(
+            trimmedSentence, settings?.ExplainLanguage, settings?.AutoBidirectionalTranslation ?? true);
         var provider = settings?.Translation.MachineTranslationProvider ?? "microsoft";
         var cacheKey = System.Text.Json.JsonSerializer.Serialize(new
         {
             mode = useAi ? "ai" : "mt",
-            explainLanguage,
+            effectiveTargetLanguage,
             provider = useAi ? settings?.ActiveTranslationProfileId : provider,
             sentence = trimmedSentence,
             selection = selection?.Trim() ?? string.Empty
@@ -114,7 +116,7 @@ public sealed class LookupService : IStreamingLookupService
                 throw new InvalidOperationException("在线翻译服务未初始化。");
             try
             {
-                translated = await _machineTranslation.TranslateAsync(trimmedSentence, explainLanguage, provider, ct).ConfigureAwait(false);
+                translated = await _machineTranslation.TranslateAsync(trimmedSentence, effectiveTargetLanguage, provider, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -170,9 +172,13 @@ public sealed class LookupService : IStreamingLookupService
         var tokens = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var isShortText = tokens.Length <= 2;
 
-        // 1. If offline dict is available and not forceAi and input is short word -> attempt offline query
-        var dictionaryEnabled = _settingsService?.Current.Dictionary.Enabled ?? true;
-        if (!forceAi && isShortText && dictionaryEnabled && _offlineDict.IsInstalled)
+        var settings = _settingsService?.Current;
+        var effectiveTargetLanguage = TextLanguageDetector.ResolveEffectiveTargetLanguage(
+            text, settings?.ExplainLanguage, settings?.AutoBidirectionalTranslation ?? true);
+        var useOfflineDictionary = isShortText && !TextLanguageDetector.IsChineseText(text)
+            && (settings?.Dictionary.Enabled ?? true) && _offlineDict.IsInstalled;
+
+        if (!forceAi && useOfflineDictionary)
         {
             try
             {
@@ -203,10 +209,9 @@ public sealed class LookupService : IStreamingLookupService
             string translated;
             try
             {
-                var settings = _settingsService?.Current;
                 translated = await _machineTranslation.TranslateAsync(
                     text,
-                    settings?.ExplainLanguage ?? "简体中文",
+                    effectiveTargetLanguage,
                     settings?.Translation.MachineTranslationProvider ?? "microsoft",
                     ct).ConfigureAwait(false);
             }
@@ -237,7 +242,7 @@ public sealed class LookupService : IStreamingLookupService
         }
 
         // 3. Explicit AI lookup (with LRU cache + offline dictionary MemoryHook/Reading backfill).
-        var cacheKey = BuildAiCacheKey(capture, text);
+        var cacheKey = BuildAiCacheKey(capture, text, settings, effectiveTargetLanguage);
         var useLookupCache = _aiTranslation is not IStreamingTranslationService;
         if (useLookupCache && !bypassCache && TryGetCachedAiResult(cacheKey, out var cachedResult))
         {
@@ -250,7 +255,7 @@ public sealed class LookupService : IStreamingLookupService
             ? await streaming.TranslateStreamingAsync(capture, progress, bypassCache, ct).ConfigureAwait(false)
             : await _aiTranslation.TranslateAsync(capture, ct).ConfigureAwait(false);
 
-        if (forceAi && isShortText && dictionaryEnabled && _offlineDict.IsInstalled
+        if (useOfflineDictionary
             && (string.IsNullOrWhiteSpace(aiResult.MemoryHook) || string.IsNullOrWhiteSpace(aiResult.Reading)))
         {
             try
@@ -278,14 +283,14 @@ public sealed class LookupService : IStreamingLookupService
         return aiResult;
     }
 
-    private string BuildAiCacheKey(CaptureResult capture, string trimmedText)
+    private static string BuildAiCacheKey(
+        CaptureResult capture, string trimmedText, AppSettings? settings, string effectiveTargetLanguage)
     {
-        var settings = _settingsService?.Current;
         var active = settings?.ActiveTranslation;
         return System.Text.Json.JsonSerializer.Serialize(new
         {
             settings?.ActiveTranslationProfileId, active?.BaseUrl, active?.Model,
-            settings?.ExplainLanguage, capture.Sentence, Text = trimmedText
+            effectiveTargetLanguage, capture.Sentence, Text = trimmedText
         });
     }
 

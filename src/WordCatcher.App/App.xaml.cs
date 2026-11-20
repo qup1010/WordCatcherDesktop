@@ -10,6 +10,7 @@ using WordCatcher.App.Services;
 using WordCatcher.App.Tray;
 using WordCatcher.App.ViewModels;
 using WordCatcher.App.Windows;
+using WordCatcher.Core.Helpers;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 using WordCatcher.Infrastructure.Anki;
@@ -33,11 +34,13 @@ public partial class App : System.Windows.Application
     private ILogger<App>? _logger;
 
     private HotkeyManager? _hotkeyManager;
+    private MouseSelectionMonitor? _mouseSelectionMonitor;
+    private volatile SelectionPillWindow? _selectionPillWindow;
     private TrayIconManager? _trayManager;
     private AnkiSyncWorker? _syncWorker;
     private WebDavSyncService? _webDavSync;
     private LibraryWindow? _libraryWindow;
-    private LookupWindow? _activeLookupWindow;
+    private volatile LookupWindow? _activeLookupWindow;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -124,13 +127,37 @@ public partial class App : System.Windows.Application
             _trayManager.CaptureNowRequested += () => OnHotkeyTriggered();
             _trayManager.OcrCaptureRequested += OnOcrCaptureTriggered;
 
+            _selectionPillWindow = new SelectionPillWindow();
+            _selectionPillWindow.PillClicked += capture => _ = ShowCapturedLookupAsync(capture);
+            _mouseSelectionMonitor = new MouseSelectionMonitor(settingsService,
+                pt => _selectionPillWindow?.ContainsPhysicalPoint(pt) ?? false);
+            _mouseSelectionMonitor.SelectionDetected += capture =>
+            {
+                if (_hotkeyManager is { IsEnabled: false }) return;
+                Dispatcher?.InvokeAsync(async () =>
+                {
+                    if (ShouldAutoTranslateSelection(settingsService.Current.MouseSelection?.TriggerMode, capture.SelectedText))
+                    {
+                        _selectionPillWindow?.HidePill();
+                        await ShowCapturedLookupAsync(capture);
+                    }
+                    else
+                    {
+                        _selectionPillWindow?.ShowForCapture(capture);
+                    }
+                });
+            };
+            _mouseSelectionMonitor.DismissRequested += OnMouseDismissRequested;
+            settingsService.SettingsChanged += OnMouseSelectionSettingsChanged;
+            UpdateMouseSelectionHook();
+
             _libraryWindow = _serviceProvider.GetRequiredService<LibraryWindow>();
             var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
             settingsVm.UpdateInstallRequested += InstallDownloadedUpdate;
 
             if (!e.Args.Contains("--startup", StringComparer.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Interactive launch: opening the library window");
+                _logger?.LogInformation("Interactive launch: opening the library window");
                 _libraryWindow.ShowLibrary();
             }
 
@@ -141,7 +168,7 @@ public partial class App : System.Windows.Application
                 _webDavSync.ScheduleAutoSync();
             }
 
-            _logger.LogInformation("Word Catcher initialized and resident in system tray");
+            _logger?.LogInformation("Word Catcher initialized and resident in system tray");
         }
         catch (Exception ex)
         {
@@ -292,6 +319,49 @@ public partial class App : System.Windows.Application
         });
     }
 
+    internal static bool ShouldAutoTranslateSelection(string? triggerMode, string? text) =>
+        MouseSelectionSettings.NormalizeTriggerMode(triggerMode) switch
+        {
+            MouseSelectionSettings.AutoAll => true,
+            MouseSelectionSettings.AutoEnglish => TextLanguageDetector.IsEnglishText(text),
+            _ => false
+        };
+
+    private void OnMouseDismissRequested(ScreenPoint point, bool isMouseDown)
+    {
+        if (_selectionPillWindow is { IsPillVisible: true } pill &&
+            (!isMouseDown || !pill.ContainsPhysicalPoint(point)))
+        {
+            Dispatcher.InvokeAsync(pill.HidePill);
+        }
+
+        if (isMouseDown && _activeLookupWindow is { } lookup && lookup.ShouldQueueDismissForMouseDown(point))
+            Dispatcher.InvokeAsync(() => lookup.DismissForMouseDown(point));
+    }
+
+    private void OnMouseSelectionSettingsChanged(AppSettings settings)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.InvokeAsync(UpdateMouseSelectionHook);
+            return;
+        }
+
+        UpdateMouseSelectionHook();
+    }
+
+    private void UpdateMouseSelectionHook()
+    {
+        try
+        {
+            _mouseSelectionMonitor?.UpdateHook(_activeLookupWindow is { IsVisible: true, IsPinned: false });
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            _logger?.LogWarning(ex, "Mouse selection monitor could not start");
+        }
+    }
+
     private async Task ShowCapturedLookupAsync(CaptureResult capture)
     {
         _logger?.LogInformation("Hotkey captured selected text ({Length} characters) from {ProcessName}",
@@ -312,8 +382,7 @@ public partial class App : System.Windows.Application
         }
 
         var vm = _serviceProvider!.GetRequiredService<LookupViewModel>();
-        var settingsService = _serviceProvider!.GetRequiredService<ISettingsService>();
-        var lookupWindow = new LookupWindow(vm, settingsService);
+        var lookupWindow = new LookupWindow(vm);
         _activeLookupWindow = lookupWindow;
         vm.OpenInMainHandoffRequested += handoff =>
         {
@@ -329,7 +398,10 @@ public partial class App : System.Windows.Application
         {
             if (ReferenceEquals(_activeLookupWindow, lookupWindow))
                 _activeLookupWindow = null;
+            UpdateMouseSelectionHook();
         };
+        lookupWindow.IsVisibleChanged += (_, _) => UpdateMouseSelectionHook();
+        lookupWindow.PinnedChanged += (_, _) => UpdateMouseSelectionHook();
 
         // Create/show the HWND without exposing its default location, then
         // position it in physical pixels using the cursor monitor's DPI.
@@ -400,6 +472,12 @@ public partial class App : System.Windows.Application
         _logger?.LogInformation("Word Catcher shutting down...");
         _serviceProvider?.GetService<SettingsViewModel>()?.CheckForUpdatesCancelCommand.Execute(null);
 
+        if (_serviceProvider?.GetService<ISettingsService>() is { } settingsService)
+            settingsService.SettingsChanged -= OnMouseSelectionSettingsChanged;
+        var mouseSelectionMonitor = _mouseSelectionMonitor;
+        _mouseSelectionMonitor = null;
+        mouseSelectionMonitor?.Dispose();
+        _selectionPillWindow?.Close();
         _hotkeyManager?.Dispose();
         _trayManager?.Dispose();
         _webDavSync?.Dispose();

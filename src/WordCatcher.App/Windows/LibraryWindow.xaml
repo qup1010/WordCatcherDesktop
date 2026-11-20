@@ -8,6 +8,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:controls="clr-namespace:WordCatcher.App.Controls"
         xmlns:converters="clr-namespace:WordCatcher.App.Converters"
+        xmlns:models="clr-namespace:WordCatcher.Core.Models;assembly=WordCatcher.Core"
         xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
@@ -1777,18 +1778,6 @@
                                                              ToolTip="固定的浮窗会保持打开" />
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon CursorHover24}">
-                                            <ui:CardControl.Header>
-                                                <StackPanel>
-                                                    <TextBlock Text="点击外部关闭浮窗" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                    <TextBlock Text="焦点移出浮窗后自动隐藏；已固定浮窗保持打开（修改后自动保存）" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
-                                                </StackPanel>
-                                            </ui:CardControl.Header>
-                                            <ui:ToggleSwitch IsChecked="{Binding ClosePopupOnDeactivate}"
-                                                             AutomationProperties.Name="点击外部关闭浮窗"
-                                                             ToolTip="固定的浮窗会保持打开" />
-                                        </ui:CardControl>
-
                                         <TextBlock Text="全局快捷键" Style="{StaticResource SettingsGroupHeaderStyle}" />
                                         <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Keyboard24}">
                                             <ui:CardControl.Header>
@@ -1928,6 +1917,48 @@
                                                            Style="{StaticResource SecondaryActionButton}" />
                                             </Grid>
                                         </Border>
+
+                                        <TextBlock Text="划词与浮标" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Cursor24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="鼠标划词取词" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="拖选或双击支持无障碍接口的文本后触发取词（不自动复制剪贴板）" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding MouseSelectionEnabled, Mode=TwoWay}"
+                                                             AutomationProperties.Name="鼠标划词取词" />
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Cursor24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="划词触发方式" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="选择“检测到英语时自动翻译”可跳过浮标直接弹出译文，中文等其他文本仍显示浮标；需点击下方“保存设置”生效" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ComboBox x:Name="MouseSelectionTriggerModeBox" MinWidth="210" MinHeight="34" VerticalAlignment="Center"
+                                                      SelectedValue="{Binding MouseSelectionTriggerMode, Mode=TwoWay}" SelectedValuePath="Tag"
+                                                      IsEnabled="{Binding MouseSelectionEnabled}" AutomationProperties.Name="划词触发方式">
+                                                <ComboBoxItem Content="显示查词浮标（点击再翻译）" Tag="{x:Static models:MouseSelectionSettings.Pill}" />
+                                                <ComboBoxItem Content="检测到英语时自动翻译" Tag="{x:Static models:MouseSelectionSettings.AutoEnglish}" />
+                                                <ComboBoxItem Content="划词后直接自动翻译" Tag="{x:Static models:MouseSelectionSettings.AutoAll}" />
+                                            </ComboBox>
+                                        </ui:CardControl>
+
+                                        <ui:CardControl x:Name="MouseSelectionBlacklistCard" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Prohibited24}"
+                                                        IsEnabled="{Binding MouseSelectionEnabled}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="禁用划词的应用" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="填写进程名（支持逗号或换行分隔，可省略 .exe），在这些应用内禁用鼠标划词取词" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:TextBox MinWidth="240" MaxWidth="320"
+                                                        Text="{Binding MouseSelectionBlacklistText, UpdateSourceTrigger=PropertyChanged}"
+                                                        PlaceholderText="WindowsTerminal, cmd, pwsh"
+                                                        AutomationProperties.Name="禁用划词的应用" />
+                                        </ui:CardControl>
                                     </StackPanel>
                                 </TabItem>
 
@@ -1962,6 +1993,17 @@
                                             <ui:TextBox MinWidth="180"
                                                         Text="{Binding ExplainLanguage, UpdateSourceTrigger=LostFocus}"
                                                         PlaceholderText="zh-CN" />
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Globe24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="中英自动互译" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="选中中文时自动翻译为英语（English），非中文内容仍输出上方设定的目标语言；修改后自动保存" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch x:Name="AutoBidirectionalTranslationSwitch" IsChecked="{Binding AutoBidirectionalTranslation, Mode=TwoWay}"
+                                                             AutomationProperties.Name="中英自动互译" />
                                         </ui:CardControl>
 
                                         <TextBlock Text="离线词典管理" Style="{StaticResource SettingsGroupHeaderStyle}" />
@@ -2365,7 +2407,7 @@
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Word Catcher 桌面伴侣" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Word Catcher" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                                                         <Border Background="{DynamicResource SubtleSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                         </Border>

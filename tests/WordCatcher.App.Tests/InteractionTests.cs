@@ -194,6 +194,37 @@ public class InteractionTests
     }
 
     [Fact]
+    public async Task BidirectionalPreferenceAutoSavesWhileSelectionModeRequiresExplicitSave()
+    {
+        var (vm, service) = Settings();
+        service.Settings.MouseSelection.TriggerMode = " AUTO-ALL ";
+        await vm.InitializeAsync();
+
+        Assert.True(vm.AutoBidirectionalTranslation);
+        Assert.Equal(MouseSelectionSettings.AutoAll, vm.MouseSelectionTriggerMode);
+        Assert.False(vm.HasUnsavedChanges);
+
+        vm.MouseSelectionTriggerMode = MouseSelectionSettings.AutoEnglish;
+        Assert.True(vm.HasUnsavedChanges);
+        Assert.Equal(0, service.Writes);
+
+        vm.AutoBidirectionalTranslation = false;
+        await vm.PreferenceSaveTask;
+        Assert.False(service.Settings.AutoBidirectionalTranslation);
+        Assert.Equal(MouseSelectionSettings.AutoAll,
+            MouseSelectionSettings.NormalizeTriggerMode(service.Settings.MouseSelection.TriggerMode));
+        Assert.True(vm.HasUnsavedChanges);
+
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.Equal(MouseSelectionSettings.AutoEnglish, service.Settings.MouseSelection.TriggerMode);
+        Assert.False(vm.HasUnsavedChanges);
+
+        await vm.DiscardChangesCommand.ExecuteAsync(null);
+        Assert.False(vm.AutoBidirectionalTranslation);
+        Assert.Equal(MouseSelectionSettings.AutoEnglish, vm.MouseSelectionTriggerMode);
+    }
+
+    [Fact]
     public async Task OrdinaryPreferencesSaveWithoutCommittingConnectionDrafts()
     {
         var (vm, service) = Settings();

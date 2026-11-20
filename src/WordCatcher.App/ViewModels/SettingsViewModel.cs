@@ -167,6 +167,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _explainLanguage = "简体中文";
 
     [ObservableProperty]
+    private bool _autoBidirectionalTranslation = true;
+
+    [ObservableProperty]
     private bool _ankiEnabled;
 
     [ObservableProperty]
@@ -206,10 +209,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _closePopupAfterSave = true;
 
     [ObservableProperty]
-    private bool _closePopupOnDeactivate = true;
+    private string _themeMode = ThemeManager.LightMode;
 
     [ObservableProperty]
-    private string _themeMode = ThemeManager.LightMode;
+    private bool _mouseSelectionEnabled;
+
+    [ObservableProperty]
+    private string _mouseSelectionTriggerMode = MouseSelectionSettings.Pill;
+
+    [ObservableProperty]
+    private string _mouseSelectionBlacklistText = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DraftStatusText))]
@@ -219,13 +228,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _initializing;
     private static readonly HashSet<string> EditableProperties = new()
     {
-        nameof(Hotkey), nameof(OcrHotkey), nameof(ExplainLanguage), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
+        nameof(Hotkey), nameof(OcrHotkey), nameof(ExplainLanguage), nameof(AutoBidirectionalTranslation), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
         nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
         nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
         nameof(WebDavEnabled), nameof(WebDavUrl), nameof(WebDavUsername), nameof(WebDavPassword),
         nameof(WebDavRemotePath), nameof(WebDavAutoSync),
-        nameof(ClosePopupAfterSave), nameof(ClosePopupOnDeactivate), nameof(ThemeMode)
+        nameof(ClosePopupAfterSave), nameof(ThemeMode),
+        nameof(MouseSelectionEnabled), nameof(MouseSelectionTriggerMode), nameof(MouseSelectionBlacklistText)
     };
 
     private string EditorState() => JsonSerializer.Serialize(new
@@ -234,6 +244,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ActiveAiProfileId, AiProfileName, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
         WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
+        MouseSelectionEnabled, MouseSelectionTriggerMode, MouseSelectionBlacklistText,
         Profiles = AiProfiles, Keys = _profileApiKeys
     });
 
@@ -243,9 +254,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         var current = _settingsService.Current;
         HasUnsavedChanges = EditorState() != _savedEditorState
             || ExplainLanguage.Trim() != current.ExplainLanguage
+            || AutoBidirectionalTranslation != current.AutoBidirectionalTranslation
             || MachineTranslationProvider != current.Translation.MachineTranslationProvider
             || ClosePopupAfterSave != current.Ui.ClosePopupAfterSave
-            || ClosePopupOnDeactivate != current.Ui.ClosePopupOnDeactivate
             || ThemeMode != ThemeManager.NormalizeMode(current.Ui.ThemeMode);
     }
 
@@ -253,9 +264,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         var language = ExplainLanguage.Trim();
         if (string.IsNullOrWhiteSpace(language)) { StatusMessage = "请填写目标语言。"; return; }
+        var autoBidirectionalTranslation = AutoBidirectionalTranslation;
         var provider = MachineTranslationProvider;
         var closeAfterSave = ClosePopupAfterSave;
-        var closeOnDeactivate = ClosePopupOnDeactivate;
         var themeMode = ThemeManager.NormalizeMode(ThemeMode);
         var previous = PreferenceSaveTask;
         PreferenceSaveTask = PersistAsync();
@@ -266,9 +277,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             {
                 var current = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
                 current.ExplainLanguage = language;
+                current.AutoBidirectionalTranslation = autoBidirectionalTranslation;
                 current.Translation.MachineTranslationProvider = provider;
                 current.Ui.ClosePopupAfterSave = closeAfterSave;
-                current.Ui.ClosePopupOnDeactivate = closeOnDeactivate;
                 current.Ui.ThemeMode = themeMode;
                 await _settingsService.SaveSettingsAsync(current).ConfigureAwait(true);
                 StatusMessage = "已自动保存。";
@@ -286,7 +297,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             if (e.PropertyName == nameof(ThemeMode))
                 ThemeManager.ApplyTheme(ThemeMode);
             RefreshUnsavedChanges();
-            if (e.PropertyName is nameof(ExplainLanguage) or nameof(MachineTranslationProvider) or nameof(ClosePopupAfterSave) or nameof(ClosePopupOnDeactivate) or nameof(ThemeMode)) SavePreferences();
+            if (e.PropertyName is nameof(ExplainLanguage) or nameof(AutoBidirectionalTranslation) or nameof(MachineTranslationProvider) or nameof(ClosePopupAfterSave) or nameof(ThemeMode)) SavePreferences();
         }
     }
 
@@ -477,6 +488,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Hotkey = s.Hotkey;
             OcrHotkey = string.IsNullOrWhiteSpace(s.OcrHotkey) ? AppSettings.DefaultOcrHotkey : s.OcrHotkey;
             ExplainLanguage = s.ExplainLanguage;
+            AutoBidirectionalTranslation = s.AutoBidirectionalTranslation;
 
             var profiles = EnsureProfiles(s);
             AiProfiles = new ObservableCollection<TranslationProfile>(profiles.Select(CloneProfile));
@@ -521,8 +533,11 @@ public sealed partial class SettingsViewModel : ObservableObject
                 : _webDavPasswordFallback;
 
             ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
-            ClosePopupOnDeactivate = s.Ui.ClosePopupOnDeactivate;
             ThemeMode = ThemeManager.NormalizeMode(s.Ui.ThemeMode);
+            var mouseSelection = s.MouseSelection ?? new MouseSelectionSettings();
+            MouseSelectionEnabled = mouseSelection.Enabled;
+            MouseSelectionTriggerMode = MouseSelectionSettings.NormalizeTriggerMode(mouseSelection.TriggerMode);
+            MouseSelectionBlacklistText = string.Join(Environment.NewLine, mouseSelection.BlacklistedProcesses ?? []);
 
             RefreshDictStatus();
             OnPropertyChanged(nameof(AppliedHotkey));
@@ -712,6 +727,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             s.Hotkey = Hotkey.Trim();
             s.OcrHotkey = ocrHotkey;
             s.ExplainLanguage = ExplainLanguage.Trim();
+            s.AutoBidirectionalTranslation = AutoBidirectionalTranslation;
 
             SaveEditorToProfile(ActiveAiProfileId);
             s.TranslationProfiles = AiProfiles.Select(CloneProfile).ToList();
@@ -741,8 +757,13 @@ public sealed partial class SettingsViewModel : ObservableObject
             s.WebDav.AutoSync = WebDavAutoSync;
 
             s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
-            s.Ui.ClosePopupOnDeactivate = ClosePopupOnDeactivate;
             s.Ui.ThemeMode = ThemeManager.NormalizeMode(ThemeMode);
+            s.MouseSelection = new MouseSelectionSettings
+            {
+                Enabled = MouseSelectionEnabled,
+                TriggerMode = MouseSelectionSettings.NormalizeTriggerMode(MouseSelectionTriggerMode),
+                BlacklistedProcesses = MouseSelectionMonitor.ParseBlacklistText(MouseSelectionBlacklistText)
+            };
 
             _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();
             _webDavPasswordFallback = WebDavPassword;

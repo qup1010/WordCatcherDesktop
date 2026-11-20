@@ -65,6 +65,44 @@ public sealed class LookupServiceTests
         Assert.Equal(0, ai.CallCount);
     }
 
+    [Theory]
+    [InlineData(true, "English")]
+    [InlineData(false, "French")]
+    public async Task ChineseSelection_UsesQuickTranslationEvenWhenDictionaryHasAMatch(bool auto, string expected)
+    {
+        var settings = new FakeSettingsService();
+        settings.Current.ExplainLanguage = " French ";
+        settings.Current.AutoBidirectionalTranslation = auto;
+        var offline = new FakeOfflineDictionary { Result = CreateResult(LookupSource.OpenDictionary) };
+        var machine = new FakeMachineTranslationService { Result = "translated" };
+        var service = new LookupService(offline, new FakeTranslationService(),
+            settingsService: settings, machineTranslation: machine);
+
+        var result = await service.LookupAsync(CreateCapture("你好"), forceAi: false);
+
+        Assert.Equal(LookupSource.MachineTranslation, result.Source);
+        Assert.Equal(expected, machine.LastTargetLanguage);
+        Assert.Equal(0, offline.LookupCount);
+    }
+
+    [Fact]
+    public async Task SentenceCacheSeparatesResultsByEffectiveTarget()
+    {
+        var settings = new FakeSettingsService();
+        settings.Current.ExplainLanguage = "French";
+        var machine = new FakeMachineTranslationService();
+        machine.Handler = () => Task.FromResult(machine.LastTargetLanguage!);
+        var service = new LookupService(new FakeOfflineDictionary(), new FakeTranslationService(),
+            settingsService: settings, machineTranslation: machine);
+
+        Assert.Equal("English", await service.TranslateSentenceAsync("你好。"));
+        settings.Current.AutoBidirectionalTranslation = false;
+        Assert.Equal("French", await service.TranslateSentenceAsync("你好。"));
+        settings.Current.AutoBidirectionalTranslation = true;
+        Assert.Equal("English", await service.TranslateSentenceAsync("你好。"));
+        Assert.Equal(2, machine.CallCount);
+    }
+
     [Fact]
     public async Task TranslateSentenceAsync_AlwaysUsesSelectedQuickProviderAndCachesRepeatedRequests()
     {

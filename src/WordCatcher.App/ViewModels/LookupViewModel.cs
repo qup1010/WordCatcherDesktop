@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using WordCatcher.Core.Enums;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
+using WordCatcher.Core.Services;
 using WordCatcher.App.Services;
 
 namespace WordCatcher.App.ViewModels;
@@ -22,7 +24,9 @@ public sealed partial class LookupViewModel : ObservableObject
     private readonly ISpeechService _speechService;
     private readonly WordCollectionEvents _wordCollectionEvents;
     private readonly IQueryHistory? _history;
-    public System.Collections.ObjectModel.ObservableCollection<QueryHistoryItem> History { get; } = new();
+    public ObservableCollection<QueryHistoryItem> History { get; } = new();
+    public ObservableCollection<OcrWordToken> OcrSentenceTokens { get; } = new();
+    public bool ShowOcrWordPicker => OcrSentenceTokens.Count > 1;
     public async Task RefreshHistoryAsync()
     {
         if (_history == null) return;
@@ -262,6 +266,43 @@ public sealed partial class LookupViewModel : ObservableObject
     public Task StartLookupAsync(CaptureResult capture, bool forceAi = false, bool bypassCache = false, TranslationResult? historyResult = null)
         => StartLookupCoreAsync(capture, forceAi, bypassCache, historyResult, restoredEdits: null, recordHistory: true);
 
+    [RelayCommand]
+    private Task SelectOcrTokenAsync(OcrWordToken? token)
+    {
+        if (token is null)
+            return Task.CompletedTask;
+
+        return StartLookupAsync(new CaptureResult(
+            token.Text,
+            "ScreenOcr",
+            _currentCapture?.SourceWindowTitle ?? "截屏 OCR 取词",
+            _currentCapture?.CursorPosition ?? new ScreenPoint(0, 0),
+            DateTimeOffset.UtcNow,
+            Sentence: _currentCapture?.Sentence ?? token.Text,
+            SentenceOffset: token.Offset));
+    }
+
+    private void UpdateOcrWordPicker(CaptureResult capture)
+    {
+        var isOcr = string.Equals(capture.SourceProcess, "ScreenOcr", StringComparison.OrdinalIgnoreCase);
+        if (isOcr && capture.SelectedText != capture.Sentence)
+            return;
+
+        OcrSentenceTokens.Clear();
+        if (isOcr)
+        {
+            var tokens = OcrTokenExtractor.ExtractWords(capture.Sentence);
+            if (tokens.Count > 1)
+            {
+                foreach (var token in tokens)
+                    OcrSentenceTokens.Add(token);
+            }
+        }
+
+        OnPropertyChanged(nameof(OcrSentenceTokens));
+        OnPropertyChanged(nameof(ShowOcrWordPicker));
+    }
+
     public async Task RestoreHandoffAsync(MainWindowLookupHandoff handoff)
     {
         if (handoff.Result == null)
@@ -346,6 +387,7 @@ public sealed partial class LookupViewModel : ObservableObject
         ActionStatusText = string.Empty;
         SyncStatusText = string.Empty;
         OriginalSentence = capture.Sentence == capture.SelectedText ? string.Empty : capture.Sentence;
+        UpdateOcrWordPicker(capture);
         CanSave = false;
         SavedStatusText = string.Empty;
         StatusText = forceAi ? "正在结合语境生成 AI 详解…" : "正在查询词典与翻译…";

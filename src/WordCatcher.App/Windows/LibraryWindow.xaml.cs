@@ -433,7 +433,7 @@ public partial class LibraryWindow : Window
         {
             await _lookupVm.OpenHandoffAsync(handoff).ConfigureAwait(true);
         }
-        Dispatcher.BeginInvoke(new Action(() => LookupPage.FocusQuery()));
+        _ = Dispatcher.BeginInvoke(new Action(() => LookupPage.FocusQuery()));
     }
 
     private void OccurrenceList_SelectionChanged(object sender, SelectionChangedEventArgs e)

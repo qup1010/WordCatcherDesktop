@@ -90,6 +90,58 @@ public class TranslationServiceTests
     }
 
     [Fact]
+    public async Task ChineseSelectionUsesEnglishPromptAndLanguageSpecificCache()
+    {
+        var prompts = new System.Collections.Generic.List<string>();
+        using var client = new HttpClient(new MockHttpMessageHandler(async request =>
+        {
+            using var body = System.Text.Json.JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            var prompt = body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+            prompts.Add(prompt);
+            var content = """{"word":"你好","definition":"Hello","contextTranslation":"Hello","inputKind":"word","expression":"你好"}""";
+            var response = System.Text.Json.JsonSerializer.Serialize(new { choices = new[] { new { message = new { content } } } });
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(response) };
+        }));
+        var settings = new MemorySettingsService();
+        settings.Current.ExplainLanguage = "  French  ";
+        var service = new OpenAiTranslationService(client, settings, new MemorySecretStore());
+        var capture = new CaptureResult("你好", "notepad.exe", "Notes", new ScreenPoint(0, 0), DateTimeOffset.UtcNow);
+
+        await service.TranslateAsync(capture);
+        settings.Current.AutoBidirectionalTranslation = false;
+        await service.TranslateAsync(capture);
+        settings.Current.AutoBidirectionalTranslation = true;
+        await service.TranslateAsync(capture);
+
+        Assert.Collection(prompts,
+            first => Assert.Contains("使用English。", first),
+            second => Assert.Contains("使用French。", second));
+    }
+
+    [Theory]
+    [InlineData(true, "English")]
+    [InlineData(false, "French")]
+    public async Task ChineseSentenceUsesEffectiveLanguageInPrompt(bool auto, string expected)
+    {
+        using var client = new HttpClient(new MockHttpMessageHandler(async request =>
+        {
+            using var body = System.Text.Json.JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            var prompt = body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString();
+            Assert.Contains($"翻译为{expected}。", prompt);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"choices":[{"message":{"content":"translated"}}]}""")
+            };
+        }));
+        var settings = new MemorySettingsService();
+        settings.Current.ExplainLanguage = " French ";
+        settings.Current.AutoBidirectionalTranslation = auto;
+        var service = new OpenAiTranslationService(client, settings, new MemorySecretStore());
+
+        Assert.Equal("translated", await service.TranslateSentenceAsync("你好。"));
+    }
+
+    [Fact]
     public async Task TranslateAsync_Handles401Unauthorized()
     {
         var handler = new MockHttpMessageHandler(_ =>

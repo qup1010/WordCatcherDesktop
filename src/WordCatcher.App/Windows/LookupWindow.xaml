@@ -7,6 +7,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:controls="clr-namespace:WordCatcher.App.Controls"
         xmlns:converters="clr-namespace:WordCatcher.App.Converters"
+        xmlns:themes="clr-namespace:WordCatcher.App.Themes"
         xmlns:enums="clr-namespace:WordCatcher.Core.Enums;assembly=WordCatcher.Core"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance vm:LookupViewModel}"
@@ -32,7 +33,7 @@
     <Window.Resources>
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ResourceDictionary Source="/WordCatcher.App;component/Themes/DesignSystem.xaml" />
+            <themes:StandaloneDesignSystemDictionary />
         </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <converters:StringToVisibilityConverter x:Key="StringToVis" />
@@ -153,10 +154,10 @@
 
     <Grid Margin="10">
         <!-- Keep the shadow off the text subtree so its intermediate bitmap cannot soften glyphs. -->
-        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="12" IsHitTestVisible="False">
+        <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="16" IsHitTestVisible="False">
             <Border.Effect><DropShadowEffect BlurRadius="20" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
         </Border>
-        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="12" RenderOptions.ClearTypeHint="Enabled">
+        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="16" RenderOptions.ClearTypeHint="Enabled">
         <Grid Margin="14,11">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -341,6 +342,24 @@
                             <TextBlock Text="{Binding SentenceTranslationError}" Foreground="{DynamicResource DangerBrush}" FontSize="{StaticResource CaptionFontSize}"
                                        TextWrapping="Wrap" Margin="0,5,0,0"
                                        Visibility="{Binding SentenceTranslationError, Converter={StaticResource StringToVis}}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10" Visibility="{Binding ShowOcrWordPicker, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="点选句中词条查词（保留原句）" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,6" />
+                            <ItemsControl x:Name="OcrTokenList" ItemsSource="{Binding OcrSentenceTokens}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ui:Button Content="{Binding Text}"
+                                                   Command="{Binding DataContext.SelectOcrTokenCommand, ElementName=OcrTokenList}"
+                                                   CommandParameter="{Binding}"
+                                                   Style="{StaticResource QuietActionButton}"
+                                                   Padding="8,3" MinHeight="26" Margin="0,0,6,6"
+                                                   FontSize="{StaticResource CaptionFontSize}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                         <Expander Header="解析与例句" Margin="0,4,0,10" Visibility="{Binding HasLearningDetails, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,8,0,0">

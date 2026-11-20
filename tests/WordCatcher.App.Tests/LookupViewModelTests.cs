@@ -13,6 +13,81 @@ namespace WordCatcher.App.Tests;
 
 public class LookupViewModelTests
 {
+    [Fact]
+    public async Task OcrSentenceShowsWordPickerAndNotifiesBindings()
+    {
+        const string sentence = "Read this sentence.";
+        var (vm, _, _, _) = Create();
+        var changedProperties = new List<string?>();
+        vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        await vm.StartLookupAsync(Capture(sentence) with { SourceProcess = "screenocr", Sentence = sentence });
+
+        Assert.True(vm.ShowOcrWordPicker);
+        Assert.Equal(["Read", "this", "sentence"], vm.OcrSentenceTokens.Select(token => token.Text));
+        Assert.Contains(nameof(vm.ShowOcrWordPicker), changedProperties);
+        Assert.Contains(nameof(vm.OcrSentenceTokens), changedProperties);
+    }
+
+    [Fact]
+    public async Task SelectingSecondOcrWordOccurrenceKeepsFullSentenceAndOffsetThroughSave()
+    {
+        const string sentence = "digital means digital here.";
+        var (vm, lookup, repo, _) = Create();
+        var lookups = new List<CaptureResult>();
+        lookup.Lookup = capture =>
+        {
+            lookups.Add(capture);
+            return Task.FromResult(Digital());
+        };
+        SaveCardCommand? saved = null;
+        repo.Save = command =>
+        {
+            saved = command;
+            return Task.FromResult((new Word(), new Occurrence(), new SyncJob()));
+        };
+        var ocrCapture = Capture(sentence) with
+        {
+            SourceProcess = "ScreenOcr",
+            SourceWindowTitle = "OCR test",
+            CursorPosition = new ScreenPoint(12, 34),
+            Sentence = sentence
+        };
+
+        await vm.StartLookupAsync(ocrCapture);
+        await vm.SelectOcrTokenCommand.ExecuteAsync(vm.OcrSentenceTokens[0]);
+        await vm.SelectOcrTokenCommand.ExecuteAsync(vm.OcrSentenceTokens[2]);
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, lookups.Count);
+        var selected = lookups[2];
+        Assert.Equal("digital", selected.SelectedText);
+        Assert.Equal("ScreenOcr", selected.SourceProcess);
+        Assert.Equal(ocrCapture.SourceWindowTitle, selected.SourceWindowTitle);
+        Assert.Equal(ocrCapture.CursorPosition, selected.CursorPosition);
+        Assert.Equal(sentence, selected.Sentence);
+        Assert.Equal(14, selected.SentenceOffset);
+        Assert.Equal(sentence, vm.OriginalSentence);
+        Assert.Equal(selected, saved?.Capture);
+        Assert.True(vm.ShowOcrWordPicker);
+        Assert.Equal(4, vm.OcrSentenceTokens.Count);
+    }
+
+    [Theory]
+    [InlineData("digital", "test", "")]
+    [InlineData("Read this sentence.", "test", "Read this sentence.")]
+    [InlineData("digital", "ScreenOcr", "digital")]
+    public async Task NewLookupWithoutMultipleOcrWordsClearsThePicker(string selection, string source, string sentence)
+    {
+        var (vm, _, _, _) = Create();
+        await vm.StartLookupAsync(Capture("Two words") with { SourceProcess = "ScreenOcr", Sentence = "Two words" });
+
+        await vm.StartLookupAsync(Capture(selection) with { SourceProcess = source, Sentence = sentence });
+
+        Assert.False(vm.ShowOcrWordPicker);
+        Assert.Empty(vm.OcrSentenceTokens);
+    }
+
     [Theory]
     [InlineData("", false)]
     [InlineData("  THE NEW CLIENT EXPOSES A PROTOCOL GAP.  ", false)]

@@ -43,6 +43,26 @@ public class MachineTranslationServiceTests
         type.GetField("_microsoftToken", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, null);
     }
 
+    [Theory]
+    [InlineData("English")]
+    [InlineData("英语")]
+    [InlineData("英文")]
+    public async Task EnglishTargetNamesUseEnglishProviderCode(string language)
+    {
+        using var http = new HttpClient(new StubHandler((request, _) =>
+        {
+            Assert.Equal(GoogleHost, request.RequestUri!.Host);
+            Assert.Contains("&tl=en&", request.RequestUri.Query);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""[[["Hello","你好"]]]""")
+            };
+        }));
+        var service = new MachineTranslationService(http);
+
+        Assert.Equal("Hello", await service.TranslateAsync("你好", language, "google"));
+    }
+
     [Fact]
     public async Task TranslateMicrosoftConsecutiveUnauthorizedClearsRejectedToken()
     {

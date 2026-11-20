@@ -250,7 +250,25 @@
                                     <ColumnDefinition x:Name="SecondaryColumn" Width="0.85*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel x:Name="DefinitionPanel" Margin="0,0,24,0">
-                                    <TextBox Text="{Binding SelectedText, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,16" />
+                                    <TextBox Text="{Binding SelectedText, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12" />
+                                    <StackPanel Margin="0,0,0,14" Visibility="{Binding ShowOcrWordPicker, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="点选句中词条查词（保留原句）" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,6" />
+                                        <ItemsControl x:Name="MainOcrTokenList" ItemsSource="{Binding OcrSentenceTokens}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <ui:Button Content="{Binding Text}"
+                                                               Command="{Binding DataContext.SelectOcrTokenCommand, ElementName=MainOcrTokenList}"
+                                                               CommandParameter="{Binding}"
+                                                               Style="{StaticResource QuietActionButton}"
+                                                               Padding="8,3" MinHeight="26" Margin="0,0,6,6"
+                                                               FontSize="{StaticResource CaptionFontSize}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                     <TextBlock FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,9"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="核心释义" /><Style.Triggers><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="Text" Value="译文" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
                                     <TextBlock Text="{Binding LearningExpression}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,10" Visibility="{Binding ShowLearningExpression, Converter={StaticResource BoolToVis}}" />
                                     <TextBox Text="{Binding Definition, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="15" Foreground="{DynamicResource TextPrimaryBrush}"

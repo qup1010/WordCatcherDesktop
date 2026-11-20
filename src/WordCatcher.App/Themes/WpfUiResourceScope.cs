@@ -9,6 +9,7 @@ internal static class WpfUiResourceScope
     public static void PreferApplicationResources(FrameworkElement element)
     {
         if (Application.Current is not { } application
+            || !application.Dispatcher.CheckAccess()
             || !application.Resources.MergedDictionaries.Any(IsDesignSystem))
         {
             ThemeManager.SyncElementResources(element);
@@ -27,6 +28,6 @@ internal static class WpfUiResourceScope
         ThemeManager.SyncElementResources(element);
     }
 
-    private static bool IsDesignSystem(ResourceDictionary dictionary)
+    internal static bool IsDesignSystem(ResourceDictionary dictionary)
         => dictionary.Source?.OriginalString.EndsWith("Themes/DesignSystem.xaml", StringComparison.OrdinalIgnoreCase) == true;
 }

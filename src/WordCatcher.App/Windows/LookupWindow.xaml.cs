@@ -9,8 +9,8 @@ using WordCatcher.App.Interop;
 using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
-using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
+using ContextMenu = System.Windows.Controls.ContextMenu;
 
 namespace WordCatcher.App.Windows;
 
@@ -49,6 +49,15 @@ public partial class LookupWindow : Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(NativeMethods.POINT point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
@@ -57,45 +66,165 @@ public partial class LookupWindow : Window
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
 
     private readonly LookupViewModel _viewModel;
-    private readonly ISettingsService? _settingsService;
-    private bool _isClosing;
+    private volatile bool _isClosingForHitTest;
     private bool _isApplyingPhysicalPlacement;
     private ScreenPoint? _physicalAnchor;
     private string? _resultContext;
+    private readonly object _hitTestLock = new();
+    private PhysicalRectangle _physicalBounds;
+    private bool _isVisibleForHitTest;
+    private bool _isPinnedForHitTest;
 
     public bool IsPinned => PinToggle.IsChecked == true;
+    internal event EventHandler? PinnedChanged;
 
-    public LookupWindow(LookupViewModel viewModel, ISettingsService? settingsService = null)
+    public LookupWindow(LookupViewModel viewModel)
     {
         InitializeComponent();
+        _isPinnedForHitTest = IsPinned;
         WpfUiResourceScope.PreferApplicationResources(this);
         _viewModel = viewModel;
-        _settingsService = settingsService;
         DataContext = _viewModel;
         _viewModel.RequestClose += OnRequestClose;
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         Deactivated += Window_Deactivated;
-        SizeChanged += (_, _) => OnPopupSizeChanged();
-        DpiChanged += (_, _) => Dispatcher.BeginInvoke(new Action(() => RepositionPopup(preserveCurrentOrigin: true)));
+        IsVisibleChanged += (_, _) => RefreshPhysicalBounds();
+        LocationChanged += (_, _) => RefreshPhysicalBounds();
+        SizeChanged += (_, _) =>
+        {
+            OnPopupSizeChanged();
+            RefreshPhysicalBounds();
+        };
+        DpiChanged += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            RepositionPopup(preserveCurrentOrigin: true);
+            RefreshPhysicalBounds();
+        }));
     }
 
     private void Window_Deactivated(object? sender, EventArgs e)
     {
-        if (_isClosing || IsPinned || !IsLoaded || !IsVisible)
-            return;
+        if (CanDismiss && !IsOwnedWindow(NativeMethods.GetForegroundWindow()))
+            Dismiss();
+    }
 
-        if (_settingsService?.Current.Ui.ClosePopupOnDeactivate ?? true)
+    private bool CanDismiss => !_isClosingForHitTest && IsVisible && !IsPinned;
+
+    internal bool ShouldQueueDismissForMouseDown(ScreenPoint point)
+    {
+        lock (_hitTestLock)
         {
-            try
-            {
-                _isClosing = true;
-                Close();
-            }
-            catch (InvalidOperationException)
-            {
-                _isClosing = false;
-            }
+            return !_isClosingForHitTest && _isVisibleForHitTest && !_isPinnedForHitTest &&
+                !IsInsidePhysicalBounds(point);
         }
+    }
+
+    private bool IsOverCapturedMenu(ScreenPoint point)
+    {
+        if (Mouse.Captured is ContextMenu { IsOpen: true, PlacementTarget: { } target } menu &&
+            ReferenceEquals(Window.GetWindow(target), this) && PresentationSource.FromVisual(menu) != null)
+        {
+            var local = menu.PointFromScreen(new Point(point.X, point.Y));
+            if (new Rect(menu.RenderSize).Contains(local))
+                return true;
+        }
+
+        var lookupHandle = new WindowInteropHelper(this).Handle;
+        foreach (PresentationSource source in PresentationSource.CurrentSources)
+        {
+            if (source is not HwndSource hwndSource || hwndSource.IsDisposed ||
+                hwndSource.Handle == IntPtr.Zero || hwndSource.Handle == lookupHandle)
+                continue;
+
+            if (!IsOwnedWindow(hwndSource.Handle) && !IsPopupSourceOwnedByThisWindow(hwndSource))
+                continue;
+
+            if (GetWindowRect(hwndSource.Handle, out var rect) &&
+                point.X >= rect.Left && point.X < rect.Right &&
+                point.Y >= rect.Top && point.Y < rect.Bottom)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsPopupSourceOwnedByThisWindow(HwndSource source)
+    {
+        if (source.RootVisual is not DependencyObject root)
+            return false;
+
+        if (LogicalTreeHelper.GetParent(root) is not System.Windows.Controls.Primitives.Popup { IsOpen: true } popup)
+            return false;
+
+        var target = popup.PlacementTarget ?? (popup.Child as ContextMenu)?.PlacementTarget;
+        if (target != null && ReferenceEquals(Window.GetWindow(target), this))
+            return true;
+
+        for (DependencyObject? current = popup; current != null; current = LogicalTreeHelper.GetParent(current))
+        {
+            if (ReferenceEquals(current, this))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal void DismissForMouseDown(ScreenPoint point)
+    {
+        if (CanDismiss && !ContainsPhysicalPoint(point) && !IsOverCapturedMenu(point) &&
+            !IsOwnedWindow(WindowFromPoint(new NativeMethods.POINT { X = point.X, Y = point.Y })))
+            Dismiss();
+    }
+
+    private void Dismiss()
+    {
+        if (_isClosingForHitTest) return;
+        try
+        {
+            _isClosingForHitTest = true;
+            Close();
+        }
+        catch (InvalidOperationException)
+        {
+            _isClosingForHitTest = false;
+        }
+    }
+
+    public bool ContainsPhysicalPoint(ScreenPoint point)
+    {
+        lock (_hitTestLock)
+        {
+            return _isVisibleForHitTest && IsInsidePhysicalBounds(point);
+        }
+    }
+
+    private bool IsInsidePhysicalBounds(ScreenPoint point) =>
+        point.X >= _physicalBounds.Left && point.X < _physicalBounds.Right &&
+        point.Y >= _physicalBounds.Top && point.Y < _physicalBounds.Bottom;
+
+    private void RefreshPhysicalBounds()
+    {
+        var rect = default(NativeRect);
+        var hwnd = !_isClosingForHitTest && IsVisible ? new WindowInteropHelper(this).Handle : IntPtr.Zero;
+        var visible = hwnd != IntPtr.Zero && GetWindowRect(hwnd, out rect);
+        lock (_hitTestLock)
+        {
+            _physicalBounds = visible ? new PhysicalRectangle(rect.Left, rect.Top, rect.Right, rect.Bottom) : default;
+            _isVisibleForHitTest = visible;
+        }
+    }
+
+    private bool IsOwnedWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return false;
+        var lookupHandle = new WindowInteropHelper(this).Handle;
+        const uint root = 2; // GA_ROOT
+        const uint owner = 4; // GW_OWNER
+        for (var current = GetAncestor(hwnd, root); current != IntPtr.Zero; current = GetWindow(current, owner))
+        {
+            if (current == lookupHandle) return true;
+        }
+        return false;
     }
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -110,9 +239,7 @@ public partial class LookupWindow : Window
 
     private void OnRequestClose()
     {
-        if (_isClosing) return;
-        _isClosing = true;
-        Dispatcher.Invoke(Close);
+        Dispatcher.Invoke(Dismiss);
     }
 
     public Task StartLookupAsync(CaptureResult capture)
@@ -138,7 +265,7 @@ public partial class LookupWindow : Window
 
     private void OnPopupSizeChanged()
     {
-        if (_isApplyingPhysicalPlacement || _isClosing || _physicalAnchor is null || !IsLoaded)
+        if (_isApplyingPhysicalPlacement || _isClosingForHitTest || _physicalAnchor is null || !IsLoaded)
             return;
 
         // Keep the card's current position during content growth (including a
@@ -148,7 +275,7 @@ public partial class LookupWindow : Window
 
     private bool RepositionPopup(bool preserveCurrentOrigin)
     {
-        if (_isApplyingPhysicalPlacement || _isClosing || _physicalAnchor is null)
+        if (_isApplyingPhysicalPlacement || _isClosingForHitTest || _physicalAnchor is null)
             return false;
 
         var helper = new WindowInteropHelper(this);
@@ -177,7 +304,8 @@ public partial class LookupWindow : Window
             }
 
             ApplyDisplayConstraints(workArea.Width, workArea.Height, scale);
-            UpdateLayout();
+            if (!preserveCurrentOrigin)
+                UpdateLayout();
 
             var widthDip = ActualWidth > 0 ? ActualWidth : Width;
             var heightDip = ActualHeight > 0 ? ActualHeight : Math.Min(480, MaxHeight);
@@ -190,6 +318,7 @@ public partial class LookupWindow : Window
         finally
         {
             _isApplyingPhysicalPlacement = false;
+            RefreshPhysicalBounds();
         }
     }
 
@@ -212,8 +341,7 @@ public partial class LookupWindow : Window
     {
         if (e.Key == Key.Escape)
         {
-            _isClosing = true;
-            Close();
+            Dismiss();
             e.Handled = true;
         }
         else if (e.Key == Key.P && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
@@ -278,22 +406,27 @@ public partial class LookupWindow : Window
 
     private void PinToggle_Checked(object sender, RoutedEventArgs e)
     {
+        lock (_hitTestLock) _isPinnedForHitTest = true;
         _viewModel.KeepOpenAfterSave = true;
         Topmost = true;
         PinToggle.ToolTip = "取消固定（Ctrl+P）";
         System.Windows.Automation.AutomationProperties.SetName(PinToggle, "取消固定查词浮窗");
+        PinnedChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void PinToggle_Unchecked(object sender, RoutedEventArgs e)
     {
+        lock (_hitTestLock) _isPinnedForHitTest = false;
         _viewModel.KeepOpenAfterSave = false;
         PinToggle.ToolTip = "固定卡片；保持位置并在此刷新后续取词 (Ctrl+P)";
         System.Windows.Automation.AutomationProperties.SetName(PinToggle, "固定查词浮窗");
+        PinnedChanged?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        _isClosing = true;
+        _isClosingForHitTest = true;
+        RefreshPhysicalBounds();
         Deactivated -= Window_Deactivated;
         _viewModel.CancelLookup();
         _viewModel.RequestClose -= OnRequestClose;

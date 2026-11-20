@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using WordCatcher.Core.Models;
 using WordCatcher.App.Windows;
 
 namespace WordCatcher.App.Tests;
@@ -12,6 +13,82 @@ namespace WordCatcher.App.Tests;
 [Collection("Application resource rendering")]
 public class LookupLayoutTests
 {
+    [Fact]
+    public void OutsideMouseDownDismissesVisibleUnpinnedCardWithoutActivation()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            LookupWindow? window = null;
+            try
+            {
+                var (vm, _, _, _) = LookupViewModelTests.Create();
+                window = new LookupWindow(vm) { ShowActivated = false };
+                window.Show();
+                Assert.True(window.PositionNearCursor(new ScreenPoint(100, 100)));
+                Assert.False(window.IsActive);
+                var origin = window.PointToScreen(new Point(0, 0));
+                var inside = new ScreenPoint((int)origin.X + 8, (int)origin.Y + 8);
+                var outside = new ScreenPoint(inside.X - 1000, inside.Y);
+                bool ShouldQueue(ScreenPoint point) =>
+                    Task.Run(() => window.ShouldQueueDismissForMouseDown(point)).GetAwaiter().GetResult();
+
+                Assert.True(window.ContainsPhysicalPoint(inside));
+                Assert.False(window.ContainsPhysicalPoint(outside));
+                Assert.False(ShouldQueue(inside));
+                window.DismissForMouseDown(inside);
+                Assert.True(window.IsVisible);
+
+                var menu = new ContextMenu
+                {
+                    PlacementTarget = (FrameworkElement)window.Content,
+                    Placement = PlacementMode.Bottom,
+                    VerticalOffset = 6,
+                    Items = { new MenuItem { Header = "Copy" } }
+                };
+                menu.IsOpen = true;
+                window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                menu.UpdateLayout();
+                try
+                {
+                    var menuOrigin = menu.PointToScreen(new Point(0, 0));
+                    var menuPoint = new ScreenPoint((int)menuOrigin.X + 10, (int)menuOrigin.Y + 10);
+                    Assert.False(window.ContainsPhysicalPoint(menuPoint));
+                    Assert.True(ShouldQueue(menuPoint));
+                    window.DismissForMouseDown(menuPoint);
+                    Assert.True(window.IsVisible);
+                }
+                finally { menu.IsOpen = false; }
+
+                var pin = (ToggleButton)window.FindName("PinToggle");
+                pin.IsChecked = true;
+                Assert.False(ShouldQueue(outside));
+                window.DismissForMouseDown(outside);
+                Assert.True(window.IsVisible);
+                pin.IsChecked = false;
+
+                var closed = false;
+                window.Closed += (_, _) => closed = true;
+                var dismissal = Task.Run(() =>
+                {
+                    Assert.True(window.ShouldQueueDismissForMouseDown(outside));
+                    return window.Dispatcher.InvokeAsync(() => window.DismissForMouseDown(outside));
+                }).GetAwaiter().GetResult();
+                dismissal.Wait();
+                Assert.True(closed);
+                Assert.False(window.ContainsPhysicalPoint(inside));
+                Assert.False(ShouldQueue(outside));
+                window = null;
+            }
+            catch (Exception ex) { failure = ex; }
+            finally { window?.Close(); }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(15)));
+        Assert.Null(failure);
+    }
+
     [Fact]
     public void PopupDragHandleIsSeparateFromHeaderActions()
     {
