@@ -33,6 +33,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly UpdateCheckService? _updateCheckService;
     private readonly IAppUpdater? _appUpdater;
     private readonly StartupService _startupService;
+    private readonly Func<string, bool> _registerOcrHotkey;
 
     [ObservableProperty] private bool _startWithWindows;
     [ObservableProperty] private bool _canChangeStartup = true;
@@ -218,7 +219,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _initializing;
     private static readonly HashSet<string> EditableProperties = new()
     {
-        nameof(Hotkey), nameof(ExplainLanguage), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
+        nameof(Hotkey), nameof(OcrHotkey), nameof(ExplainLanguage), nameof(DictDownloadUrl), nameof(ApiBaseUrl),
         nameof(ApiModel), nameof(ApiTimeoutSeconds), nameof(ActiveAiProfileId), nameof(AiProfileName),
         nameof(MachineTranslationProvider), nameof(ApiKey), nameof(AnkiEnabled), nameof(AnkiUrl),
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
@@ -229,7 +230,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private string EditorState() => JsonSerializer.Serialize(new
     {
-        Hotkey, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
+        Hotkey, OcrHotkey, DictDownloadUrl, ApiBaseUrl, ApiModel, ApiTimeoutSeconds,
         ActiveAiProfileId, AiProfileName, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
         WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
@@ -317,14 +318,20 @@ public sealed partial class SettingsViewModel : ObservableObject
     public string ProjectUrl => UpdateCheckService.RepositoryUrl;
 
     public string AppliedHotkey => _settingsService.Current.Hotkey;
+    [ObservableProperty] private string _ocrHotkey = AppSettings.DefaultOcrHotkey;
+    public string AppliedOcrHotkey => _settingsService.Current.OcrHotkey;
     [ObservableProperty] private bool _isRecordingHotkey;
     [ObservableProperty] private string _hotkeyHint = "选中文字后，按此组合键查词。";
     private bool _hotkeyWasEnabled;
+    [ObservableProperty] private bool _isRecordingOcrHotkey;
+    [ObservableProperty] private string _ocrHotkeyHint = "按下快捷键后截取屏幕并识别文字。";
+    private bool _ocrHotkeyWasEnabled;
 
     [RelayCommand]
     private void RecordHotkey()
     {
         if (IsSaving || IsRecordingHotkey) return;
+        CancelOcrHotkeyRecording();
         _hotkeyWasEnabled = _hotkeyManager.IsEnabled;
         _hotkeyManager.SetEnabled(false);
         IsRecordingHotkey = true;
@@ -341,11 +348,39 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void RecordOcrHotkey()
+    {
+        if (IsSaving || IsRecordingOcrHotkey) return;
+        CancelHotkeyRecording();
+        _ocrHotkeyWasEnabled = _hotkeyManager.IsEnabled;
+        _hotkeyManager.SetEnabled(false);
+        IsRecordingOcrHotkey = true;
+        OcrHotkeyHint = "正在录入… 按组合键；Esc 取消，Tab 离开。";
+    }
+
+    [RelayCommand]
+    public void CancelOcrHotkeyRecording()
+    {
+        if (!IsRecordingOcrHotkey) return;
+        IsRecordingOcrHotkey = false;
+        _hotkeyManager.SetEnabled(_ocrHotkeyWasEnabled);
+        OcrHotkeyHint = "已取消录入，快捷键未更改。";
+    }
+
+    [RelayCommand]
     private void ResetHotkey()
     {
         CancelHotkeyRecording();
         Hotkey = AppSettings.DefaultHotkey;
         HotkeyHint = $"已填入默认 {AppSettings.DefaultHotkey}，点击保存后生效。";
+    }
+
+    [RelayCommand]
+    private void ResetOcrHotkey()
+    {
+        CancelOcrHotkeyRecording();
+        OcrHotkey = AppSettings.DefaultOcrHotkey;
+        OcrHotkeyHint = $"已填入默认 {AppSettings.DefaultOcrHotkey}，点击保存后生效。";
     }
 
     public void CaptureHotkey(Key key, ModifierKeys modifiers)
@@ -361,6 +396,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         CancelHotkeyRecording();
         Hotkey = text;
         HotkeyHint = $"已录入 {text}，点击保存后生效；如被占用会保留原快捷键。";
+    }
+
+    public void CaptureOcrHotkey(Key key, ModifierKeys modifiers)
+    {
+        if (!IsRecordingOcrHotkey) return;
+        if (key == Key.Escape || key == Key.Tab) { CancelOcrHotkeyRecording(); return; }
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin) return;
+        if (!TryFormatHotkey(key, modifiers, out var text))
+        {
+            OcrHotkeyHint = "请使用 Ctrl / Alt / Shift / Win + 字母、数字或 F1–F24。";
+            return;
+        }
+        CancelOcrHotkeyRecording();
+        OcrHotkey = text;
+        OcrHotkeyHint = $"已录入 {text}，点击保存后生效；如被占用会保留原快捷键。";
     }
 
     public static bool TryFormatHotkey(Key key, ModifierKeys modifiers, out string text)
@@ -398,7 +448,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         UpdateCheckService? updateCheckService = null,
         IWebDavSyncService? webDavSyncService = null,
         IAppUpdater? appUpdater = null,
-        StartupService? startupService = null)
+        StartupService? startupService = null,
+        Func<string, bool>? ocrHotkeyRegistrar = null)
     {
         _settingsService = settingsService;
         _secretStore = secretStore;
@@ -412,6 +463,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _startupService = startupService ?? new StartupService();
         IsUpdateReady = appUpdater?.IsUpdateReady ?? false;
         _webDavSyncService = webDavSyncService;
+        _registerOcrHotkey = ocrHotkeyRegistrar ?? (hotkey => hotkeyManager.RegisterOcr(hotkey));
     }
 
     public async Task InitializeAsync()
@@ -423,6 +475,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             var s = _settingsService.Current;
             Hotkey = s.Hotkey;
+            OcrHotkey = string.IsNullOrWhiteSpace(s.OcrHotkey) ? AppSettings.DefaultOcrHotkey : s.OcrHotkey;
             ExplainLanguage = s.ExplainLanguage;
 
             var profiles = EnsureProfiles(s);
@@ -473,6 +526,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             RefreshDictStatus();
             OnPropertyChanged(nameof(AppliedHotkey));
+            OnPropertyChanged(nameof(AppliedOcrHotkey));
             _savedEditorState = EditorState();
         }
         finally { _initializing = false; }
@@ -610,25 +664,53 @@ public sealed partial class SettingsViewModel : ObservableObject
     private async Task SaveSettingsAsync()
     {
         if (IsSaving) return;
-        if (IsRecordingHotkey) { StatusMessage = "请先完成或取消快捷键录入。"; return; }
+        if (IsRecordingHotkey || IsRecordingOcrHotkey) { StatusMessage = "请先完成或取消快捷键录入。"; return; }
         var error = ValidateEditor();
         if (error != null) { StatusMessage = error; return; }
         IsSaving = true;
         StatusMessage = "正在保存…";
         var oldHotkey = _settingsService.Current.Hotkey;
+        var oldOcrHotkey = _settingsService.Current.OcrHotkey;
         var hotkeyChanged = !string.Equals(oldHotkey, Hotkey.Trim(), StringComparison.OrdinalIgnoreCase);
+        var ocrHotkey = OcrHotkey.Trim();
+        var ocrHotkeyChanged = !string.Equals(oldOcrHotkey, ocrHotkey, StringComparison.OrdinalIgnoreCase);
+        var hotkeyRegistered = false;
+        var ocrHotkeyRegistered = false;
         try
         {
             await PreferenceSaveTask.ConfigureAwait(true);
+            // Free an old combination first when the other shortcut is moving onto it.
+            if (hotkeyChanged && ocrHotkeyChanged && string.Equals(Hotkey.Trim(), oldOcrHotkey, StringComparison.OrdinalIgnoreCase))
+            {
+                _hotkeyManager.UnregisterOcr();
+                if (!_hotkeyManager.Register(Hotkey.Trim()))
+                {
+                    _hotkeyManager.RegisterOcr(oldOcrHotkey);
+                    StatusMessage = "取词快捷键注册失败，原快捷键仍保持有效；设置未保存。";
+                    return;
+                }
+                hotkeyRegistered = true;
+            }
             if (hotkeyChanged && !_hotkeyManager.Register(Hotkey.Trim()))
             {
-                _hotkeyManager.Register(oldHotkey);
                 StatusMessage = "快捷键已被占用，未保存设置；请更换组合键。";
                 HotkeyHint = $"无法使用 {Hotkey}，当前仍使用 {oldHotkey}。请重新录入。";
                 return;
             }
+            if (hotkeyChanged) hotkeyRegistered = true;
+            if (ocrHotkeyChanged && !_registerOcrHotkey(ocrHotkey))
+            {
+                if (hotkeyRegistered) _hotkeyManager.Register(oldHotkey);
+                if (string.Equals(Hotkey.Trim(), oldOcrHotkey, StringComparison.OrdinalIgnoreCase))
+                    _registerOcrHotkey(oldOcrHotkey);
+                StatusMessage = "截屏 OCR 快捷键注册失败（可能已被其他程序占用），原快捷键仍保持有效；设置未保存。";
+                OcrHotkeyHint = $"无法使用 {ocrHotkey}，当前仍使用 {oldOcrHotkey}。请重新录入。";
+                return;
+            }
+            if (ocrHotkeyChanged) ocrHotkeyRegistered = true;
             var s = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
             s.Hotkey = Hotkey.Trim();
+            s.OcrHotkey = ocrHotkey;
             s.ExplainLanguage = ExplainLanguage.Trim();
 
             SaveEditorToProfile(ActiveAiProfileId);
@@ -680,14 +762,17 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             await _settingsService.SaveSettingsAsync(s).ConfigureAwait(true);
             OnPropertyChanged(nameof(AppliedHotkey));
+            OnPropertyChanged(nameof(AppliedOcrHotkey));
             _savedEditorState = EditorState();
             HasUnsavedChanges = false;
             StatusMessage = "设置已保存并生效。";
             HotkeyHint = $"当前快捷键：{s.Hotkey}。";
+            OcrHotkeyHint = $"当前快捷键：{s.OcrHotkey}。";
         }
         catch (Exception)
         {
-            if (hotkeyChanged) _hotkeyManager.Register(oldHotkey);
+            if (hotkeyRegistered) _hotkeyManager.Register(oldHotkey);
+            if (ocrHotkeyRegistered) _registerOcrHotkey(oldOcrHotkey);
             StatusMessage = "设置未完整保存，请重试。填写的内容已保留。";
         }
         finally { IsSaving = false; }
@@ -696,6 +781,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string? ValidateEditor()
     {
         if (!HotkeyManager.TryParseHotkey(Hotkey, out _, out _)) return "快捷键格式无效，例如 Ctrl+Shift+Z、Ctrl+Shift+D 或 Alt+F8。";
+        if (!HotkeyManager.TryParseHotkey(OcrHotkey, out var ocrModifiers, out var ocrKey)) return "截屏 OCR 快捷键格式无效，例如 Ctrl+Shift+O 或 Alt+F8。";
+        if (HotkeyManager.TryParseHotkey(Hotkey, out var lookupModifiers, out var lookupKey)
+            && lookupModifiers == ocrModifiers && lookupKey == ocrKey)
+            return "截屏 OCR 快捷键不能与取词快捷键相同，请更换组合键。";
         if (string.IsNullOrWhiteSpace(ExplainLanguage)) return "请填写释义语言。";
         if (!IsWebUrl(ApiBaseUrl)) return "AI Base URL 必须是有效的 HTTP 或 HTTPS 地址。";
         if (string.IsNullOrWhiteSpace(ApiModel)) return "请填写 AI 模型名称。";

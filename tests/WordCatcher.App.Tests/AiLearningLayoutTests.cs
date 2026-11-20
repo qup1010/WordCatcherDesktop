@@ -58,6 +58,27 @@ public sealed class AiLearningLayoutTests
                 page.Measure(new Size(880, 620)); page.Arrange(new Rect(0, 0, 880, 620)); page.UpdateLayout();
                 SaveImage(page, 880, 620, "wordcatcher-ai-learning-page.png");
                 Assert.Equal("重新生成", vm.AiButtonText);
+
+                const string sentence = "The new client exposes a protocol gap.";
+                vm.SelectedText = sentence;
+                vm.OriginalSentence = string.Empty;
+                vm.Analysis = vm.Analysis! with { Expression = sentence };
+                foreach (var view in new[] { root, page })
+                {
+                    var expression = Assert.Single(Descendants(view).OfType<TextBlock>(), text => text.Text == sentence);
+                    Assert.Equal(Visibility.Collapsed, expression.Visibility);
+                }
+                root.UpdateLayout();
+                page.UpdateLayout();
+                SaveImage(root, 420, (int)Math.Ceiling(root.ActualHeight), "wordcatcher-sentence-no-duplicate-popup.png");
+                SaveImage(page, 880, 620, "wordcatcher-sentence-no-duplicate-page.png");
+
+                vm.Analysis = vm.Analysis with { Expression = "protocol gap" };
+                foreach (var view in new[] { root, page })
+                {
+                    var expression = Assert.Single(Descendants(view).OfType<TextBlock>(), text => text.Text == "protocol gap");
+                    Assert.Equal(Visibility.Visible, expression.Visibility);
+                }
                 window.Close();
             }
             catch (Exception ex) { failure = ex; }

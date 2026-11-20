@@ -319,7 +319,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding HasAnalysis, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding LearningExpression}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" Visibility="{Binding ShowLearningExpression, Converter={StaticResource BoolToVis}}" />
                         <StackPanel Margin="0,4,0,12" Visibility="{Binding OriginalSentence, Converter={StaticResource StringToVis}}">
                             <Grid Margin="0,0,0,4">
                                 <TextBlock Text="原句" FontSize="{StaticResource CaptionFontSize}" FontWeight="Medium" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />

@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using WordCatcher.App.Interop;
 using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
@@ -15,9 +16,51 @@ namespace WordCatcher.App.Windows;
 
 public partial class LookupWindow : Window
 {
+    private const uint MonitorDefaultToNearest = 2;
+    private const uint SetWindowPosNoZOrder = 0x0004;
+    private const uint SetWindowPosNoActivate = 0x0010;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct NativeMonitorInfo
+    {
+        public int Size;
+        public NativeRect Monitor;
+        public NativeRect WorkArea;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromPoint(NativeMethods.POINT point, uint flags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr monitor, ref NativeMonitorInfo info);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+
+    [DllImport("shcore.dll")]
+    private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+
     private readonly LookupViewModel _viewModel;
     private readonly ISettingsService? _settingsService;
     private bool _isClosing;
+    private bool _isApplyingPhysicalPlacement;
+    private ScreenPoint? _physicalAnchor;
     private string? _resultContext;
 
     public bool IsPinned => PinToggle.IsChecked == true;
@@ -32,13 +75,8 @@ public partial class LookupWindow : Window
         _viewModel.RequestClose += OnRequestClose;
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         Deactivated += Window_Deactivated;
-        SizeChanged += (_, _) => KeepInsideWorkArea();
-        DpiChanged += (_, e) => Dispatcher.BeginInvoke(new Action(() =>
-        {
-            var screen = System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle);
-            ApplyDisplayConstraints(screen.WorkingArea.Width, screen.WorkingArea.Height, e.NewDpi.DpiScaleX);
-            KeepInsideWorkArea();
-        }));
+        SizeChanged += (_, _) => OnPopupSizeChanged();
+        DpiChanged += (_, _) => Dispatcher.BeginInvoke(new Action(() => RepositionPopup(preserveCurrentOrigin: true)));
     }
 
     private void Window_Deactivated(object? sender, EventArgs e)
@@ -82,66 +120,10 @@ public partial class LookupWindow : Window
         return _viewModel.StartLookupAsync(capture);
     }
 
-    public void PositionNearCursor(ScreenPoint physicalCursor)
+    public bool PositionNearCursor(ScreenPoint physicalCursor)
     {
-        var source = PresentationSource.FromVisual(this);
-        double dpiX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-        double dpiY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
-
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle != IntPtr.Zero)
-        {
-            var dpi = NativeMethods.GetDpiForWindow(handle);
-            if (dpi > 0)
-            {
-                dpiX = dpi / 96.0;
-                dpiY = dpi / 96.0;
-            }
-        }
-
-        double dipX = physicalCursor.X / dpiX;
-        double dipY = physicalCursor.Y / dpiY;
-
-        var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(physicalCursor.X, physicalCursor.Y));
-        var physicalWorkArea = screen.WorkingArea;
-        var workArea = new Rect(
-            physicalWorkArea.Left / dpiX,
-            physicalWorkArea.Top / dpiY,
-            physicalWorkArea.Width / dpiX,
-            physicalWorkArea.Height / dpiY);
-
-        // Keep the popup usable on small displays and guarantee the intended
-        // card width even when SizeToContent measures a very long dictionary entry.
-        ApplyDisplayConstraints(physicalWorkArea.Width, physicalWorkArea.Height, dpiX);
-        UpdateLayout();
-
-        var width = ActualWidth > 0 ? ActualWidth : Width;
-        // Reserve reading space before streaming starts so later content grows
-        // inside the same work-area bounds instead of pushing the window upward.
-        var height = Math.Min(480, MaxHeight);
-
-        double left = dipX + 16;
-        double top = dipY + 16;
-
-        // Flip to left if overflowing right edge
-        if (left + width > workArea.Right)
-        {
-            left = dipX - width - 8;
-        }
-
-        // Flip up if overflowing bottom edge
-        if (top + height > workArea.Bottom)
-        {
-            top = dipY - height - 8;
-        }
-
-        // Clamp inside bounds
-        left = Math.Max(workArea.Left, Math.Min(left, workArea.Right - width));
-        top = Math.Max(workArea.Top, Math.Min(top, workArea.Bottom - height));
-
-        Left = left;
-        Top = top;
-        MaxHeight = Math.Min(MaxHeight, workArea.Bottom - top);
+        _physicalAnchor = physicalCursor;
+        return RepositionPopup(preserveCurrentOrigin: false);
     }
 
     private void ApplyDisplayConstraints(double workWidth, double workHeight, double scale)
@@ -154,18 +136,76 @@ public partial class LookupWindow : Window
         MaxHeight = fit.MaxHeight;
     }
 
-    private void KeepInsideWorkArea()
+    private void OnPopupSizeChanged()
     {
-        if (_isClosing || !IsLoaded || !IsVisible) return;
-        var handle = new WindowInteropHelper(this).Handle;
-        var area = System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
-        var scale = VisualTreeHelper.GetDpi(this);
-        // SizeToContent grows as translations arrive or details expand.
-        // Keep the whole card accessible, including its bottom actions.
-        Left = Math.Clamp(Left, area.Left / scale.DpiScaleX,
-            Math.Max(area.Left / scale.DpiScaleX, area.Right / scale.DpiScaleX - ActualWidth));
-        Top = Math.Clamp(Top, area.Top / scale.DpiScaleY,
-            Math.Max(area.Top / scale.DpiScaleY, area.Bottom / scale.DpiScaleY - ActualHeight));
+        if (_isApplyingPhysicalPlacement || _isClosing || _physicalAnchor is null || !IsLoaded)
+            return;
+
+        // Keep the card's current position during content growth (including a
+        // pinned refresh), and clamp its new physical rectangle to the work area.
+        RepositionPopup(preserveCurrentOrigin: true);
+    }
+
+    private bool RepositionPopup(bool preserveCurrentOrigin)
+    {
+        if (_isApplyingPhysicalPlacement || _isClosing || _physicalAnchor is null)
+            return false;
+
+        var helper = new WindowInteropHelper(this);
+        var hwnd = helper.EnsureHandle();
+        _isApplyingPhysicalPlacement = true;
+        try
+        {
+            var placementAnchor = preserveCurrentOrigin && GetWindowRect(hwnd, out var currentRect)
+                ? new ScreenPoint(currentRect.Left, currentRect.Top)
+                : _physicalAnchor.Value;
+            var monitor = MonitorFromPoint(new NativeMethods.POINT { X = placementAnchor.X, Y = placementAnchor.Y }, MonitorDefaultToNearest);
+            var info = new NativeMonitorInfo { Size = Marshal.SizeOf<NativeMonitorInfo>() };
+            if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info))
+                return false;
+
+            var workArea = new PhysicalRectangle(info.WorkArea.Left, info.WorkArea.Top,
+                info.WorkArea.Right, info.WorkArea.Bottom);
+            var scale = GetMonitorDpiScale(monitor);
+
+            // Move the transparent HWND onto the target screen before measuring
+            // so WPF evaluates ActualWidth/ActualHeight under the target monitor DPI.
+            if (!preserveCurrentOrigin)
+            {
+                SetWindowPos(hwnd, IntPtr.Zero, workArea.Left, workArea.Top, 0, 0,
+                    0x0001 | SetWindowPosNoZOrder | SetWindowPosNoActivate); // SWP_NOSIZE
+            }
+
+            ApplyDisplayConstraints(workArea.Width, workArea.Height, scale);
+            UpdateLayout();
+
+            var widthDip = ActualWidth > 0 ? ActualWidth : Width;
+            var heightDip = ActualHeight > 0 ? ActualHeight : Math.Min(480, MaxHeight);
+            var physical = WindowSizing.PlacePopup(placementAnchor, workArea, scale,
+                widthDip, heightDip, preserveCurrentOrigin);
+
+            return SetWindowPos(hwnd, IntPtr.Zero, physical.Left, physical.Top,
+                physical.Width, physical.Height, SetWindowPosNoZOrder | SetWindowPosNoActivate);
+        }
+        finally
+        {
+            _isApplyingPhysicalPlacement = false;
+        }
+    }
+
+    private static double GetMonitorDpiScale(IntPtr monitor)
+    {
+        try
+        {
+            if (GetDpiForMonitor(monitor, 0, out var dpiX, out _) == 0 && dpiX > 0)
+                return dpiX / 96.0;
+        }
+        catch (DllNotFoundException) { }
+        catch (EntryPointNotFoundException) { }
+        catch (BadImageFormatException) { }
+
+        // 96 DPI is the stable fallback on systems without GetDpiForMonitor.
+        return 1.0;
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

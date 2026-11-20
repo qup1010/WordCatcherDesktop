@@ -52,6 +52,95 @@ public class SelectionCaptureTests
     }
 
     [Fact]
+    public async Task FocusSwitchImmediatelyAfterCopyStillRestoresOriginalClipboard()
+    {
+        var platform = new FakePlatform();
+        platform.OnCopy = () => platform.Current = false;
+        var error = await Assert.ThrowsAsync<CaptureException>(() => new SelectionCaptureService(platform).CaptureSelectionAsync());
+        Assert.Equal(CaptureFailure.SourceChanged, error.Failure);
+        Assert.Equal("original", platform.Clipboard);
+        Assert.Equal(1, platform.Restores);
+    }
+
+    [Fact]
+    public async Task LaterCopyBeforeRecoveryIsPreserved()
+    {
+        var platform = new FakePlatform();
+        platform.OnCopy = () => { platform.Clipboard = "our selection"; platform.Sequence++; };
+        platform.OnRead = () => { platform.Clipboard = "user's later copy"; platform.Sequence++; };
+        var error = await Assert.ThrowsAsync<CaptureException>(() => new SelectionCaptureService(platform).CaptureSelectionAsync());
+        Assert.Equal(CaptureFailure.ClipboardChanged, error.Failure);
+        Assert.Equal("user's later copy", platform.Clipboard);
+        Assert.Equal(0, platform.Restores);
+    }
+
+    [Fact]
+    public async Task CopyWithUnverifiedOwnerIsNeverRestored()
+    {
+        var platform = new FakePlatform { ReadOwnerMatchesSource = false };
+        var error = await Assert.ThrowsAsync<CaptureException>(() => new SelectionCaptureService(platform).CaptureSelectionAsync());
+        Assert.Equal(CaptureFailure.ClipboardChanged, error.Failure);
+        Assert.Equal("ocean", platform.Clipboard);
+        Assert.Equal(0, platform.Restores);
+    }
+
+    [Fact]
+    public async Task SameProcessCopyAfterFocusSwitchWithoutObservedCopyIsNeverOverwritten()
+    {
+        var platform = new FakePlatform { UpdateOnCopy = false };
+        // Inject Ctrl+C without writing clipboard, then switch focus.
+        platform.OnCopy = () => platform.Current = false;
+        // During the source check, user copies in another window of the same process (same PID).
+        platform.OnSourceCheck = () =>
+        {
+            if (!platform.Current && platform.Copies > 0 && platform.Sequence == 10)
+            {
+                platform.Clipboard = "user same-pid copy";
+                platform.Sequence = 11;
+            }
+        };
+
+        var error = await Assert.ThrowsAsync<CaptureException>(() => new SelectionCaptureService(platform).CaptureSelectionAsync());
+        Assert.Equal(CaptureFailure.SourceChanged, error.Failure);
+        Assert.Equal("user same-pid copy", platform.Clipboard);
+        Assert.Equal(0, platform.Restores);
+    }
+
+    [Fact]
+    public async Task DelayedRenderingSequenceIncrementDuringReadStillSucceedsAndRestores()
+    {
+        var platform = new FakePlatform();
+        platform.OnDelayedRender = () => platform.Sequence++; // Delayed rendering increments sequence inside lock.
+        var result = await new SelectionCaptureService(platform).CaptureSelectionAsync();
+        Assert.Equal("ocean", result!.SelectedText);
+        Assert.Equal("original", platform.Clipboard);
+        Assert.Equal(1, platform.Restores);
+    }
+
+    [Fact]
+    public void ClipboardBackupBudgetIncludesLargeGraphicsAndMemoryFormats()
+    {
+        const long budget = 64L * 1024 * 1024;
+        long used = 0;
+        Assert.True(NativeClipboardBackup.TryAddToBudget(ref used, 24L * 1024 * 1024)); // bitmap estimate
+        Assert.True(NativeClipboardBackup.TryAddToBudget(ref used, 24L * 1024 * 1024)); // enhanced metafile estimate
+        Assert.True(NativeClipboardBackup.TryAddToBudget(ref used, 16L * 1024 * 1024)); // global memory format
+        Assert.Equal(budget, used);
+        Assert.False(NativeClipboardBackup.TryAddToBudget(ref used, 1));
+        Assert.Equal(budget, used);
+    }
+
+    [Fact]
+    public void ClipboardBackupBudgetRejectsOversizedAndInvalidItems()
+    {
+        long used = 0;
+        Assert.False(NativeClipboardBackup.TryAddToBudget(ref used, 64L * 1024 * 1024 + 1));
+        Assert.False(NativeClipboardBackup.TryAddToBudget(ref used, 0));
+        Assert.False(NativeClipboardBackup.TryAddToBudget(ref used, -1));
+        Assert.Equal(0, used);
+    }
+
+    [Fact]
     public async Task ClipboardChangeBeforeInjectionCancelsWithoutSendingCopy()
     {
         var platform = new FakePlatform();
@@ -321,11 +410,16 @@ public class SelectionCaptureTests
         public int Copies, Backups, Restores;
         public Backup? Backup;
         public CaptureFailure? BackupError, CopyError, ReadError, TrustedReadFailure, ModifierFailure;
-        public Action? OnModifiers, OnBackup, OnContext, OnRestore, OnRead;
+        public bool ReadOwnerMatchesSource = true;
+        public Action? OnModifiers, OnBackup, OnContext, OnRestore, OnRead, OnDelayedRender, OnCopy, OnSourceCheck;
         public Task? ModifierGate;
         public Task<SelectionSnapshot?>? UiaGate;
         public CaptureSource GetSource() => new(new IntPtr(123), 456, "test", "Test window", new(10, 20));
-        public bool IsCurrent(CaptureSource source) => Current;
+        public bool IsCurrent(CaptureSource source)
+        {
+            OnSourceCheck?.Invoke();
+            return Current;
+        }
         public async Task WaitForModifiersAsync(CancellationToken ct)
         {
             if (ModifierFailure.HasValue) throw new CaptureException(ModifierFailure.Value);
@@ -355,11 +449,15 @@ public class SelectionCaptureTests
                 if (CopyDelay > TimeSpan.Zero) _copyTimer = System.Diagnostics.Stopwatch.StartNew();
                 else { Sequence++; Clipboard = CopiedText; }
             }
+            OnCopy?.Invoke();
         }
         public Task<ClipboardRead> ReadCopiedTextAsync(CaptureSource source, uint expectedSequence)
         {
             if (ReadError.HasValue) throw new CaptureException(ReadError.Value);
+            if (!ReadOwnerMatchesSource) throw new CaptureException(CaptureFailure.ClipboardChanged);
             OnRead?.Invoke();
+            if (Sequence != expectedSequence) throw new CaptureException(CaptureFailure.ClipboardChanged);
+            OnDelayedRender?.Invoke();
             return Task.FromResult(new ClipboardRead(Clipboard, Sequence, TrustedReadFailure));
         }
         public Task<bool> RestoreClipboardAsync(IClipboardBackup backup, uint expectedSequence)

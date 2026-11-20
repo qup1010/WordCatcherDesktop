@@ -29,7 +29,9 @@ public sealed partial class LookupViewModel : ObservableObject
         try { var items = await _history.ReadAsync(); History.Clear(); foreach (var item in items) History.Add(item); }
         catch (Exception) { ActionStatusText = "查询历史暂时无法读取。"; }
     }
-    [ObservableProperty] private LearningAnalysis? _analysis;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLearningExpression))]
+    private LearningAnalysis? _analysis;
     [ObservableProperty] private string _editDefinition = string.Empty;
     [ObservableProperty] private string _editTranslation = string.Empty;
     [ObservableProperty] private string _learningNote = string.Empty;
@@ -74,6 +76,20 @@ public sealed partial class LookupViewModel : ObservableObject
     private bool _saveFailed;
     public bool CanUseQuickFallback => HasError && _lastForceAi && _currentCapture != null;
     public string LearningExpression => string.IsNullOrWhiteSpace(Analysis?.Expression) ? Word : Analysis.Expression;
+    public bool ShowLearningExpression
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Analysis?.Expression))
+                return false;
+
+            var expression = LearningExpression.Trim();
+            return IsLongText
+                ? !string.Equals(expression, SelectedText.Trim(), StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(expression, OriginalSentence.Trim(), StringComparison.OrdinalIgnoreCase)
+                : !string.Equals(expression, Word.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+    }
     public bool HasAnalysis => Analysis != null;
     public bool HasLearningDetails => !string.IsNullOrWhiteSpace(Analysis?.KeyExplanation) || !string.IsNullOrWhiteSpace(Analysis?.UsageNote) || !string.IsNullOrWhiteSpace(Analysis?.Example);
     public string AiButtonText => Source == LookupSource.Ai ? "重新生成" : "AI 详解";
@@ -103,9 +119,11 @@ public sealed partial class LookupViewModel : ObservableObject
     private string _errorMessage = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLearningExpression))]
     private string _selectedText = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLearningExpression))]
     private string _word = string.Empty;
 
     [ObservableProperty]
@@ -172,6 +190,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private string _syncStatusText = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLearningExpression))]
     private string _originalSentence = string.Empty;
 
     public bool IsLongText => SelectedText.Length > 45 || SelectedText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 5;

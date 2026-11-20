@@ -13,6 +13,46 @@ namespace WordCatcher.App.Tests;
 
 public class LookupViewModelTests
 {
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("  THE NEW CLIENT EXPOSES A PROTOCOL GAP.  ", false)]
+    [InlineData("The new client exposes a protocol gap. We should fix it.", false)]
+    [InlineData("protocol gap", true)]
+    public async Task SentenceAnalysisOnlyDisplaysADistinctExpression(string expression, bool expected)
+    {
+        const string selection = "The new client exposes a protocol gap.";
+        var (vm, lookup, _, _) = Create();
+        lookup.Lookup = _ => Task.FromResult(Digital() with
+        {
+            Word = selection,
+            Source = LookupSource.Ai,
+            Analysis = new LearningAnalysis("sentence", expression, "", "", "", "")
+        });
+
+        await vm.StartLookupAsync(Capture(selection) with { Sentence = selection + " We should fix it." });
+
+        Assert.True(vm.IsLongText);
+        Assert.True(vm.HasAnalysis);
+        Assert.Equal(expected, vm.ShowLearningExpression);
+    }
+
+    [Fact]
+    public void HeadwordAnalysisRefreshesExpressionVisibilityWhenWordChanges()
+    {
+        var (vm, _, _, _) = Create();
+        vm.Word = "digital";
+        vm.Analysis = new LearningAnalysis("word", " DIGITAL ", "", "", "", "");
+        Assert.False(vm.ShowLearningExpression);
+        var visibilityChanged = false;
+        vm.PropertyChanged += (_, args) =>
+            visibilityChanged |= args.PropertyName == nameof(LookupViewModel.ShowLearningExpression);
+
+        vm.Word = "digit";
+
+        Assert.True(visibilityChanged);
+        Assert.True(vm.ShowLearningExpression);
+    }
+
     [Fact]
     public async Task SavedContextCanBeEditedTranslatedAndSavedAgainInTheDatabase()
     {

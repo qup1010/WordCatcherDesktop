@@ -346,20 +346,36 @@
                     <Border x:Name="NavigationHint" Grid.Row="1" Background="{DynamicResource SubtleSurfaceBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="6" Margin="12,4,12,14" Padding="10,7">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="取词" Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" />
-                            <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding AppliedHotkey}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                           FontSize="11" FontWeight="SemiBold" />
-                            </Border>
-                        </Grid>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="取词" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                        CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AppliedHotkey}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                               FontSize="11" FontWeight="SemiBold" />
+                                </Border>
+                            </Grid>
+                            <Grid Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="截屏" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                        CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AppliedOcrHotkey}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                               FontSize="11" FontWeight="SemiBold" />
+                                </Border>
+                            </Grid>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Border>
@@ -1822,6 +1838,53 @@
                                             </StackPanel>
                                         </ui:CardControl>
 
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon ScanText24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="截屏 OCR 快捷键" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding OcrHotkeyHint}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="18" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource SubtleSurfaceBrush}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="6"
+                                                        Padding="12,6"
+                                                        Margin="0,0,8,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="{Binding OcrHotkey}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsRecordingOcrHotkey}" Value="True">
+                                                                        <Setter Property="Text" Value="请按组合键…" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                                <ui:Button Content="恢复默认"
+                                                           Command="{Binding ResetOcrHotkeyCommand}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Visibility="{Binding IsRecordingOcrHotkey, Converter={StaticResource BoolToVis}}"
+                                                           Margin="0,0,6,0"
+                                                           ToolTip="填入 Ctrl+Shift+O，保存后生效" />
+                                                <ui:Button Content="修改"
+                                                           Command="{Binding RecordOcrHotkeyCommand}"
+                                                           Style="{StaticResource SecondaryActionButton}"
+                                                           Visibility="{Binding IsRecordingOcrHotkey, Converter={StaticResource InverseBoolToVis}}"
+                                                           VerticalAlignment="Center" />
+                                                <ui:Button Content="取消"
+                                                           Command="{Binding CancelOcrHotkeyRecordingCommand}"
+                                                           Style="{StaticResource QuietActionButton}"
+                                                           Visibility="{Binding IsRecordingOcrHotkey, Converter={StaticResource BoolToVis}}"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </ui:CardControl>
+
                                         <TextBlock Text="系统启动" Style="{StaticResource SettingsGroupHeaderStyle}" />
                                         <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Power24}">
                                             <ui:CardControl.Header>
@@ -1876,15 +1939,16 @@
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="在线快译服务" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                    <TextBlock Text="离线词典未收录的单词和句子使用此在线服务；修改后自动保存" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                    <TextBlock Text="离线词典未收录的单词和句子优先使用所选服务，不可用时自动切换到其他在线引擎；修改后自动保存" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                                                 </StackPanel>
                                             </ui:CardControl.Header>
-                                            <ComboBox MinWidth="180" MinHeight="34" VerticalAlignment="Center"
+                                            <ComboBox MinWidth="210" MinHeight="34" VerticalAlignment="Center"
                                                       SelectedValue="{Binding MachineTranslationProvider, UpdateSourceTrigger=PropertyChanged}"
                                                       SelectedValuePath="Tag"
                                                       AutomationProperties.Name="在线快译">
-                                                <ComboBoxItem Content="微软翻译（默认）" Tag="microsoft" />
+                                                <ComboBoxItem Content="微软翻译" Tag="microsoft" />
                                                 <ComboBoxItem Content="谷歌翻译" Tag="google" />
+                                                <ComboBoxItem Content="B站 Index-Translate" Tag="bilibili" />
                                             </ComboBox>
                                         </ui:CardControl>
 

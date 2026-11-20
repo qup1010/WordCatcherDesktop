@@ -7,7 +7,9 @@ namespace WordCatcher.Core.Models;
 public sealed class AppSettings
 {
     public const string DefaultHotkey = "Ctrl+Shift+Z";
+    public const string DefaultOcrHotkey = "Ctrl+Shift+O";
     public string Hotkey { get; set; } = DefaultHotkey;
+    public string OcrHotkey { get; set; } = DefaultOcrHotkey;
     public string ExplainLanguage { get; set; } = "简体中文";
     public TranslationSettings Translation { get; set; } = new();
     public List<TranslationProfile> TranslationProfiles { get; set; } = new();

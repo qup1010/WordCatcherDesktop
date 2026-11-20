@@ -112,11 +112,17 @@ public partial class App : System.Windows.Application
                     MessageBoxImage.Warning);
             }
             _hotkeyManager.HotkeyTriggered += OnHotkeyTriggered;
+            if (!_hotkeyManager.RegisterOcr(settingsService.Current.OcrHotkey))
+            {
+                _logger?.LogWarning("OCR hotkey '{Hotkey}' could not be registered (may be occupied)", settingsService.Current.OcrHotkey);
+            }
+            _hotkeyManager.OcrHotkeyTriggered += OnOcrCaptureTriggered;
 
             _trayManager = _serviceProvider.GetRequiredService<TrayIconManager>();
             _trayManager.OpenLibraryRequested += OnOpenLibraryRequested;
             _trayManager.OpenSettingsRequested += OnOpenSettingsRequested;
             _trayManager.CaptureNowRequested += () => OnHotkeyTriggered();
+            _trayManager.OcrCaptureRequested += OnOcrCaptureTriggered;
 
             _libraryWindow = _serviceProvider.GetRequiredService<LibraryWindow>();
             var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
@@ -202,6 +208,7 @@ public partial class App : System.Windows.Application
 
         // Win32 Capture & Hotkey & Tray
         services.AddSingleton<ISelectionCaptureService, SelectionCaptureService>();
+        services.AddSingleton<IOcrService, WinRtOcrService>();
         services.AddSingleton<ISpeechService, SpeechService>();
         services.AddSingleton<HotkeyManager>();
         services.AddSingleton<TrayIconManager>();
@@ -219,6 +226,51 @@ public partial class App : System.Windows.Application
 
         // Windows
         services.AddSingleton<LibraryWindow>();
+    }
+
+    private bool _isOcrCapturing;
+
+    private async void OnOcrCaptureTriggered()
+    {
+        if (_isOcrCapturing) return;
+        _isOcrCapturing = true;
+        try
+        {
+            _logger?.LogInformation("Screen OCR capture triggered");
+            var snip = await ScreenSnipWindow.CaptureRegionAsync().ConfigureAwait(true);
+            if (snip == null || snip.PngBytes.Length == 0)
+                return;
+
+            var ocrService = _serviceProvider?.GetRequiredService<IOcrService>();
+            if (ocrService == null) return;
+
+            var text = await ocrService.RecognizePngAsync(snip.PngBytes).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                _trayManager?.ShowNotification("未识别到文字", "所选截图区域未检测到可识别文本，请放大或重新框选。",
+                    System.Windows.Forms.ToolTipIcon.Info);
+                return;
+            }
+
+            var capture = new CaptureResult(
+                text,
+                "ScreenOcr",
+                "截屏 OCR 取词",
+                snip.CursorPosition,
+                DateTimeOffset.UtcNow,
+                Sentence: text,
+                SentenceOffset: 0);
+            await ShowCapturedLookupAsync(capture).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Screen OCR capture failed");
+            _trayManager?.ShowNotification("截屏 OCR 失败", ex.Message, System.Windows.Forms.ToolTipIcon.Warning);
+        }
+        finally
+        {
+            _isOcrCapturing = false;
+        }
     }
 
     private async void OnHotkeyTriggered()
@@ -279,11 +331,16 @@ public partial class App : System.Windows.Application
                 _activeLookupWindow = null;
         };
 
+        // Create/show the HWND without exposing its default location, then
+        // position it in physical pixels using the cursor monitor's DPI.
+        lookupWindow.Opacity = 0;
         lookupWindow.Show();
+        if (!lookupWindow.PositionNearCursor(capture.CursorPosition))
+        {
+            _logger?.LogWarning("Lookup popup physical placement failed; falling back to default window position");
+        }
+        lookupWindow.Opacity = 1;
         _logger?.LogInformation("Lookup popup shown for hotkey capture");
-        // The window must be attached to a presentation source before reading
-        // its DPI. This is especially important on a secondary high-DPI monitor.
-        lookupWindow.PositionNearCursor(capture.CursorPosition);
         lookupWindow.Activate();
 
         await lookupWindow.StartLookupAsync(capture).ConfigureAwait(true);

@@ -15,13 +15,28 @@ public static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true)] public static extern uint EnumClipboardFormats(uint format);
     [DllImport("user32.dll")] public static extern int CountClipboardFormats();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClipboardFormatName(uint format, StringBuilder name, int count);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern uint RegisterClipboardFormat(string format);
     [DllImport("kernel32.dll", SetLastError = true)] public static extern nuint GlobalSize(IntPtr handle);
     [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr GlobalAlloc(uint flags, nuint bytes);
     [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr GlobalLock(IntPtr handle);
     [DllImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool GlobalUnlock(IntPtr handle);
     [DllImport("kernel32.dll")] public static extern IntPtr GlobalFree(IntPtr handle);
     [DllImport("user32.dll")] public static extern IntPtr CopyImage(IntPtr handle, uint type, int width, int height, uint flags);
+    [DllImport("gdi32.dll", EntryPoint = "GetObjectW", SetLastError = true)] public static extern int GetObject(IntPtr handle, int size, out BitmapObject bitmap);
+    [DllImport("gdi32.dll", SetLastError = true)] public static extern uint GetEnhMetaFileBits(IntPtr handle, uint size, IntPtr buffer);
     [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool DeleteObject(IntPtr handle);
     [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr CopyEnhMetaFile(IntPtr handle, string? file);
     [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool DeleteEnhMetaFile(IntPtr handle);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BitmapObject
+    {
+        public int Type;
+        public int Width;
+        public int Height;
+        public int WidthBytes;
+        public ushort Planes;
+        public ushort BitsPixel;
+        public IntPtr Bits;
+    }
 }

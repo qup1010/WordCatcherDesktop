@@ -18,6 +18,7 @@ public sealed class TrayIconManager : IDisposable
     public event Action? OpenLibraryRequested;
     public event Action? OpenSettingsRequested;
     public event Action? CaptureNowRequested;
+    public event Action? OcrCaptureRequested;
 
     public TrayIconManager(
         HotkeyManager hotkeyManager,
@@ -53,6 +54,10 @@ public sealed class TrayIconManager : IDisposable
         var captureNowItem = new ToolStripMenuItem("立即取词 (&C)");
         captureNowItem.Click += (s, e) => CaptureNowRequested?.Invoke();
         menu.Items.Add(captureNowItem);
+
+        var ocrCaptureItem = new ToolStripMenuItem("截屏 OCR 取词 (&O)");
+        ocrCaptureItem.Click += (s, e) => OcrCaptureRequested?.Invoke();
+        menu.Items.Add(ocrCaptureItem);
 
         var retrySyncItem = new ToolStripMenuItem("重试 Anki 待同步任务 (&R)");
         retrySyncItem.Click += (s, e) => _syncQueue.TriggerSync();

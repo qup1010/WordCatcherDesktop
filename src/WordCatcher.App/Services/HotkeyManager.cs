@@ -10,17 +10,24 @@ namespace WordCatcher.App.Services;
 public sealed class HotkeyManager : IDisposable
 {
     private const int HotkeyId = 9001;
+    private const int OcrHotkeyId = 9003;
     private readonly ILogger<HotkeyManager>? _logger;
     private HwndSource? _hwndSource;
     private bool _isRegistered;
+    private bool _isOcrRegistered;
     private bool _isEnabled = true;
     private int _registeredId = HotkeyId;
     private uint _registeredModifiers;
     private uint _registeredKey;
+    private int _registeredOcrId = OcrHotkeyId;
+    private uint _registeredOcrModifiers;
+    private uint _registeredOcrKey;
 
     public event Action? HotkeyTriggered;
+    public event Action? OcrHotkeyTriggered;
 
     public bool IsRegistered => _isRegistered;
+    public bool IsOcrRegistered => _isOcrRegistered;
     public bool IsEnabled => _isEnabled;
 
     public HotkeyManager(ILogger<HotkeyManager>? logger = null)
@@ -73,6 +80,50 @@ public sealed class HotkeyManager : IDisposable
         }
     }
 
+    public bool RegisterOcr(string hotkeyText = AppSettings.DefaultOcrHotkey)
+    {
+        if (!TryParseHotkey(hotkeyText, out var modifiers, out var vk)) return false;
+        if (_isOcrRegistered && modifiers == _registeredOcrModifiers && vk == _registeredOcrKey) return true;
+        if (_hwndSource == null)
+        {
+            var parameters = new HwndSourceParameters("WordCatcher_HotkeyReceiver")
+            {
+                WindowStyle = 0
+            };
+            _hwndSource = new HwndSource(parameters);
+            _hwndSource.AddHook(HwndHook);
+        }
+
+        var handle = _hwndSource.Handle;
+        var nextId = _registeredOcrId == OcrHotkeyId ? OcrHotkeyId + 1 : OcrHotkeyId;
+        var registered = NativeMethods.RegisterHotKey(handle, nextId, modifiers | NativeMethods.MOD_NOREPEAT, vk);
+
+        if (!registered)
+        {
+            var err = Marshal.GetLastWin32Error();
+            _logger?.LogWarning("Failed to register OCR hotkey '{Hotkey}'. Win32 Error: {Error}", hotkeyText, err);
+            return false;
+        }
+
+        UnregisterOcr();
+        _registeredOcrId = nextId;
+        _registeredOcrModifiers = modifiers;
+        _registeredOcrKey = vk;
+        _isOcrRegistered = true;
+
+        _logger?.LogInformation("Global OCR hotkey '{Hotkey}' registered successfully", hotkeyText);
+        return true;
+    }
+
+    public void UnregisterOcr()
+    {
+        if (_isOcrRegistered && _hwndSource != null)
+        {
+            NativeMethods.UnregisterHotKey(_hwndSource.Handle, _registeredOcrId);
+            _isOcrRegistered = false;
+        }
+    }
+
     public void SetEnabled(bool enabled)
     {
         _isEnabled = enabled;
@@ -80,14 +131,27 @@ public sealed class HotkeyManager : IDisposable
 
     private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == _registeredId)
+        if (msg == NativeMethods.WM_HOTKEY)
         {
-            _logger?.LogInformation("WM_HOTKEY received (id={HotkeyId}, enabled={Enabled})", _registeredId, _isEnabled);
-            if (_isEnabled)
+            var id = wParam.ToInt32();
+            if (_isRegistered && id == _registeredId)
             {
-                HotkeyTriggered?.Invoke();
+                _logger?.LogInformation("WM_HOTKEY received (id={HotkeyId}, enabled={Enabled})", _registeredId, _isEnabled);
+                if (_isEnabled)
+                {
+                    HotkeyTriggered?.Invoke();
+                }
+                handled = true;
             }
-            handled = true;
+            else if (_isOcrRegistered && id == _registeredOcrId)
+            {
+                _logger?.LogInformation("OCR WM_HOTKEY received (id={HotkeyId}, enabled={Enabled})", _registeredOcrId, _isEnabled);
+                if (_isEnabled)
+                {
+                    OcrHotkeyTriggered?.Invoke();
+                }
+                handled = true;
+            }
         }
         return IntPtr.Zero;
     }
@@ -119,6 +183,7 @@ public sealed class HotkeyManager : IDisposable
     public void Dispose()
     {
         Unregister();
+        UnregisterOcr();
         if (_hwndSource != null)
         {
             _hwndSource.RemoveHook(HwndHook);

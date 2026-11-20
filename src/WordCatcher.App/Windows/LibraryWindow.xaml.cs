@@ -108,7 +108,10 @@ public partial class LibraryWindow : Window
             if (IsLoaded) AnimateElementEntrance(MainTabs, MainTabsTransform);
             if (MainTabs.SelectedItem == SettingsTab) _settingsVm.RefreshStartupState();
             if (e.Source == MainTabs && MainTabs.SelectedItem != SettingsTab)
+            {
                 _settingsVm.CancelHotkeyRecording();
+                _settingsVm.CancelOcrHotkeyRecording();
+            }
             if (e.Source == MainTabs && IsLoaded && MainTabs.SelectedItem == SyncTab)
                 await _syncVm.RefreshAsync();
         };
@@ -143,22 +146,33 @@ public partial class LibraryWindow : Window
                 UpdateWindowStateVisuals();
             }
         };
-        Deactivated += (_, _) => _settingsVm.CancelHotkeyRecording();
+        Deactivated += (_, _) =>
+        {
+            _settingsVm.CancelHotkeyRecording();
+            _settingsVm.CancelOcrHotkeyRecording();
+        };
         Activated += (_, _) =>
         {
             if (MainTabs.SelectedItem == SettingsTab) _settingsVm.RefreshStartupState();
         };
         IsVisibleChanged += (_, _) =>
         {
-            if (!IsVisible) _settingsVm.CancelHotkeyRecording();
+            if (!IsVisible)
+            {
+                _settingsVm.CancelHotkeyRecording();
+                _settingsVm.CancelOcrHotkeyRecording();
+            }
             UpdateSyncRefreshTimer();
         };
         PreviewKeyDown += (_, e) =>
         {
-            if (_settingsVm.IsRecordingHotkey)
+            if (_settingsVm.IsRecordingHotkey || _settingsVm.IsRecordingOcrHotkey)
             {
                 var key = e.Key == Key.System ? e.SystemKey : e.Key;
-                _settingsVm.CaptureHotkey(key, Keyboard.Modifiers);
+                if (_settingsVm.IsRecordingOcrHotkey)
+                    _settingsVm.CaptureOcrHotkey(key, Keyboard.Modifiers);
+                else
+                    _settingsVm.CaptureHotkey(key, Keyboard.Modifiers);
                 e.Handled = key != Key.Tab;
                 return;
             }
