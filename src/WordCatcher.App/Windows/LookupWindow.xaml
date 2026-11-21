@@ -14,8 +14,8 @@
         Title="Word Catcher"
         Icon="pack://application:,,,/WordCatcher.App;component/Assets/WordCatcher.ico"
         Width="420"
-        MinWidth="420"
-        MaxWidth="420"
+        MinWidth="280"
+        MaxWidth="460"
         SizeToContent="Height"
         MaxHeight="680"
         WindowStyle="None"
@@ -153,6 +153,54 @@
     </Window.Resources>
 
     <Grid Margin="10">
+        <!-- Minimal translation-only card (inspired by Sotto minimal overlay) -->
+        <Grid x:Name="MinimalCardContainer"
+              Visibility="{Binding IsMinimalMode, Converter={StaticResource BoolToVis}}"
+              Cursor="Hand"
+              MouseLeftButtonDown="MinimalCard_MouseLeftButtonDown"
+              MouseRightButtonUp="MinimalCard_MouseRightButtonUp"
+              ToolTip="左键拖动 · 右键关闭 · Tab 展开完整卡片">
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="10" IsHitTestVisible="False">
+                <Border.Effect><DropShadowEffect BlurRadius="14" Opacity="0.14" ShadowDepth="3" Color="#000000" /></Border.Effect>
+            </Border>
+            <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="10" Padding="13,9" RenderOptions.ClearTypeHint="Enabled">
+                <StackPanel>
+                    <StackPanel x:Name="MinimalLoadingPanel" Width="184" Margin="0,2,0,1" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                        <Border Height="10" HorizontalAlignment="Stretch" CornerRadius="4" Background="{DynamicResource SubtleSurfaceBrush}" Margin="0,0,0,7" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Border Width="88" Height="10" CornerRadius="4" Background="{DynamicResource SubtleSurfaceBrush}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="正在翻译…" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                    <ScrollViewer x:Name="MinimalScroll" MaxHeight="146" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVis}}">
+                        <TextBlock x:Name="MinimalTranslationText"
+                                   Text="{Binding MinimalDisplayText}"
+                                   FontSize="14.5"
+                                   LineHeight="22"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasError}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </ScrollViewer>
+                    <TextBlock Text="{Binding ActionStatusText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding ActionStatusText, Converter={StaticResource StringToVis}}" />
+                    <TextBlock Text="{Binding SavedStatusText}" FontSize="11" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Standard & mini card -->
+        <Grid x:Name="StandardCardContainer"
+              Visibility="{Binding IsStandardCard, Converter={StaticResource BoolToVis}}"
+              MouseRightButtonUp="StandardCard_MouseRightButtonUp">
         <!-- Keep the shadow off the text subtree so its intermediate bitmap cannot soften glyphs. -->
         <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="16" IsHitTestVisible="False">
             <Border.Effect><DropShadowEffect BlurRadius="20" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
@@ -180,27 +228,32 @@
                         MouseLeftButtonDown="DragSurface_MouseLeftButtonDown">
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" ToolTip="{Binding Word}">
-                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="FontSize" Value="22" /><Setter Property="LineHeight" Value="28" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsMediumHeadword}" Value="True"><Setter Property="FontSize" Value="17" /><Setter Property="LineHeight" Value="22" /></DataTrigger><DataTrigger Binding="{Binding IsExtraLongHeadword}" Value="True"><Setter Property="FontSize" Value="15" /><Setter Property="LineHeight" Value="20" /></DataTrigger><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource HeadwordFontFamily}" /><Setter Property="FontSize" Value="22" /><Setter Property="LineHeight" Value="28" /><Setter Property="Text" Value="{Binding Word}" /><Style.Triggers><DataTrigger Binding="{Binding IsMiniMode}" Value="True"><Setter Property="FontSize" Value="19" /><Setter Property="LineHeight" Value="24" /></DataTrigger><DataTrigger Binding="{Binding IsMediumHeadword}" Value="True"><Setter Property="FontSize" Value="17" /><Setter Property="LineHeight" Value="22" /></DataTrigger><DataTrigger Binding="{Binding IsExtraLongHeadword}" Value="True"><Setter Property="FontSize" Value="15" /><Setter Property="LineHeight" Value="20" /></DataTrigger><DataTrigger Binding="{Binding IsLongText}" Value="True"><Setter Property="FontFamily" Value="{StaticResource UiFontFamily}" /><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="Medium" /><Setter Property="Text" Value="句子翻译" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                         </TextBlock>
                         <TextBox Text="{Binding Reading, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontFamily="{StaticResource PhoneticFontFamily}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding Reading, Converter={StaticResource StringToVis}}" />
-                        <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="离线词典" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.MachineTranslation}"><Setter Property="Text" Value="在线快译" /></DataTrigger>
-                                        <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}"><Setter Property="Text" Value="AI 详解" /></DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                        <WrapPanel Margin="0,5,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+                            <TextBlock FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Visibility="{Binding IsFullCard, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="离线词典" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.MachineTranslation}"><Setter Property="Text" Value="在线快译" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding Source}" Value="{x:Static enums:LookupSource.Ai}"><Setter Property="Text" Value="AI 详解" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Border x:Name="EncounterBadge" Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center" Visibility="{Binding EncounterBadgeText, Converter={StaticResource StringToVis}}">
+                                <TextBlock Text="{Binding EncounterBadgeText}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource AccentBrush}" />
+                            </Border>
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                    <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读" AutomationProperties.Name="朗读">
+                    <ui:Button x:Name="SpeakButton" Command="{Binding SpeakCommand}" Style="{StaticResource IconButton}" ToolTip="朗读" AutomationProperties.Name="朗读" Visibility="{Binding IsFullCard, Converter={StaticResource BoolToVis}}">
                         <controls:CrispSymbolIcon Symbol="Speaker220" FontSize="16" />
                     </ui:Button>
-                    <ui:Button x:Name="OpenInMainButton" Command="{Binding OpenInMainCommand}" Style="{StaticResource IconButton}" Margin="2,0,0,0" ToolTip="在主窗口中打开" AutomationProperties.Name="在主窗口中打开" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+                    <ui:Button x:Name="OpenInMainButton" Command="{Binding OpenInMainCommand}" Style="{StaticResource IconButton}" Margin="2,0,0,0" ToolTip="在主窗口中打开" AutomationProperties.Name="在主窗口中打开" IsEnabled="{Binding HasResult}" Visibility="{Binding IsFullCard, Converter={StaticResource BoolToVis}}">
                         <controls:CrispSymbolIcon Symbol="Open20" FontSize="15" />
                     </ui:Button>
                     <ToggleButton x:Name="PinToggle" AutomationProperties.Name="固定查词浮窗" Style="{StaticResource PinToggleButton}" ToolTip="固定卡片（Ctrl+P）" Checked="PinToggle_Checked" Unchecked="PinToggle_Unchecked">
@@ -214,9 +267,10 @@
             </Grid>
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                <StackPanel Margin="0,18" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                    <ProgressBar IsIndeterminate="True" Height="3" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource AccentSubtleBrush}" />
-                    <TextBlock Text="{Binding StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,10,0,0" HorizontalAlignment="Center" />
+                <StackPanel x:Name="LoadingSkeletonPanel" Margin="0,6,0,10" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                    <Border Height="12" HorizontalAlignment="Stretch" CornerRadius="4" Background="{DynamicResource SubtleSurfaceBrush}" Margin="0,0,28,8" />
+                    <Border Height="12" HorizontalAlignment="Stretch" CornerRadius="4" Background="{DynamicResource SubtleSurfaceBrush}" Margin="0,0,92,10" />
+                    <TextBlock Text="{Binding StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" />
                 </StackPanel>
                 <StackPanel x:Name="LookupErrorPanel" Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
                     <Border Background="{DynamicResource DangerSurfaceBrush}" BorderBrush="{DynamicResource DangerBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
@@ -234,6 +288,34 @@
                 </StackPanel>
                 <ScrollViewer Grid.Row="1" x:Name="ResultScroll" MaxHeight="390" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                     <StackPanel Margin="0,0,4,0">
+                        <!-- Mini Word Card Body -->
+                        <StackPanel x:Name="MiniWordBody" Visibility="{Binding IsCompactWordCard, Converter={StaticResource BoolToVis}}">
+                            <TextBox Text="{Binding Definition, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="{StaticResource BodyFontSize}" Foreground="{DynamicResource TextPrimaryBrush}" MaxHeight="66" Margin="0,0,0,4" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource InverseBoolToVis}}" />
+                            <ItemsControl ItemsSource="{Binding MiniPosGroups}" Visibility="{Binding HasStructuredDefinitions, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Border Background="{DynamicResource AccentSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1" VerticalAlignment="Top" Margin="0,1,6,0">
+                                                <TextBlock Text="{Binding DisplayPos, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" FontStyle="Italic" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{Binding QuickSummary, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="42" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Compact Sentence Bar Body -->
+                        <StackPanel x:Name="CompactSentenceBody" Visibility="{Binding IsCompactSentenceCard, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="原文" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,3" />
+                            <TextBox Text="{Binding SelectedText, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="12.5" Foreground="{DynamicResource TextSecondaryBrush}" MaxHeight="66" Margin="0,0,0,8" />
+                            <TextBlock Text="译文" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,3" />
+                            <TextBox Text="{Binding Definition, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13.5" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        </StackPanel>
+
+                        <!-- Full Card Body -->
+                        <StackPanel x:Name="FullCardBody" Visibility="{Binding IsFullCard, Converter={StaticResource BoolToVis}}">
                         <StackPanel Visibility="{Binding IsLongText, Converter={StaticResource BoolToVis}}" Margin="0,0,0,14">
                             <TextBlock Text="原文" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                             <TextBox Text="{Binding SelectedText, Mode=OneWay}" Style="{StaticResource SelectableTextBlockBox}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
@@ -420,6 +502,7 @@
                                 </TextBox>
                             </StackPanel>
                         </Border>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
                 <!-- Floating action toast overlay to avoid jumping card height -->
@@ -440,7 +523,17 @@
             </Grid>
             <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,10,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
-                    <Grid>
+                    <!-- Mini Footer -->
+                    <Grid x:Name="MiniFooter" Visibility="{Binding IsMiniMode, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <ui:Button Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" Padding="10,5" MinHeight="28" FontSize="{StaticResource CaptionFontSize}" ToolTip="存入生词库（Enter）" />
+                        <ui:Button Grid.Column="1" Command="{Binding SpeakCommand}" Style="{StaticResource UtilityIconButton}" Margin="6,0,0,0" Width="28" Height="28" ToolTip="朗读" AutomationProperties.Name="朗读">
+                            <controls:CrispSymbolIcon Symbol="Speaker220" FontSize="14" />
+                        </ui:Button>
+                        <ui:Button Grid.Column="3" x:Name="ExpandCardButton" Content="展开" Command="{Binding ExpandToFullCommand}" Style="{StaticResource QuietActionButton}" Padding="10,4" MinHeight="28" FontSize="{StaticResource CaptionFontSize}" ToolTip="展开完整卡片（Tab）" />
+                    </Grid>
+                    <!-- Full Footer -->
+                    <Grid x:Name="FullFooter" Visibility="{Binding IsFullCard, Converter={StaticResource BoolToVis}}">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <ui:Button x:Name="SaveWordButton" Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" Style="{StaticResource PrimaryActionButton}" ToolTip="存入生词库（Enter）" />
                         <ui:Button Grid.Column="1" Content="{Binding AiButtonText}" Command="{Binding ForceAiCommand}" IsEnabled="{Binding CanSave}" HorizontalAlignment="Left" Margin="6,0,0,0" Style="{StaticResource PopupButton}" Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentBrush}" ToolTip="结合语境生成 AI 详解（Ctrl+Enter）" />
@@ -459,9 +552,11 @@
                         </Grid>
                     </Border>
                     <TextBlock Text="{Binding SyncStatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding SyncStatusText, Converter={StaticResource StringToVis}}" />
+                    <TextBlock x:Name="ShortcutHintTextBlock" Text="{Binding ShortcutHintText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0" HorizontalAlignment="Left" />
                 </StackPanel>
             </Border>
         </Grid>
         </Border>
+        </Grid>
     </Grid>
 </Window>

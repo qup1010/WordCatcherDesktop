@@ -1682,7 +1682,41 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="0,0,0,16">
-                        <TextBlock Text="设置" Style="{StaticResource PageTitleStyle}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="设置" Style="{StaticResource PageTitleStyle}" VerticalAlignment="Center" />
+                            <Grid Grid.Column="1" Width="260" VerticalAlignment="Center">
+                                <ui:TextBox x:Name="SettingsSearchBox"
+                                            PlaceholderText="搜索设置项"
+                                            ClearButtonEnabled="False"
+                                            MinHeight="34"
+                                            Padding="30,5,28,5"
+                                            FontSize="13"
+                                            TextChanged="SettingsSearchBox_TextChanged"
+                                            KeyDown="SettingsSearchBox_KeyDown"
+                                            AutomationProperties.Name="搜索设置项" />
+                                <controls:CrispSymbolIcon Symbol="Search20" FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                          Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False" />
+                                <ui:Button x:Name="ClearSettingsSearchButton"
+                                           Click="ClearSettingsSearchButton_Click"
+                                           Width="26" Height="26" Padding="0" Margin="0,0,3,0"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                                           Background="Transparent" BorderThickness="0"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Visibility="Collapsed"
+                                           ToolTip="清空搜索">
+                                    <controls:CrispSymbolIcon Symbol="Dismiss16" FontSize="12" />
+                                </ui:Button>
+                            </Grid>
+                        </Grid>
+                        <TextBlock x:Name="SettingsSearchResultHint"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,8,0,0"
+                                   Visibility="Collapsed" />
                         <Border Margin="0,12,0,0"
                                 Background="{DynamicResource SubtleSurfaceBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
@@ -1776,6 +1810,22 @@
                                             <ui:ToggleSwitch IsChecked="{Binding ClosePopupAfterSave}"
                                                              AutomationProperties.Name="收藏后关闭浮窗"
                                                              ToolTip="固定的浮窗会保持打开" />
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Apps24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="浮窗默认形态" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="极简译文仅显示翻译且右键可关闭；迷你卡片显示核心释义；按 Tab 均可展开完整卡片" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ComboBox x:Name="PopupDefaultModeBox" MinWidth="168" MinHeight="34" VerticalAlignment="Center"
+                                                      SelectedValue="{Binding PopupDefaultMode, Mode=TwoWay}" SelectedValuePath="Tag"
+                                                      AutomationProperties.Name="浮窗默认形态">
+                                                <ComboBoxItem Content="极简译文" Tag="{x:Static models:UiSettings.PopupModeMinimal}" />
+                                                <ComboBoxItem Content="迷你卡片" Tag="{x:Static models:UiSettings.PopupModeMini}" />
+                                                <ComboBoxItem Content="完整卡片" Tag="{x:Static models:UiSettings.PopupModeFull}" />
+                                            </ComboBox>
                                         </ui:CardControl>
 
                                         <TextBlock Text="全局快捷键" Style="{StaticResource SettingsGroupHeaderStyle}" />
@@ -1946,6 +1996,18 @@
                                             </ComboBox>
                                         </ui:CardControl>
 
+                                        <ui:CardControl x:Name="MouseSelectionHoverCard" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Cursor24}"
+                                                        IsEnabled="{Binding MouseSelectionEnabled}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="悬停浮标自动展开" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="鼠标停留在查词浮标约 300 毫秒后直接弹出迷你卡片，无需点击" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding MouseSelectionHoverToShowMini, Mode=TwoWay}"
+                                                             AutomationProperties.Name="悬停浮标自动展开" />
+                                        </ui:CardControl>
+
                                         <ui:CardControl x:Name="MouseSelectionBlacklistCard" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Prohibited24}"
                                                         IsEnabled="{Binding MouseSelectionEnabled}">
                                             <ui:CardControl.Header>
@@ -2004,6 +2066,34 @@
                                             </ui:CardControl.Header>
                                             <ui:ToggleSwitch x:Name="AutoBidirectionalTranslationSwitch" IsChecked="{Binding AutoBidirectionalTranslation, Mode=TwoWay}"
                                                              AutomationProperties.Name="中英自动互译" />
+                                        </ui:CardControl>
+
+                                        <TextBlock Text="朗读与发音" Style="{StaticResource SettingsGroupHeaderStyle}" />
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Speaker224}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="发音口音" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="选择美式、英式或跟随系统默认语音" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ComboBox MinWidth="148" MinHeight="34" VerticalAlignment="Center"
+                                                      SelectedValue="{Binding SpeechAccent, Mode=TwoWay}" SelectedValuePath="Tag"
+                                                      AutomationProperties.Name="发音口音">
+                                                <ComboBoxItem Content="美式英语" Tag="{x:Static models:SpeechSettings.AccentUs}" />
+                                                <ComboBoxItem Content="英式英语" Tag="{x:Static models:SpeechSettings.AccentGb}" />
+                                                <ComboBoxItem Content="跟随系统" Tag="{x:Static models:SpeechSettings.AccentAuto}" />
+                                            </ComboBox>
+                                        </ui:CardControl>
+
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Globe24}">
+                                            <ui:CardControl.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="在线真人发音" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="英文词条优先播放在线真人语音（开启后会将朗读文本发送至有道语音），离线或超时自动回退系统朗读" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </ui:CardControl.Header>
+                                            <ui:ToggleSwitch IsChecked="{Binding SpeechUseOnlineVoice, Mode=TwoWay}"
+                                                             AutomationProperties.Name="在线真人发音" />
                                         </ui:CardControl>
 
                                         <TextBlock Text="离线词典管理" Style="{StaticResource SettingsGroupHeaderStyle}" />

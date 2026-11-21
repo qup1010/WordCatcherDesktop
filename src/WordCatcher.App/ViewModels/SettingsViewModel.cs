@@ -212,13 +212,25 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _themeMode = ThemeManager.LightMode;
 
     [ObservableProperty]
+    private string _popupDefaultMode = UiSettings.PopupModeMini;
+
+    [ObservableProperty]
     private bool _mouseSelectionEnabled;
 
     [ObservableProperty]
     private string _mouseSelectionTriggerMode = MouseSelectionSettings.Pill;
 
     [ObservableProperty]
+    private bool _mouseSelectionHoverToShowMini;
+
+    [ObservableProperty]
     private string _mouseSelectionBlacklistText = string.Empty;
+
+    [ObservableProperty]
+    private string _speechAccent = SpeechSettings.AccentUs;
+
+    [ObservableProperty]
+    private bool _speechUseOnlineVoice;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DraftStatusText))]
@@ -234,8 +246,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         nameof(AnkiDeckName), nameof(AnkiNoteTypeName), nameof(AnkiClozeContext), nameof(AnkiTtsLang),
         nameof(WebDavEnabled), nameof(WebDavUrl), nameof(WebDavUsername), nameof(WebDavPassword),
         nameof(WebDavRemotePath), nameof(WebDavAutoSync),
-        nameof(ClosePopupAfterSave), nameof(ThemeMode),
-        nameof(MouseSelectionEnabled), nameof(MouseSelectionTriggerMode), nameof(MouseSelectionBlacklistText)
+        nameof(ClosePopupAfterSave), nameof(ThemeMode), nameof(PopupDefaultMode),
+        nameof(MouseSelectionEnabled), nameof(MouseSelectionTriggerMode),
+        nameof(MouseSelectionHoverToShowMini), nameof(MouseSelectionBlacklistText),
+        nameof(SpeechAccent), nameof(SpeechUseOnlineVoice)
     };
 
     private string EditorState() => JsonSerializer.Serialize(new
@@ -244,7 +258,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ActiveAiProfileId, AiProfileName, ApiKey, AnkiEnabled,
         AnkiUrl, AnkiDeckName, AnkiNoteTypeName, AnkiClozeContext, AnkiTtsLang,
         WebDavEnabled, WebDavUrl, WebDavUsername, WebDavPassword, WebDavRemotePath, WebDavAutoSync,
-        MouseSelectionEnabled, MouseSelectionTriggerMode, MouseSelectionBlacklistText,
+        MouseSelectionEnabled, MouseSelectionTriggerMode,
+        MouseSelectionHoverToShowMini, MouseSelectionBlacklistText,
         Profiles = AiProfiles, Keys = _profileApiKeys
     });
 
@@ -252,12 +267,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void RefreshUnsavedChanges()
     {
         var current = _settingsService.Current;
+        var speech = current.Speech ?? new SpeechSettings();
         HasUnsavedChanges = EditorState() != _savedEditorState
             || ExplainLanguage.Trim() != current.ExplainLanguage
             || AutoBidirectionalTranslation != current.AutoBidirectionalTranslation
             || MachineTranslationProvider != current.Translation.MachineTranslationProvider
             || ClosePopupAfterSave != current.Ui.ClosePopupAfterSave
-            || ThemeMode != ThemeManager.NormalizeMode(current.Ui.ThemeMode);
+            || ThemeMode != ThemeManager.NormalizeMode(current.Ui.ThemeMode)
+            || UiSettings.NormalizePopupMode(PopupDefaultMode) != UiSettings.NormalizePopupMode(current.Ui.PopupDefaultMode)
+            || SpeechSettings.NormalizeAccent(SpeechAccent) != SpeechSettings.NormalizeAccent(speech.Accent)
+            || SpeechUseOnlineVoice != speech.UseOnlineVoice;
     }
 
     private void SavePreferences()
@@ -268,6 +287,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         var provider = MachineTranslationProvider;
         var closeAfterSave = ClosePopupAfterSave;
         var themeMode = ThemeManager.NormalizeMode(ThemeMode);
+        var popupDefaultMode = UiSettings.NormalizePopupMode(PopupDefaultMode);
+        var speechAccent = SpeechSettings.NormalizeAccent(SpeechAccent);
+        var speechUseOnlineVoice = SpeechUseOnlineVoice;
         var previous = PreferenceSaveTask;
         PreferenceSaveTask = PersistAsync();
         async Task PersistAsync()
@@ -275,13 +297,18 @@ public sealed partial class SettingsViewModel : ObservableObject
             await previous.ConfigureAwait(true);
             try
             {
-                var current = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settingsService.Current))!;
-                current.ExplainLanguage = language;
-                current.AutoBidirectionalTranslation = autoBidirectionalTranslation;
-                current.Translation.MachineTranslationProvider = provider;
-                current.Ui.ClosePopupAfterSave = closeAfterSave;
-                current.Ui.ThemeMode = themeMode;
-                await _settingsService.SaveSettingsAsync(current).ConfigureAwait(true);
+                await _settingsService.UpdateSettingsAsync(current =>
+                {
+                    current.ExplainLanguage = language;
+                    current.AutoBidirectionalTranslation = autoBidirectionalTranslation;
+                    current.Translation.MachineTranslationProvider = provider;
+                    current.Ui.ClosePopupAfterSave = closeAfterSave;
+                    current.Ui.ThemeMode = themeMode;
+                    current.Ui.PopupDefaultMode = popupDefaultMode;
+                    current.Speech ??= new SpeechSettings();
+                    current.Speech.Accent = speechAccent;
+                    current.Speech.UseOnlineVoice = speechUseOnlineVoice;
+                }).ConfigureAwait(true);
                 StatusMessage = "已自动保存。";
             }
             catch (Exception) { StatusMessage = "自动保存失败，请点击「保存设置」重试。填写的内容已保留。"; }
@@ -297,7 +324,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             if (e.PropertyName == nameof(ThemeMode))
                 ThemeManager.ApplyTheme(ThemeMode);
             RefreshUnsavedChanges();
-            if (e.PropertyName is nameof(ExplainLanguage) or nameof(AutoBidirectionalTranslation) or nameof(MachineTranslationProvider) or nameof(ClosePopupAfterSave) or nameof(ThemeMode)) SavePreferences();
+            if (e.PropertyName is nameof(ExplainLanguage) or nameof(AutoBidirectionalTranslation) or nameof(MachineTranslationProvider)
+                or nameof(ClosePopupAfterSave) or nameof(ThemeMode) or nameof(PopupDefaultMode)
+                or nameof(SpeechAccent) or nameof(SpeechUseOnlineVoice))
+                SavePreferences();
         }
     }
 
@@ -534,10 +564,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             ClosePopupAfterSave = s.Ui.ClosePopupAfterSave;
             ThemeMode = ThemeManager.NormalizeMode(s.Ui.ThemeMode);
+            PopupDefaultMode = UiSettings.NormalizePopupMode(s.Ui.PopupDefaultMode);
             var mouseSelection = s.MouseSelection ?? new MouseSelectionSettings();
             MouseSelectionEnabled = mouseSelection.Enabled;
             MouseSelectionTriggerMode = MouseSelectionSettings.NormalizeTriggerMode(mouseSelection.TriggerMode);
+            MouseSelectionHoverToShowMini = mouseSelection.HoverToShowMini;
             MouseSelectionBlacklistText = string.Join(Environment.NewLine, mouseSelection.BlacklistedProcesses ?? []);
+            var speech = s.Speech ?? new SpeechSettings();
+            SpeechAccent = SpeechSettings.NormalizeAccent(speech.Accent);
+            SpeechUseOnlineVoice = speech.UseOnlineVoice;
 
             RefreshDictStatus();
             OnPropertyChanged(nameof(AppliedHotkey));
@@ -758,11 +793,18 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             s.Ui.ClosePopupAfterSave = ClosePopupAfterSave;
             s.Ui.ThemeMode = ThemeManager.NormalizeMode(ThemeMode);
+            s.Ui.PopupDefaultMode = UiSettings.NormalizePopupMode(PopupDefaultMode);
             s.MouseSelection = new MouseSelectionSettings
             {
                 Enabled = MouseSelectionEnabled,
                 TriggerMode = MouseSelectionSettings.NormalizeTriggerMode(MouseSelectionTriggerMode),
+                HoverToShowMini = MouseSelectionHoverToShowMini,
                 BlacklistedProcesses = MouseSelectionMonitor.ParseBlacklistText(MouseSelectionBlacklistText)
+            };
+            s.Speech = new SpeechSettings
+            {
+                Accent = SpeechSettings.NormalizeAccent(SpeechAccent),
+                UseOnlineVoice = SpeechUseOnlineVoice
             };
 
             _profileApiKeys[ActiveAiProfileId] = ApiKey.Trim();

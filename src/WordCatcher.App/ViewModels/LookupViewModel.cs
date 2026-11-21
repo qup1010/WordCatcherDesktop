@@ -102,12 +102,22 @@ public sealed partial class LookupViewModel : ObservableObject
     public bool CanUseAiSentenceTranslation => SentenceTranslationFailed && !LastSentenceTranslationUsedAi && !IsTranslatingSentence;
     public string TranslateSentenceButtonText => IsTranslatingSentence ? "翻译中…" : SentenceTranslationFailed ? (LastSentenceTranslationUsedAi ? "重试 AI" : "重试快译") : "翻译原句";
     partial void OnSourceChanged(LookupSource value) => OnPropertyChanged(nameof(AiButtonText));
-    partial void OnHasErrorChanged(bool value) { OnPropertyChanged(nameof(CanUseAiFallback)); OnPropertyChanged(nameof(CanUseQuickFallback)); }
+    partial void OnHasErrorChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanUseAiFallback));
+        OnPropertyChanged(nameof(CanUseQuickFallback));
+        OnPropertyChanged(nameof(MinimalDisplayText));
+    }
     partial void OnAnalysisChanged(LearningAnalysis? value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(HasAnalysis)); OnPropertyChanged(nameof(HasLearningDetails)); }
     partial void OnWordChanged(string value) { OnPropertyChanged(nameof(LearningExpression)); OnPropertyChanged(nameof(IsMediumHeadword)); OnPropertyChanged(nameof(IsExtraLongHeadword)); }
-    partial void OnHasSavedContextChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
+    partial void OnHasSavedContextChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SaveButtonText));
+        OnPropertyChanged(nameof(EncounterBadgeText));
+    }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MinimalDisplayText))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -120,6 +130,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private bool _hasError;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MinimalDisplayText))]
     private string _errorMessage = string.Empty;
 
     [ObservableProperty]
@@ -137,6 +148,7 @@ public sealed partial class LookupViewModel : ObservableObject
     private string _partOfSpeech = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MinimalDisplayText))]
     private string _definition = string.Empty;
 
     [ObservableProperty]
@@ -169,10 +181,82 @@ public sealed partial class LookupViewModel : ObservableObject
     [ObservableProperty]
     private bool _isEditingDefinition;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMiniMode))]
+    [NotifyPropertyChangedFor(nameof(IsMinimalMode))]
+    [NotifyPropertyChangedFor(nameof(IsStandardCard))]
+    [NotifyPropertyChangedFor(nameof(IsCompactWordCard))]
+    [NotifyPropertyChangedFor(nameof(IsCompactSentenceCard))]
+    [NotifyPropertyChangedFor(nameof(IsFullCard))]
+    [NotifyPropertyChangedFor(nameof(IsMediumHeadword))]
+    [NotifyPropertyChangedFor(nameof(IsExtraLongHeadword))]
+    [NotifyPropertyChangedFor(nameof(ShortcutHintText))]
+    [NotifyPropertyChangedFor(nameof(MinimalDisplayText))]
+    private string _popupMode = UiSettings.PopupModeFull;
+
+    public bool IsMiniMode
+    {
+        get => PopupMode == UiSettings.PopupModeMini;
+        set => PopupMode = value ? UiSettings.PopupModeMini : UiSettings.PopupModeFull;
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EncounterBadgeText))]
+    private int _encounterCount;
+
+    public bool IsMinimalMode => PopupMode == UiSettings.PopupModeMinimal;
+    public bool IsStandardCard => !IsMinimalMode;
+    public bool IsCompactWordCard => PopupMode == UiSettings.PopupModeMini && !IsLongText;
+    public bool IsCompactSentenceCard => PopupMode == UiSettings.PopupModeMini && IsLongText;
+    public bool IsFullCard => PopupMode == UiSettings.PopupModeFull;
+    public string ShortcutHintText => IsMinimalMode
+        ? string.Empty
+        : IsMiniMode
+            ? "Tab 展开 · Enter 保存 · 右键关闭"
+            : "Enter 保存 · Ctrl+Enter AI";
+    public string MinimalDisplayText
+    {
+        get
+        {
+            if (HasError) return ErrorMessage;
+            if (IsLoading) return "正在翻译…";
+            if (!IsLongText && MiniPosGroups is { Count: > 0 } groups)
+            {
+                var lines = groups
+                    .Select(g => string.IsNullOrWhiteSpace(g.DisplayPos)
+                        ? g.QuickSummary.Trim()
+                        : $"{g.DisplayPos.Trim()} {g.QuickSummary.Trim()}".Trim())
+                    .Where(line => !string.IsNullOrWhiteSpace(line))
+                    .ToList();
+                if (lines.Count > 0)
+                    return string.Join("\n", lines);
+            }
+            return Definition;
+        }
+    }
+    public string EncounterBadgeText => !IsSaved
+        ? string.Empty
+        : HasSavedContext
+            ? (EncounterCount > 1 ? $"已收藏 · 第 {EncounterCount} 次遇到" : "已收藏")
+            : $"已收藏 · 第 {Math.Max(1, EncounterCount) + 1} 次遇到";
+
+    public IReadOnlyList<DictPosGroup>? MiniPosGroups =>
+        DisplayPosGroups is { Count: > 0 } ? DisplayPosGroups.Take(2).ToList() : null;
+
+    [RelayCommand]
+    private void ExpandToFull()
+    {
+        PopupMode = UiSettings.PopupModeFull;
+    }
+
     public bool HasStructuredDefinitions => DisplayPosGroups?.Count > 0;
 
     partial void OnDisplayPosGroupsChanged(IReadOnlyList<DictPosGroup>? value)
-        => OnPropertyChanged(nameof(HasStructuredDefinitions));
+    {
+        OnPropertyChanged(nameof(HasStructuredDefinitions));
+        OnPropertyChanged(nameof(MiniPosGroups));
+        OnPropertyChanged(nameof(MinimalDisplayText));
+    }
 
     [ObservableProperty]
     private bool _isSaved;
@@ -198,8 +282,8 @@ public sealed partial class LookupViewModel : ObservableObject
     private string _originalSentence = string.Empty;
 
     public bool IsLongText => SelectedText.Length > 45 || SelectedText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 5;
-    public bool IsMediumHeadword => !IsLongText && Word.Length >= 13 && Word.Length < 22;
-    public bool IsExtraLongHeadword => !IsLongText && Word.Length >= 22;
+    public bool IsMediumHeadword => !IsLongText && (IsMiniMode ? Word.Length is >= 9 and < 15 : Word.Length is >= 13 and < 22);
+    public bool IsExtraLongHeadword => !IsLongText && (IsMiniMode ? Word.Length >= 15 : Word.Length >= 22);
     public bool HasSecondaryContent => !string.IsNullOrWhiteSpace(ContextTranslation)
         || !string.IsNullOrWhiteSpace(MemoryHook)
         || !string.IsNullOrWhiteSpace(OriginalSentence)
@@ -218,9 +302,22 @@ public sealed partial class LookupViewModel : ObservableObject
         }
     }
     public string SaveButtonText => IsSaving ? "保存中…" : SaveFailed ? "重试保存" : !CanSave && IsSaved ? "已收藏" : HasSavedContext ? "更新当前语境" : IsSaved ? "保存新语境" : "存入生词库";
-    partial void OnIsSavedChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
+    partial void OnIsSavedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SaveButtonText));
+        OnPropertyChanged(nameof(EncounterBadgeText));
+    }
     partial void OnCanSaveChanged(bool value) => OnPropertyChanged(nameof(SaveButtonText));
-    partial void OnSelectedTextChanged(string value) { OnPropertyChanged(nameof(IsLongText)); OnPropertyChanged(nameof(IsMediumHeadword)); OnPropertyChanged(nameof(IsExtraLongHeadword)); OnPropertyChanged(nameof(CanTranslateSentence)); }
+    partial void OnSelectedTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsLongText));
+        OnPropertyChanged(nameof(IsCompactWordCard));
+        OnPropertyChanged(nameof(IsCompactSentenceCard));
+        OnPropertyChanged(nameof(IsMediumHeadword));
+        OnPropertyChanged(nameof(IsExtraLongHeadword));
+        OnPropertyChanged(nameof(CanTranslateSentence));
+        OnPropertyChanged(nameof(MinimalDisplayText));
+    }
     partial void OnContextTranslationChanged(string value) { OnPropertyChanged(nameof(HasSecondaryContent)); OnPropertyChanged(nameof(CanTranslateSentence)); }
     partial void OnMemoryHookChanged(string? value) => OnPropertyChanged(nameof(HasSecondaryContent));
     partial void OnOriginalSentenceChanged(string value) { OnPropertyChanged(nameof(HasSecondaryContent)); OnPropertyChanged(nameof(CanTranslateSentence)); }
@@ -379,6 +476,7 @@ public sealed partial class LookupViewModel : ObservableObject
         HasResult = false;
         HasError = false;
         IsSaved = false;
+        EncounterCount = 0;
         SaveFailed = false;
         CanUndoSave = false;
         _undoOccurrenceId = null;
@@ -453,10 +551,12 @@ public sealed partial class LookupViewModel : ObservableObject
                 if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
                 IsSaved = existing != null;
                 _savedWordId = existing?.Id;
+                EncounterCount = 0;
                 if (existing != null)
                 {
                     var contexts = await _wordRepository.GetOccurrencesByWordIdAsync(existing.Id, currentLookup.Token).ConfigureAwait(true);
                     if (!ReferenceEquals(_lookupCancellation, currentLookup)) return;
+                    EncounterCount = contexts.Count;
                     var saved = contexts.FirstOrDefault(o => o.SelectedText == capture.SelectedText
                         && o.Sentence == (string.IsNullOrWhiteSpace(capture.Sentence) ? capture.SelectedText : capture.Sentence)
                         && o.SelectionOffset == capture.SentenceOffset && o.SourceUri == capture.SourceUri);
@@ -542,6 +642,7 @@ public sealed partial class LookupViewModel : ObservableObject
     [RelayCommand]
     private void ToggleEditDefinition()
     {
+        if (IsMiniMode) IsMiniMode = false;
         IsEditingDefinition = !IsEditingDefinition;
     }
 
@@ -644,6 +745,8 @@ public sealed partial class LookupViewModel : ObservableObject
 
             IsSaved = true;
             HasSavedContext = true;
+            if (occ.WasCreated) EncounterCount = Math.Max(1, EncounterCount + 1);
+            else if (EncounterCount == 0) EncounterCount = 1;
             _savedWordId = savedWord.Id;
             _savedOccurrenceId = occ.Id;
             _savedDraft = savedDraft;
@@ -691,6 +794,7 @@ public sealed partial class LookupViewModel : ObservableObject
             if (!_wasSavedBeforeCollection) _savedWordId = null;
             IsSaved = _wasSavedBeforeCollection;
             HasSavedContext = false;
+            EncounterCount = _wasSavedBeforeCollection ? Math.Max(1, EncounterCount - 1) : 0;
             _savedDraft = null;
             CanSave = true;
             SavedStatusText = "已撤销本次本地收藏";
@@ -715,6 +819,7 @@ public sealed partial class LookupViewModel : ObservableObject
     {
         if (_currentCapture != null)
         {
+            IsMiniMode = false;
             await StartLookupAsync(_currentCapture, forceAi: true, bypassCache: true).ConfigureAwait(true);
         }
     }

@@ -68,15 +68,21 @@ public partial class LookupWindow : Window
     private readonly LookupViewModel _viewModel;
     private volatile bool _isClosingForHitTest;
     private bool _isApplyingPhysicalPlacement;
+    private bool _hasUserDragged;
     private ScreenPoint? _physicalAnchor;
     private string? _resultContext;
     private readonly object _hitTestLock = new();
     private PhysicalRectangle _physicalBounds;
+    private PhysicalRectangle _lastPlacedPhysicalBounds;
     private bool _isVisibleForHitTest;
     private bool _isPinnedForHitTest;
 
     public bool IsPinned => PinToggle.IsChecked == true;
+    public ScreenPoint? RememberedPinnedOrigin { get; set; }
+    internal PhysicalRectangle LastPlacedPhysicalBoundsForTest => _lastPlacedPhysicalBounds;
+    internal bool HasDismissedForTest => _isClosingForHitTest;
     internal event EventHandler? PinnedChanged;
+    internal event Action<ScreenPoint>? PinnedPositionChanged;
 
     public LookupWindow(LookupViewModel viewModel)
     {
@@ -235,7 +241,17 @@ public partial class LookupWindow : Window
             if (_resultContext != context) ResultScroll.ScrollToTop();
             _resultContext = context;
         }
+
+        if (e.PropertyName is nameof(LookupViewModel.PopupMode) or nameof(LookupViewModel.IsLongText)
+            || (IsAdaptiveWidthMode() && e.PropertyName is nameof(LookupViewModel.MinimalDisplayText)
+                or nameof(LookupViewModel.HasResult) or nameof(LookupViewModel.HasError)
+                or nameof(LookupViewModel.IsLoading)))
+        {
+            Dispatcher.BeginInvoke(new Action(() => RepositionPopup(preserveCurrentOrigin: true)));
+        }
     }
+
+    private bool IsAdaptiveWidthMode() => _viewModel.IsMinimalMode;
 
     private void OnRequestClose()
     {
@@ -253,14 +269,42 @@ public partial class LookupWindow : Window
         return RepositionPopup(preserveCurrentOrigin: false);
     }
 
+    public bool MoveToPhysicalOrigin(ScreenPoint physicalOrigin)
+    {
+        _physicalAnchor = physicalOrigin;
+        var helper = new WindowInteropHelper(this);
+        var hwnd = helper.EnsureHandle();
+        if (hwnd == IntPtr.Zero) return false;
+        SetWindowPos(hwnd, IntPtr.Zero, physicalOrigin.X, physicalOrigin.Y, 0, 0,
+            0x0001 | SetWindowPosNoZOrder | SetWindowPosNoActivate);
+        return RepositionPopup(preserveCurrentOrigin: true);
+    }
+
     private void ApplyDisplayConstraints(double workWidth, double workHeight, double scale)
     {
-        var fit = WindowSizing.FitPopup(workWidth, workHeight, scale);
+        if (_viewModel.IsMinimalMode)
+        {
+            var fit = WindowSizing.FitPopup(workWidth, workHeight, scale, 340, 196);
+            ClearValue(WidthProperty);
+            SizeToContent = SizeToContent.WidthAndHeight;
+            MinWidth = Math.Min(72, fit.Width);
+            MaxWidth = fit.Width;
+            MaxHeight = fit.MaxHeight;
+            return;
+        }
+
+        var (preferredWidth, preferredMaxHeight) = _viewModel.IsCompactWordCard
+            ? (352, 340)
+            : _viewModel.IsCompactSentenceCard
+                ? (440, 360)
+                : (420, 680);
+        var fixedFit = WindowSizing.FitPopup(workWidth, workHeight, scale, preferredWidth, preferredMaxHeight);
+        SizeToContent = SizeToContent.Height;
         MinWidth = 0;
-        MaxWidth = fit.Width;
-        Width = fit.Width;
-        MinWidth = fit.Width;
-        MaxHeight = fit.MaxHeight;
+        MaxWidth = fixedFit.Width;
+        Width = fixedFit.Width;
+        MinWidth = fixedFit.Width;
+        MaxHeight = fixedFit.MaxHeight;
     }
 
     private void OnPopupSizeChanged()
@@ -303,14 +347,36 @@ public partial class LookupWindow : Window
                     0x0001 | SetWindowPosNoZOrder | SetWindowPosNoActivate); // SWP_NOSIZE
             }
 
+            var prevWidth = Width;
+            var prevSizeToContent = SizeToContent;
             ApplyDisplayConstraints(workArea.Width, workArea.Height, scale);
-            if (!preserveCurrentOrigin)
+            if (!preserveCurrentOrigin
+                || SizeToContent == SizeToContent.WidthAndHeight
+                || prevSizeToContent != SizeToContent
+                || Math.Abs(Width - prevWidth) > 0.5)
+            {
                 UpdateLayout();
+            }
 
-            var widthDip = ActualWidth > 0 ? ActualWidth : Width;
-            var heightDip = ActualHeight > 0 ? ActualHeight : Math.Min(480, MaxHeight);
+            double widthDip;
+            double heightDip;
+            if (SizeToContent == SizeToContent.WidthAndHeight && Content is FrameworkElement content)
+            {
+                content.Measure(new Size(MaxWidth, MaxHeight));
+                var measuredW = Math.Max(ActualWidth, content.DesiredSize.Width);
+                var measuredH = Math.Max(ActualHeight, content.DesiredSize.Height);
+                widthDip = Math.Clamp(measuredW > 0 ? measuredW : MinWidth, MinWidth, MaxWidth);
+                heightDip = Math.Clamp(measuredH > 0 ? measuredH : 120, 1, MaxHeight);
+            }
+            else
+            {
+                widthDip = !double.IsNaN(Width) && Width > 0 ? Width : ActualWidth;
+                var measuredH = ActualHeight > 0 ? ActualHeight : DesiredSize.Height;
+                heightDip = measuredH > 0 ? measuredH : Math.Min(480, MaxHeight);
+            }
             var physical = WindowSizing.PlacePopup(placementAnchor, workArea, scale,
                 widthDip, heightDip, preserveCurrentOrigin);
+            _lastPlacedPhysicalBounds = physical;
 
             return SetWindowPos(hwnd, IntPtr.Zero, physical.Left, physical.Top,
                 physical.Width, physical.Height, SetWindowPosNoZOrder | SetWindowPosNoActivate);
@@ -342,6 +408,11 @@ public partial class LookupWindow : Window
         if (e.Key == Key.Escape)
         {
             Dismiss();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Tab && Keyboard.Modifiers == ModifierKeys.None && (_viewModel.IsMiniMode || _viewModel.IsMinimalMode))
+        {
+            _viewModel.ExpandToFullCommand.Execute(null);
             e.Handled = true;
         }
         else if (e.Key == Key.P && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
@@ -384,14 +455,76 @@ public partial class LookupWindow : Window
         if (e.ChangedButton != MouseButton.Left || IsButtonSource(e.OriginalSource as DependencyObject))
             return;
 
+        PerformDragMove();
+    }
+
+    private void MinimalCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left)
+            return;
+
+        PerformDragMove();
+    }
+
+    private void MinimalCard_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Right)
+            return;
+
+        e.Handled = true;
+        Dismiss();
+    }
+
+    private void StandardCard_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Right || IsInteractiveOrTextSource(e.OriginalSource as DependencyObject))
+            return;
+
+        e.Handled = true;
+        Dismiss();
+    }
+
+    private void PerformDragMove()
+    {
         try
         {
             DragMove();
+            _hasUserDragged = true;
+            RefreshPhysicalBounds();
+            if (IsPinned && TryGetCurrentPhysicalOrigin(out var origin))
+            {
+                RememberedPinnedOrigin = origin;
+                PinnedPositionChanged?.Invoke(origin);
+            }
         }
         catch (InvalidOperationException)
         {
             // The mouse can be released between the event and DragMove.
         }
+    }
+
+    private static bool IsInteractiveOrTextSource(DependencyObject? source)
+    {
+        for (var current = source; current != null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is System.Windows.Controls.Primitives.ButtonBase
+                or System.Windows.Controls.Primitives.TextBoxBase
+                or System.Windows.Controls.ContextMenu)
+                return true;
+        }
+        return false;
+    }
+
+    private bool TryGetCurrentPhysicalOrigin(out ScreenPoint origin)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd != IntPtr.Zero && GetWindowRect(hwnd, out var rect))
+        {
+            origin = new ScreenPoint(rect.Left, rect.Top);
+            return true;
+        }
+        origin = default;
+        return false;
     }
 
     private static bool IsButtonSource(DependencyObject? source)
@@ -411,6 +544,15 @@ public partial class LookupWindow : Window
         Topmost = true;
         PinToggle.ToolTip = "取消固定（Ctrl+P）";
         System.Windows.Automation.AutomationProperties.SetName(PinToggle, "取消固定查词浮窗");
+        if (!_hasUserDragged && RememberedPinnedOrigin is { } remembered)
+        {
+            MoveToPhysicalOrigin(remembered);
+        }
+        else if (_hasUserDragged && TryGetCurrentPhysicalOrigin(out var current))
+        {
+            RememberedPinnedOrigin = current;
+            PinnedPositionChanged?.Invoke(current);
+        }
         PinnedChanged?.Invoke(this, EventArgs.Empty);
     }
 

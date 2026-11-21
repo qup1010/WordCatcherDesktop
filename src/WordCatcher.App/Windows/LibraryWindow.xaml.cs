@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using TextBox = System.Windows.Controls.TextBox;
+using Panel = System.Windows.Controls.Panel;
 using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
@@ -22,6 +23,7 @@ public partial class LibraryWindow : Window
     private readonly SettingsViewModel _settingsVm;
     private readonly WordLookupViewModel? _lookupVm;
     private readonly DispatcherTimer _syncRefreshTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private DateTimeOffset _lastDeactivatedUtc = DateTimeOffset.MinValue;
 
     private const int MonitorDefaultToNearest = 2;
 
@@ -148,6 +150,7 @@ public partial class LibraryWindow : Window
         };
         Deactivated += (_, _) =>
         {
+            _lastDeactivatedUtc = DateTimeOffset.UtcNow;
             _settingsVm.CancelHotkeyRecording();
             _settingsVm.CancelOcrHotkeyRecording();
         };
@@ -185,6 +188,11 @@ public partial class LibraryWindow : Window
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 if (MainTabs.SelectedItem == LookupTab) LookupPage.FocusQuery();
+                else if (MainTabs.SelectedItem == SettingsTab)
+                {
+                    SettingsSearchBox.Focus();
+                    SettingsSearchBox.SelectAll();
+                }
                 else if (!_libraryVm.IsEditing)
                 {
                     MainTabs.SelectedItem = LibraryTab;
@@ -553,6 +561,158 @@ public partial class LibraryWindow : Window
         SelectSettingsCategory(3, WebDavSettingsGroup);
     }
 
+    private void SettingsSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplySettingsSearch(SettingsSearchBox.Text);
+    }
+
+    private void SettingsSearchBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && !string.IsNullOrEmpty(SettingsSearchBox.Text))
+        {
+            SettingsSearchBox.Text = string.Empty;
+            e.Handled = true;
+        }
+    }
+
+    private void ClearSettingsSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsSearchBox.Text = string.Empty;
+        SettingsSearchBox.Focus();
+    }
+
+    internal int ApplySettingsSearch(string? rawQuery)
+    {
+        var query = (rawQuery ?? string.Empty).Trim();
+        var hasQuery = !string.IsNullOrWhiteSpace(query);
+        ClearSettingsSearchButton.Visibility = hasQuery ? Visibility.Visible : Visibility.Collapsed;
+
+        var totalMatches = 0;
+        var firstMatchedCategory = -1;
+        var currentCategoryMatches = 0;
+
+        for (var i = 0; i < SettingsCategoryTabs.Items.Count; i++)
+        {
+            if (SettingsCategoryTabs.Items[i] is not TabItem tab || tab.Content is not Panel container)
+                continue;
+
+            var categoryMatches = FilterSettingsPanel(container, query);
+            totalMatches += categoryMatches;
+            if (categoryMatches > 0 && firstMatchedCategory < 0)
+                firstMatchedCategory = i;
+            if (i == SettingsCategoryTabs.SelectedIndex)
+                currentCategoryMatches = categoryMatches;
+        }
+
+        if (!hasQuery)
+        {
+            SettingsSearchResultHint.Visibility = Visibility.Collapsed;
+            SettingsSearchResultHint.Text = string.Empty;
+            return 0;
+        }
+
+        if (currentCategoryMatches == 0 && firstMatchedCategory >= 0)
+            SelectSettingsCategory(firstMatchedCategory);
+
+        SettingsSearchResultHint.Text = totalMatches > 0
+            ? $"找到 {totalMatches} 项相关设置"
+            : "未找到匹配的设置项";
+        SettingsSearchResultHint.Visibility = Visibility.Visible;
+        return totalMatches;
+    }
+
+    private static int FilterSettingsPanel(Panel panel, string query)
+    {
+        var hasQuery = !string.IsNullOrWhiteSpace(query);
+        var matches = 0;
+        TextBlock? pendingHeader = null;
+        var sectionHasMatch = false;
+
+        foreach (UIElement child in panel.Children)
+        {
+            if (child is TextBlock header && !string.IsNullOrWhiteSpace(header.Text))
+            {
+                if (pendingHeader != null)
+                    pendingHeader.Visibility = !hasQuery || sectionHasMatch ? Visibility.Visible : Visibility.Collapsed;
+                pendingHeader = header;
+                sectionHasMatch = false;
+                continue;
+            }
+
+            if (!hasQuery)
+            {
+                if (child.ReadLocalValue(VisibilityProperty) != DependencyProperty.UnsetValue
+                    && !System.Windows.Data.BindingOperations.IsDataBound(child, VisibilityProperty))
+                {
+                    child.ClearValue(VisibilityProperty);
+                }
+                continue;
+            }
+
+            if (System.Windows.Data.BindingOperations.IsDataBound(child, VisibilityProperty))
+                continue;
+
+            var text = CollectElementText(child);
+            var matched = text.Contains(query, StringComparison.OrdinalIgnoreCase);
+            child.Visibility = matched ? Visibility.Visible : Visibility.Collapsed;
+            if (matched)
+            {
+                matches++;
+                sectionHasMatch = true;
+            }
+        }
+
+        if (pendingHeader != null)
+            pendingHeader.Visibility = !hasQuery || sectionHasMatch ? Visibility.Visible : Visibility.Collapsed;
+
+        return matches;
+    }
+
+    private static string CollectElementText(DependencyObject root)
+    {
+        var sb = new System.Text.StringBuilder();
+        void Walk(object? obj)
+        {
+            if (obj == null) return;
+            switch (obj)
+            {
+                case TextBlock tb when !string.IsNullOrWhiteSpace(tb.Text):
+                    sb.Append(' ').Append(tb.Text);
+                    break;
+                case Wpf.Ui.Controls.CardControl card:
+                    if (card.Header is string chs) sb.Append(' ').Append(chs);
+                    else Walk(card.Header);
+                    Walk(card.Content);
+                    break;
+                case Wpf.Ui.Controls.CardExpander exp:
+                    if (exp.Header is string ehs) sb.Append(' ').Append(ehs);
+                    else Walk(exp.Header);
+                    Walk(exp.Content);
+                    break;
+                case ContentControl cc:
+                    if (cc.Content is string s) sb.Append(' ').Append(s);
+                    else Walk(cc.Content);
+                    if (cc is HeaderedContentControl hcc)
+                    {
+                        if (hcc.Header is string hs) sb.Append(' ').Append(hs);
+                        else Walk(hcc.Header);
+                    }
+                    break;
+                case Decorator dec:
+                    Walk(dec.Child);
+                    break;
+                case Panel panel:
+                    foreach (UIElement item in panel.Children) Walk(item);
+                    break;
+                case ItemsControl ic:
+                    foreach (var item in ic.Items) Walk(item);
+                    break;
+            }
+        }
+        Walk(root);
+        return sb.ToString();
+    }
+
     private static void AnimateElementEntrance(UIElement element, TranslateTransform transform)
     {
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
@@ -560,6 +720,18 @@ public partial class LibraryWindow : Window
         var slide = new DoubleAnimation(8.0, 0.0, TimeSpan.FromMilliseconds(150)) { EasingFunction = ease };
         element.BeginAnimation(OpacityProperty, fade);
         transform.BeginAnimation(TranslateTransform.YProperty, slide);
+    }
+
+    public void ToggleVisibility()
+    {
+        var recentlyActive = (DateTimeOffset.UtcNow - _lastDeactivatedUtc) < TimeSpan.FromMilliseconds(450);
+        if (IsVisible && WindowState != WindowState.Minimized && (IsActive || recentlyActive))
+        {
+            Hide();
+            return;
+        }
+
+        ShowLibrary();
     }
 
     public void ShowSettings()

@@ -10,9 +10,12 @@ namespace WordCatcher.App.Services;
 
 public sealed class MouseSelectionMonitor : IDisposable
 {
+    private const int WhKeyboardLl = 13;
     private const int WhMouseLl = 14;
     private const uint WmQuit = 0x0012;
     private const int ErrorInvalidThreadId = 1444;
+    private const int WmKeyDown = 0x0100;
+    private const int WmSysKeyDown = 0x0104;
     private const int LeftDown = 0x0201;
     private const int LeftUp = 0x0202;
     private const int RightDown = 0x0204;
@@ -26,11 +29,13 @@ public sealed class MouseSelectionMonitor : IDisposable
     private readonly Func<ScreenPoint, bool> _isOverFloat;
     private readonly Func<bool> _isFullScreen;
     private readonly HookProc _hookProc;
+    private readonly HookProc _keyboardHookProc;
     private readonly object _lifetimeLock = new();
     private volatile Thread? _hookThread;
     private uint _hookThreadId;
     private bool _readerStarted;
     private volatile bool _captureEnabled;
+    private volatile bool _dismissPillOnKey;
     private volatile bool _disposed;
 
     public MouseSelectionMonitor(ISettingsService settingsService, Func<ScreenPoint, bool>? isOverFloat = null)
@@ -49,21 +54,25 @@ public sealed class MouseSelectionMonitor : IDisposable
         _isFullScreen = isFullScreen;
         _isOverFloat = isOverFloat ?? (_ => false);
         _hookProc = OnMouseInput;
+        _keyboardHookProc = OnKeyboardInput;
     }
 
     // Selection reading and delivery run on a background thread.
     public event Action<CaptureResult>? SelectionDetected;
     // Dismissal runs on the hook thread. Hand off UI work asynchronously.
     public event Action<ScreenPoint, bool>? DismissRequested;
+    // Fired when Esc or a typing key is pressed while the selection pill is visible.
+    public event Action? KeyboardDismissRequested;
 
     internal Thread? HookThread => _hookThread;
 
-    public void UpdateHook(bool hasUnpinnedLookup)
+    public void UpdateHook(bool hasUnpinnedLookup, bool hasVisiblePill = false)
     {
         VerifyLifecycleThread();
         lock (_lifetimeLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            _dismissPillOnKey = hasVisiblePill;
             var captureEnabled = _settings()?.Enabled == true;
             if (_captureEnabled != captureEnabled)
             {
@@ -71,7 +80,7 @@ public sealed class MouseSelectionMonitor : IDisposable
                 _events.Writer.TryWrite(new ResetGesture());
             }
 
-            if (!captureEnabled && !hasUnpinnedLookup)
+            if (!captureEnabled && !hasUnpinnedLookup && !hasVisiblePill)
             {
                 StopHook();
                 return;
@@ -113,12 +122,17 @@ public sealed class MouseSelectionMonitor : IDisposable
     private void RunHook(TaskCompletionSource<uint> ready)
     {
         IntPtr hook = IntPtr.Zero;
+        IntPtr keyboardHook = IntPtr.Zero;
         try
         {
             // Create the thread message queue before publishing its ID to StopHook.
             PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
-            hook = SetWindowsHookEx(WhMouseLl, _hookProc, GetModuleHandle(null), 0);
+            var module = GetModuleHandle(null);
+            hook = SetWindowsHookEx(WhMouseLl, _hookProc, module, 0);
             if (hook == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+            keyboardHook = SetWindowsHookEx(WhKeyboardLl, _keyboardHookProc, module, 0);
+            if (keyboardHook == IntPtr.Zero)
+                Trace.TraceWarning("Keyboard hook could not be installed (Win32 error {0}); pill keyboard dismiss unavailable.", Marshal.GetLastWin32Error());
             ready.SetResult(GetCurrentThreadId());
 
             int result;
@@ -136,9 +150,27 @@ public sealed class MouseSelectionMonitor : IDisposable
         }
         finally
         {
+            if (keyboardHook != IntPtr.Zero) UnhookWindowsHookEx(keyboardHook);
             if (hook != IntPtr.Zero) UnhookWindowsHookEx(hook);
         }
     }
+
+    private IntPtr OnKeyboardInput(int code, IntPtr wParam, IntPtr lParam)
+    {
+        if (code >= 0 && !_disposed && _dismissPillOnKey && (int)wParam is WmKeyDown or WmSysKeyDown)
+        {
+            var vkCode = Marshal.ReadInt32(lParam);
+            if (ShouldDismissPillForVirtualKey(vkCode))
+            {
+                try { KeyboardDismissRequested?.Invoke(); }
+                catch (Exception ex) { Trace.TraceWarning("Keyboard dismiss callback failed: {0}", ex.Message); }
+            }
+        }
+        return CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
+    }
+
+    internal static bool ShouldDismissPillForVirtualKey(int vkCode) =>
+        vkCode is not (0x10 or 0x11 or 0x12 or 0xA0 or 0xA1 or 0xA2 or 0xA3 or 0xA4 or 0xA5 or 0x5B or 0x5C);
 
     private IntPtr OnMouseInput(int code, IntPtr wParam, IntPtr lParam)
     {

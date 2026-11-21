@@ -52,10 +52,15 @@ public static class WindowSizing
         return new PhysicalRectangle(x, y, x + width, y + height);
     }
 
-    public static (double Width, double MaxHeight) FitPopup(double workWidthPixels, double workHeightPixels, double dpiScale)
+    public static (double Width, double MaxHeight) FitPopup(
+        double workWidthPixels,
+        double workHeightPixels,
+        double dpiScale,
+        double preferredWidth = 420,
+        double preferredMaxHeight = 680)
     {
         var work = Fit(double.MaxValue, double.MaxValue, workWidthPixels, workHeightPixels, dpiScale);
-        return (Math.Min(420, Math.Max(1, work.Width - 24)), Math.Min(680, Math.Max(1, work.Height - 24)));
+        return (Math.Min(preferredWidth, Math.Max(1, work.Width - 24)), Math.Min(preferredMaxHeight, Math.Max(1, work.Height - 24)));
     }
 
     public static WindowSize Fit(double width, double height, double workWidthPixels, double workHeightPixels, double dpiScale)
