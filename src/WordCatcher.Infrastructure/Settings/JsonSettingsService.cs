@@ -10,7 +10,7 @@ using WordCatcher.Infrastructure.Storage;
 
 namespace WordCatcher.Infrastructure.Settings;
 
-public sealed class JsonSettingsService : ISettingsService
+public sealed class JsonSettingsService : IAtomicSettingsService
 {
     private readonly string _settingsPath;
     private readonly ILogger<JsonSettingsService>? _logger;
@@ -84,6 +84,25 @@ public sealed class JsonSettingsService : ISettingsService
         }
         finally { _ioGate.Release(); }
         SettingsChanged?.Invoke(settings);
+    }
+
+    public async Task UpdateSettingsAsync(Action<AppSettings> mutate, CancellationToken ct = default)
+    {
+        AppSettings updated;
+        await _ioGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            AppSettings snapshot;
+            lock (_lock) { snapshot = _current; }
+            updated = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(snapshot)) ?? new AppSettings();
+            mutate(updated);
+            var json = JsonSerializer.Serialize(updated, new JsonSerializerOptions { WriteIndented = true });
+            await AtomicFileWriter.WriteTextAsync(_settingsPath, json, ct, !_recoveredFromBackup).ConfigureAwait(false);
+            _recoveredFromBackup = false;
+            lock (_lock) { _current = updated; }
+        }
+        finally { _ioGate.Release(); }
+        SettingsChanged?.Invoke(updated);
     }
 
     private AppSettings LoadSettingsSync()

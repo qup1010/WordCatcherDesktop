@@ -20,6 +20,7 @@ public sealed class AppSettings
     public WebDavSettings WebDav { get; set; } = new();
     public UiSettings Ui { get; set; } = new();
     public MouseSelectionSettings MouseSelection { get; set; } = new();
+    public SpeechSettings Speech { get; set; } = new();
 
     [JsonIgnore]
     public TranslationSettings ActiveTranslation =>
@@ -68,10 +69,41 @@ public sealed class WebDavSettings
 
 public sealed class UiSettings
 {
+    public const string PopupModeMinimal = "minimal";
+    public const string PopupModeMini = "mini";
+    public const string PopupModeFull = "full";
+
     public bool ClosePopupAfterSave { get; set; } = true;
     // Retained for compatibility with older settings.json files.
     public bool ClosePopupOnDeactivate { get; set; } = true;
     public string ThemeMode { get; set; } = "Light";
+    public string PopupDefaultMode { get; set; } = PopupModeMini;
+    public int? PinnedPopupX { get; set; }
+    public int? PinnedPopupY { get; set; }
+
+    public static string NormalizePopupMode(string? mode) => mode?.Trim().ToLowerInvariant() switch
+    {
+        PopupModeMinimal => PopupModeMinimal,
+        PopupModeFull => PopupModeFull,
+        _ => PopupModeMini
+    };
+}
+
+public sealed class SpeechSettings
+{
+    public const string AccentUs = "en-US";
+    public const string AccentGb = "en-GB";
+    public const string AccentAuto = "auto";
+
+    public string Accent { get; set; } = AccentUs;
+    public bool UseOnlineVoice { get; set; }
+
+    public static string NormalizeAccent(string? accent) => accent?.Trim().ToLowerInvariant() switch
+    {
+        "en-gb" => AccentGb,
+        "auto" => AccentAuto,
+        _ => AccentUs
+    };
 }
 
 public sealed class MouseSelectionSettings
@@ -82,6 +114,7 @@ public sealed class MouseSelectionSettings
 
     public bool Enabled { get; set; }
     public string TriggerMode { get; set; } = Pill;
+    public bool HoverToShowMini { get; set; } = false;
 
     public static string NormalizeTriggerMode(string? mode) => mode?.Trim().ToLowerInvariant() switch
     {
