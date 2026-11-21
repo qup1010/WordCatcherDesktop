@@ -159,12 +159,15 @@
                            FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" />
             </StackPanel>
 
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                        Visibility="{Binding Lookup.IsLoading, Converter={StaticResource BoolToVis}}">
-                <ProgressBar Width="230" Height="4" IsIndeterminate="True" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource AccentSubtleBrush}" />
-                <TextBlock Text="{Binding Lookup.StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextSecondaryBrush}"
-                           HorizontalAlignment="Center" Margin="0,12,0,0" />
-            </StackPanel>
+            <Border x:Name="LookupLoadingSkeleton" Grid.Row="1" Style="{StaticResource SurfaceCardStyle}" Padding="20" VerticalAlignment="Top"
+                    Visibility="{Binding Lookup.IsLoading, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <Border Width="140" Height="22" HorizontalAlignment="Left" CornerRadius="5" Background="{DynamicResource SubtleSurfaceBrush}" Margin="0,0,0,14" />
+                    <Border Height="12" HorizontalAlignment="Stretch" CornerRadius="4" Background="{DynamicResource SubtleSurfaceBrush}" Margin="0,0,48,8" />
+                    <Border Height="12" HorizontalAlignment="Stretch" CornerRadius="4" Background="{DynamicResource SubtleSurfaceBrush}" Margin="0,0,140,12" />
+                    <TextBlock Text="{Binding Lookup.StatusText}" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+            </Border>
 
             <StackPanel x:Name="LookupErrorPanel" Visibility="{Binding Lookup.HasError, Converter={StaticResource BoolToVis}}">
                 <Border Background="{DynamicResource DangerSurfaceBrush}" BorderBrush="{DynamicResource DangerBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">

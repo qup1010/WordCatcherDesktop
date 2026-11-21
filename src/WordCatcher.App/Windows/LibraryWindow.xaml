@@ -495,9 +495,9 @@
                                    PlacementTarget="{Binding ElementName=LibraryMoreButton}"
                                    Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                                    DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                <Border Margin="8" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6" MinWidth="148">
+                                <Border Margin="8" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="6" MinWidth="148">
                                     <Border.Effect>
-                                        <DropShadowEffect BlurRadius="14" Opacity="0.16" ShadowDepth="3" Color="#1E293B" />
+                                        <DropShadowEffect BlurRadius="14" Opacity="0.15" ShadowDepth="3" Color="#000000" />
                                     </Border.Effect>
                                     <StackPanel>
                                         <ui:Button x:Name="ImportBackupButton" Command="{Binding ImportJsonCommand}"
@@ -624,9 +624,9 @@
                                         </ComboBox>
                                         <ToggleButton x:Name="LibraryFilterButton" Grid.Column="2" Content="{Binding FilterButtonText}" Padding="8,4" MinHeight="28" FontSize="12" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextSecondaryBrush}" ToolTip="按状态和来源应用筛选" />
                                         <Popup IsOpen="{Binding IsChecked, ElementName=LibraryFilterButton, Mode=TwoWay}" PlacementTarget="{Binding ElementName=LibraryFilterButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                            <Border Margin="8" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Width="290">
+                                            <Border Margin="8" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Width="290">
                                                 <Border.Effect>
-                                                    <DropShadowEffect BlurRadius="14" Opacity="0.16" ShadowDepth="3" Color="#1E293B" />
+                                                    <DropShadowEffect BlurRadius="14" Opacity="0.15" ShadowDepth="3" Color="#000000" />
                                                 </Border.Effect>
                                                 <StackPanel>
                                                     <TextBlock Text="筛选词条" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
@@ -1980,7 +1980,7 @@
                                                              AutomationProperties.Name="鼠标划词取词" />
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Cursor24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Flash24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="划词触发方式" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -1996,7 +1996,7 @@
                                             </ComboBox>
                                         </ui:CardControl>
 
-                                        <ui:CardControl x:Name="MouseSelectionHoverCard" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Cursor24}"
+                                        <ui:CardControl x:Name="MouseSelectionHoverCard" Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Open24}"
                                                         IsEnabled="{Binding MouseSelectionEnabled}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
@@ -2057,7 +2057,7 @@
                                                         PlaceholderText="简体中文" />
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Globe24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon ArrowSwap24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="中英自动互译" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -2085,7 +2085,7 @@
                                             </ComboBox>
                                         </ui:CardControl>
 
-                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Globe24}">
+                                        <ui:CardControl Style="{StaticResource FluentSettingsCardStyle}" Icon="{controls:CrispIcon Cloud24}">
                                             <ui:CardControl.Header>
                                                 <StackPanel>
                                                     <TextBlock Text="在线真人发音" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" />

@@ -202,10 +202,10 @@
               Visibility="{Binding IsStandardCard, Converter={StaticResource BoolToVis}}"
               MouseRightButtonUp="StandardCard_MouseRightButtonUp">
         <!-- Keep the shadow off the text subtree so its intermediate bitmap cannot soften glyphs. -->
-        <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="16" IsHitTestVisible="False">
-            <Border.Effect><DropShadowEffect BlurRadius="20" Opacity="0.18" ShadowDepth="4" Color="#1E293B" /></Border.Effect>
+        <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="12" IsHitTestVisible="False">
+            <Border.Effect><DropShadowEffect BlurRadius="20" Opacity="0.16" ShadowDepth="4" Color="#000000" /></Border.Effect>
         </Border>
-        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="16" RenderOptions.ClearTypeHint="Enabled">
+        <Border Style="{StaticResource SurfaceCardStyle}" CornerRadius="12" RenderOptions.ClearTypeHint="Enabled">
         <Grid Margin="14,11">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
