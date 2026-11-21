@@ -84,5 +84,7 @@
 
 ## 文档与数据致谢
 
+- 应用代码采用 [MIT License](LICENSE) 开源。
 - 开发构建说明与技术文档见 [开发说明](docs/development.md) 与 [文档索引](docs/README.md)。
 - 离线词典数据来自 [Open Dictionary](https://github.com/ahpxex/open-dictionary)（包含来自 English Wiktionary 及其贡献者与 Wiktextract 的数据），按 [CC BY-SA 4.0](https://github.com/ahpxex/open-dictionary/blob/main/LICENSE-DATA.md) 授权。
+- 社区交流：[LINUX DO](https://linux.do)
