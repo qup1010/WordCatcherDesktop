@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using WordCatcher.App.Themes;
 using WordCatcher.App.ViewModels;
 
@@ -52,21 +53,85 @@ public partial class WordLookupView : System.Windows.Controls.UserControl
         ContextPanel.Margin = new Thickness(0, stacked ? 16 : 0, 0, 0);
     }
 
+    private void QueryBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not WordLookupViewModel vm || !vm.IsSuggestionsOpen)
+            return;
+
+        if (e.Key == Key.Down)
+        {
+            vm.MoveSuggestionSelection(1);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Up)
+        {
+            vm.MoveSuggestionSelection(-1);
+            e.Handled = true;
+        }
+    }
+
     private void QueryBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && DataContext is WordLookupViewModel clearVm)
+        if (DataContext is not WordLookupViewModel vm)
+            return;
+
+        if (e.Key == Key.Escape)
         {
-            clearVm.ClearQueryCommand.Execute(null);
+            if (vm.IsSuggestionsOpen)
+            {
+                vm.DismissSuggestions();
+            }
+            else
+            {
+                vm.ClearQueryCommand.Execute(null);
+            }
             e.Handled = true;
             return;
         }
+
         if (e.Key != Key.Enter)
             return;
 
-        if (DataContext is WordLookupViewModel viewModel && viewModel.SearchCommand.CanExecute(null))
+        if (vm.IsSuggestionsOpen
+            && vm.SelectedSuggestionIndex >= 0
+            && vm.SelectedSuggestionIndex < vm.Suggestions.Count)
         {
-            viewModel.SearchCommand.Execute(null);
+            var chosen = vm.Suggestions[vm.SelectedSuggestionIndex];
+            if (vm.SelectSuggestionCommand.CanExecute(chosen))
+            {
+                vm.SelectSuggestionCommand.Execute(chosen);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (vm.SearchCommand.CanExecute(null))
+        {
+            vm.SearchCommand.Execute(null);
             e.Handled = true;
+        }
+    }
+
+    private void QueryBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (DataContext is WordLookupViewModel vm && SuggestionsPopup?.IsMouseOver != true)
+            vm.DismissSuggestions();
+    }
+
+    private void SuggestionsList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not WordLookupViewModel vm)
+            return;
+
+        for (var current = e.OriginalSource as DependencyObject; current != null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is ListBoxItem { DataContext: string word })
+            {
+                e.Handled = true;
+                if (vm.SelectSuggestionCommand.CanExecute(word))
+                    vm.SelectSuggestionCommand.Execute(word);
+                return;
+            }
         }
     }
 }

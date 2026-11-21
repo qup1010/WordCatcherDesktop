@@ -424,6 +424,10 @@ public class LibraryLayoutTests
                 root.Arrange(new Rect(0, 0, 900, 700));
                 root.UpdateLayout();
                 Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("WordDetailsPanel")).Visibility);
+                Assert.Equal("It was pure ", ((System.Windows.Documents.Run)window.FindName("ReviewPromptPrefixRun")).Text);
+                Assert.Equal("serendipity", ((System.Windows.Documents.Run)window.FindName("ReviewPromptHighlightRun")).Text);
+                Assert.Equal(" that we found this book.", ((System.Windows.Documents.Run)window.FindName("ReviewPromptSuffixRun")).Text);
+                Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("ReviewFallbackTargetBadge")).Visibility);
                 RenderState(root, "wordcatcher-LibraryReview-900.png", 900, 700);
                 vm.ToggleAnswerCommand.Execute(null);
                 root.UpdateLayout();

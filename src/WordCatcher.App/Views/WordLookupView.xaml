@@ -57,7 +57,7 @@
         </Grid>
 
         <StackPanel Grid.Row="1" Margin="0,0,0,16">
-            <Border
+            <Border x:Name="QueryInputBorder"
                     CornerRadius="8"
                     Padding="11,6">
                 <Border.Style>
@@ -94,7 +94,9 @@
                              VerticalContentAlignment="Center"
                              MinHeight="36"
                              ToolTip="Enter 查询 · Esc 清空 · Ctrl+F 聚焦"
-                             KeyDown="QueryBox_KeyDown" />
+                             PreviewKeyDown="QueryBox_PreviewKeyDown"
+                             KeyDown="QueryBox_KeyDown"
+                             LostKeyboardFocus="QueryBox_LostKeyboardFocus" />
                     <ui:Button Grid.Column="2"
                             Command="{Binding ClearQueryCommand}"
                             Style="{StaticResource LookupIconButton}"
@@ -115,6 +117,65 @@
                     </ui:Button>
                 </Grid>
             </Border>
+            <Popup x:Name="SuggestionsPopup"
+                   IsOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}"
+                   PlacementTarget="{Binding ElementName=QueryInputBorder}"
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   PopupAnimation="None"
+                   Width="{Binding ActualWidth, ElementName=QueryInputBorder}">
+                <Border Margin="0,4,0,8"
+                        Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="4">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="12" Opacity="0.12" ShadowDepth="2" Color="#000000" />
+                    </Border.Effect>
+                    <ListBox x:Name="SuggestionsList"
+                             ItemsSource="{Binding Suggestions}"
+                             SelectedIndex="{Binding SelectedSuggestionIndex, Mode=TwoWay}"
+                             Focusable="False"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             PreviewMouseLeftButtonDown="SuggestionsList_PreviewMouseLeftButtonDown">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Focusable" Value="False" />
+                                <Setter Property="Padding" Value="10,7" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="ItemSurface"
+                                                    Background="Transparent"
+                                                    CornerRadius="5"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <TextBlock Text="{Binding}"
+                                                           FontSize="13.5"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource HoverSurfaceBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
+            </Popup>
             <TextBlock Text="{Binding QueryError}"
                        Foreground="{DynamicResource DangerBrush}"
                        FontSize="{StaticResource CaptionFontSize}"

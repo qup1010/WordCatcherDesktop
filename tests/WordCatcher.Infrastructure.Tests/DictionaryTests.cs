@@ -451,4 +451,50 @@ VALUES ($id, $lang, $norm, $json);";
         Assert.NotNull(resCat);
         Assert.Equal("cat", resCat.Word);
     }
+
+    [Fact]
+    public async Task OfflineDictionaryServiceSuggestsMatchingPrefixesInOrder()
+    {
+        var dbDir = Path.Combine(_tempDir, $"suggest_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dbDir);
+        var dbPath = Path.Combine(dbDir, "distribution.sqlite");
+        await File.WriteAllTextAsync(Path.Combine(dbDir, "dictionary-meta.json"), """{"headwordLanguage":"en"}""");
+
+        var connStr = new SqliteConnectionStringBuilder
+        {
+            DataSource = dbPath,
+            Mode = SqliteOpenMode.ReadWriteCreate
+        }.ToString();
+
+        await using (var conn = new SqliteConnection(connStr))
+        {
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+CREATE TABLE entries (id TEXT PRIMARY KEY, headword_language_code TEXT NOT NULL, normalized_headword TEXT NOT NULL, document_json TEXT NOT NULL);
+INSERT INTO entries (id, headword_language_code, normalized_headword, document_json) VALUES
+('1', 'en', 'cable', '{}'),
+('2', 'en', 'cabin', '{}'),
+('3', 'en', 'cache', '{}'),
+('4', 'en', 'cactus', '{}'),
+('5', 'en', 'cadence', '{}'),
+('6', 'en', 'cafe', '{}'),
+('7', 'en', 'cage', '{}'),
+('8', 'en', 'cake', '{}'),
+('9', 'fr', 'cadre', '{}');";
+            await cmd.ExecuteNonQueryAsync();
+        }
+        SqliteConnection.ClearAllPools();
+
+        using var service = new OfflineDictionaryService(dbDir);
+        Assert.Empty(await service.SuggestAsync("c", 6));
+        Assert.Empty(await service.SuggestAsync("ca\n", 6));
+
+        var matches = await service.SuggestAsync("CA", 6);
+        Assert.Equal(new[] { "cabin", "cable", "cache", "cactus", "cadence", "cafe" }, matches);
+
+        var capped = await service.SuggestAsync("cab", 1);
+        Assert.Single(capped);
+        Assert.Equal("cabin", capped[0]);
+    }
 }

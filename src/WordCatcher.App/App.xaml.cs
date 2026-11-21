@@ -135,6 +135,7 @@ public partial class App : System.Windows.Application
             _selectionPillWindow.PillHovered += capture => _ = ShowCapturedLookupAsync(capture, forceMini: true);
             _selectionPillWindow.QuickSaveRequested += capture => _ = QuickSaveFromPillAsync(capture);
             _selectionPillWindow.CopyTranslationRequested += capture => _ = CopyTranslationFromPillAsync(capture);
+            _selectionPillWindow.BlacklistProcessRequested += process => _ = BlacklistProcessFromPillAsync(process);
             _selectionPillWindow.PillVisibilityChanged += UpdateMouseSelectionHook;
             _mouseSelectionMonitor = new MouseSelectionMonitor(settingsService,
                 pt => _selectionPillWindow?.ContainsPhysicalPoint(pt) ?? false);
@@ -431,6 +432,39 @@ public partial class App : System.Windows.Application
         {
             _logger?.LogWarning(ex, "Copy translation from selection pill failed");
             _trayManager?.ShowNotification("复制译文失败", ex.Message, System.Windows.Forms.ToolTipIcon.Warning);
+        }
+    }
+
+    private async Task BlacklistProcessFromPillAsync(string processName)
+    {
+        if (_serviceProvider == null) return;
+        var normalized = MouseSelectionMonitor.NormalizeProcessName(processName);
+        if (string.IsNullOrEmpty(normalized)) return;
+        try
+        {
+            var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+            var added = false;
+            await settingsService.UpdateSettingsAsync(s =>
+            {
+                s.MouseSelection ??= new MouseSelectionSettings();
+                s.MouseSelection.BlacklistedProcesses ??= new List<string>();
+                if (!MouseSelectionMonitor.IsProcessBlacklisted(normalized, s.MouseSelection.BlacklistedProcesses))
+                {
+                    s.MouseSelection.BlacklistedProcesses.Add(normalized);
+                    added = true;
+                }
+            }).ConfigureAwait(true);
+
+            if (added && _serviceProvider.GetService<SettingsViewModel>() is { HasUnsavedChanges: false } settingsVm)
+                await settingsVm.InitializeAsync().ConfigureAwait(true);
+
+            _trayManager?.ShowNotification(
+                "已屏蔽该应用划词",
+                $"不再在 {normalized} 中显示划词浮标，可在「设置 → 常规与外观」随时恢复。");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to blacklist process {ProcessName} from selection pill", normalized);
         }
     }
 

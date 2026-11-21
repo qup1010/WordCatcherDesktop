@@ -180,9 +180,20 @@ public class FeatureEnhancementsTests
                 Assert.Equal(3, canvas.Children.Count);
 
                 Assert.NotNull(pill.ContextMenu);
-                Assert.Equal(2, pill.ContextMenu!.Items.Count);
+                Assert.Equal(3, pill.ContextMenu!.Items.Count);
                 Assert.Equal("直接收藏", ((System.Windows.Controls.MenuItem)pill.ContextMenu.Items[0]).Header);
                 Assert.Equal("复制译文", ((System.Windows.Controls.MenuItem)pill.ContextMenu.Items[1]).Header);
+                var blacklistItem = Assert.IsType<System.Windows.Controls.MenuItem>(pill.ContextMenu.Items[2]);
+                Assert.Equal(System.Windows.Visibility.Collapsed, blacklistItem.Visibility);
+
+                string? requestedProcess = null;
+                pill.BlacklistProcessRequested += p => requestedProcess = p;
+                pill.UpdateContextForCapture(new CaptureResult("hello", "Code.exe", "README", new ScreenPoint(100, 100), DateTimeOffset.UtcNow));
+                Assert.Equal(System.Windows.Visibility.Visible, blacklistItem.Visibility);
+                Assert.Equal("不再在 Code 显示", blacklistItem.Header);
+                blacklistItem.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Assert.Equal("Code", requestedProcess);
+
                 var crossThreadValue = Task.Run(() => pill.IsContextMenuOpen).GetAwaiter().GetResult();
                 Assert.False(crossThreadValue);
             }
@@ -321,12 +332,23 @@ public class FeatureEnhancementsTests
                 var minimal = Assert.IsType<System.Windows.Controls.Grid>(window.FindName("MinimalCardContainer"));
                 var minimalLoading = Assert.IsType<System.Windows.Controls.StackPanel>(window.FindName("MinimalLoadingPanel"));
                 var minimalScroll = Assert.IsType<System.Windows.Controls.ScrollViewer>(window.FindName("MinimalScroll"));
+                var minimalRetry = Assert.IsType<Wpf.Ui.Controls.Button>(window.FindName("MinimalRetryButton"));
                 var standard = Assert.IsType<System.Windows.Controls.Grid>(window.FindName("StandardCardContainer"));
                 Assert.Equal(System.Windows.Visibility.Visible, minimal.Visibility);
                 Assert.Equal(System.Windows.Visibility.Collapsed, minimalLoading.Visibility);
                 Assert.Equal(System.Windows.Visibility.Visible, minimalScroll.Visibility);
+                Assert.Equal(System.Windows.Visibility.Collapsed, minimalRetry.Visibility);
                 Assert.Equal(System.Windows.Visibility.Collapsed, standard.Visibility);
                 Assert.Equal(System.Windows.SizeToContent.WidthAndHeight, window.SizeToContent);
+
+                vm.HasError = true;
+                vm.ErrorMessage = "网络超时";
+                window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(System.Windows.Visibility.Visible, minimalRetry.Visibility);
+                vm.HasError = false;
+                vm.ErrorMessage = string.Empty;
+                window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(System.Windows.Visibility.Collapsed, minimalRetry.Visibility);
 
                 vm.IsLoading = true;
                 window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -423,6 +445,91 @@ public class FeatureEnhancementsTests
         slowWatch.Stop();
         Assert.InRange(slowWatch.ElapsedMilliseconds, 30, 500);
         Assert.False(slowTcs.Task.IsCompleted);
+    }
+
+    [Fact]
+    public void WinRtOcrServicePreprocessUpscalesSmallImagesAndPreservesLargeImages()
+    {
+        byte[] smallPng;
+        using (var small = new System.Drawing.Bitmap(40, 20, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+        using (var g = System.Drawing.Graphics.FromImage(small))
+        {
+            g.Clear(System.Drawing.Color.White);
+            using var ms = new System.IO.MemoryStream();
+            small.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            smallPng = ms.ToArray();
+        }
+
+        var upscaledBytes = WinRtOcrService.PreprocessForOcr(smallPng, 2048);
+        Assert.NotSame(smallPng, upscaledBytes);
+        using (var ms = new System.IO.MemoryStream(upscaledBytes))
+        using (var upscaled = new System.Drawing.Bitmap(ms))
+        {
+            // Height < 40 -> 3x + 16px pad on each side => 40*3+32 = 152, 20*3+32 = 92
+            Assert.Equal(152, upscaled.Width);
+            Assert.Equal(92, upscaled.Height);
+        }
+
+        byte[] largePng;
+        using (var large = new System.Drawing.Bitmap(300, 120, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+        {
+            using var ms = new System.IO.MemoryStream();
+            large.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            largePng = ms.ToArray();
+        }
+
+        var untouched = WinRtOcrService.PreprocessForOcr(largePng, 2048);
+        Assert.Same(largePng, untouched);
+    }
+
+    [Fact]
+    public async Task WordLookupViewModelSuggestsPrefixesAndHandlesSelection()
+    {
+        var (lookup, _, _, _) = LookupViewModelTests.Create();
+        var stubDict = new StubSuggestDictionaryService();
+        var vm = new WordLookupViewModel(lookup, stubDict, suggestDebounceMs: 0);
+
+        vm.Query = "a";
+        await Task.Delay(20);
+        Assert.False(vm.IsSuggestionsOpen);
+        Assert.Empty(vm.Suggestions);
+
+        vm.Query = "ap";
+        await Task.Delay(30);
+        Assert.True(vm.IsSuggestionsOpen);
+        Assert.Equal(6, vm.Suggestions.Count);
+        Assert.Equal("ap0", vm.Suggestions[0]);
+
+        vm.MoveSuggestionSelection(1);
+        Assert.Equal(0, vm.SelectedSuggestionIndex);
+        vm.MoveSuggestionSelection(-1);
+        Assert.Equal(5, vm.SelectedSuggestionIndex);
+        vm.MoveSuggestionSelection(1);
+        Assert.Equal(0, vm.SelectedSuggestionIndex);
+
+        await vm.SelectSuggestionCommand.ExecuteAsync("ap0");
+        Assert.False(vm.IsSuggestionsOpen);
+        Assert.Empty(vm.Suggestions);
+        Assert.Equal("ap0", vm.Query);
+        Assert.True(vm.HasSearched);
+
+        vm.DismissSuggestions();
+        Assert.False(vm.IsSuggestionsOpen);
+    }
+
+    private sealed class StubSuggestDictionaryService : IOfflineDictionaryService
+    {
+        public bool IsInstalled => true;
+        public DictionaryMetadata? Metadata => null;
+        public Task<TranslationResult?> LookupAsync(string text, CancellationToken ct = default) => Task.FromResult<TranslationResult?>(null);
+
+        public Task<IReadOnlyList<string>> SuggestAsync(string prefix, int limit = 6, CancellationToken ct = default)
+        {
+            var results = new List<string>();
+            for (var i = 0; i < Math.Min(limit, 6); i++)
+                results.Add($"{prefix.Trim().ToLowerInvariant()}{i}");
+            return Task.FromResult<IReadOnlyList<string>>(results);
+        }
     }
 
     private sealed class StubPresentationSource : System.Windows.PresentationSource

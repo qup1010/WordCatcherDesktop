@@ -385,4 +385,70 @@ LIMIT 1;";
     {
         InvalidateConnection();
     }
+
+    public async Task<IReadOnlyList<string>> SuggestAsync(string prefix, int limit = 6, CancellationToken ct = default)
+    {
+        if (!IsInstalled || limit <= 0 || string.IsNullOrWhiteSpace(prefix) || prefix.IndexOfAny(['\r', '\n']) >= 0)
+            return Array.Empty<string>();
+
+        var trimmed = prefix.Trim();
+        if (trimmed.Length < 2 || trimmed.Length > 40)
+            return Array.Empty<string>();
+
+        var normalized = trimmed.ToLowerInvariant();
+        if (normalized[^1] >= char.MaxValue)
+            return Array.Empty<string>();
+
+        var upper = normalized[..^1] + (char)(normalized[^1] + 1);
+        var maxResults = Math.Clamp(limit, 1, 10);
+        var headLang = NormalizeLanguageCode(Metadata?.HeadwordLanguage, "en");
+
+        await _queryGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var conn = await GetConnectionAsync(ct).ConfigureAwait(false);
+            if (conn == null)
+                return Array.Empty<string>();
+
+            var results = new List<string>(maxResults);
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT DISTINCT normalized_headword
+FROM entries
+WHERE headword_language_code = $lang
+  AND normalized_headword >= $prefix
+  AND normalized_headword < $upper
+ORDER BY normalized_headword
+LIMIT $limit;";
+            cmd.Parameters.AddWithValue("$lang", headLang);
+            cmd.Parameters.AddWithValue("$prefix", normalized);
+            cmd.Parameters.AddWithValue("$upper", upper);
+            cmd.Parameters.AddWithValue("$limit", maxResults);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            while (await reader.ReadAsync(ct).ConfigureAwait(false))
+            {
+                if (!reader.IsDBNull(0))
+                {
+                    var word = reader.GetString(0);
+                    if (!string.IsNullOrWhiteSpace(word))
+                        results.Add(word);
+                }
+            }
+            return results;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Offline prefix suggest failed for '{Prefix}'", normalized);
+            return Array.Empty<string>();
+        }
+        finally
+        {
+            _queryGate.Release();
+        }
+    }
 }

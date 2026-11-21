@@ -9,6 +9,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using WordCatcher.App.Interop;
+using WordCatcher.App.Services;
 using WordCatcher.App.Themes;
 using WordCatcher.Core.Models;
 using Brushes = System.Windows.Media.Brushes;
@@ -74,7 +75,9 @@ public sealed class SelectionPillWindow : Window
     private readonly DispatcherTimer _autoHideTimer;
     private readonly DispatcherTimer _hoverTimer;
     private readonly ContextMenu _contextMenu;
+    private readonly MenuItem _blacklistAppItem;
     private CaptureResult? _pendingCapture;
+    private string _currentProcessName = string.Empty;
     private bool _hoverToShowMini = false;
     private volatile bool _isPillShown;
     private volatile bool _isContextMenuOpen;
@@ -87,6 +90,7 @@ public sealed class SelectionPillWindow : Window
     public event Action<CaptureResult>? PillHovered;
     public event Action<CaptureResult>? QuickSaveRequested;
     public event Action<CaptureResult>? CopyTranslationRequested;
+    public event Action<string>? BlacklistProcessRequested;
     public event Action? PillVisibilityChanged;
 
     public bool IsPillVisible => _isPillShown;
@@ -173,6 +177,15 @@ public sealed class SelectionPillWindow : Window
         });
         _contextMenu.Items.Add(quickSaveItem);
         _contextMenu.Items.Add(copyTranslationItem);
+        _blacklistAppItem = CreateStyledMenuItem("不再在此应用显示", () =>
+        {
+            var proc = _currentProcessName;
+            HidePill();
+            if (!string.IsNullOrEmpty(proc)) BlacklistProcessRequested?.Invoke(proc);
+        });
+        _blacklistAppItem.Margin = new Thickness(0, 3, 0, 0);
+        _blacklistAppItem.Visibility = Visibility.Collapsed;
+        _contextMenu.Items.Add(_blacklistAppItem);
         _contextMenu.Opened += (_, _) =>
         {
             _isContextMenuOpen = true;
@@ -236,10 +249,26 @@ public sealed class SelectionPillWindow : Window
         };
     }
 
+    internal void UpdateContextForCapture(CaptureResult capture)
+    {
+        _currentProcessName = MouseSelectionMonitor.NormalizeProcessName(capture.SourceProcess);
+        if (string.IsNullOrEmpty(_currentProcessName))
+        {
+            _blacklistAppItem.Header = "不再在此应用显示";
+            _blacklistAppItem.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            _blacklistAppItem.Header = $"不再在 {_currentProcessName} 显示";
+            _blacklistAppItem.Visibility = Visibility.Visible;
+        }
+    }
+
     public void ShowForCapture(CaptureResult capture, bool hoverToShowMini = false)
     {
         _pendingCapture = capture;
         _hoverToShowMini = hoverToShowMini;
+        UpdateContextForCapture(capture);
         _autoHideTimer.Stop();
         _hoverTimer.Stop();
         _autoHideTimer.Interval = DefaultAutoHideDelay;
@@ -315,6 +344,7 @@ public sealed class SelectionPillWindow : Window
         _translateTransform.Y = 0.0;
         if (_contextMenu.IsOpen) _contextMenu.IsOpen = false;
         _pendingCapture = null;
+        _currentProcessName = string.Empty;
         if (IsVisible) Hide();
         if (wasVisible) PillVisibilityChanged?.Invoke();
     }

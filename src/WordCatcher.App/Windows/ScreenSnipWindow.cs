@@ -43,6 +43,10 @@ public sealed class ScreenSnipWindow : Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr hObject);
+
     private readonly Bitmap _screenBitmap;
     private readonly System.Drawing.Rectangle _virtualBounds;
     private readonly Canvas _overlayCanvas;
@@ -336,15 +340,20 @@ public sealed class ScreenSnipWindow : Window
 
     private static BitmapSource ToBitmapSource(Bitmap bitmap)
     {
-        using var ms = new MemoryStream();
-        bitmap.Save(ms, ImageFormat.Bmp);
-        ms.Position = 0;
-        var image = new BitmapImage();
-        image.BeginInit();
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.StreamSource = ms;
-        image.EndInit();
-        image.Freeze();
-        return image;
+        var hBitmap = bitmap.GetHbitmap();
+        try
+        {
+            var source = Imaging.CreateBitmapSourceFromHBitmap(
+                hBitmap,
+                IntPtr.Zero,
+                Int32Rect.Empty,
+                BitmapSizeOptions.FromEmptyOptions());
+            source.Freeze();
+            return source;
+        }
+        finally
+        {
+            DeleteObject(hBitmap);
+        }
     }
 }

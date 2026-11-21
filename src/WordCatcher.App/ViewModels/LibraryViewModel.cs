@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using WordCatcher.App.Services;
+using WordCatcher.Core.Algorithms;
 using WordCatcher.Core.Interfaces;
 using WordCatcher.Core.Models;
 
@@ -121,6 +122,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     // ── 遮挡释义 & 卡片自测复习模式 ──────────────────────────────────────────
     private readonly List<(Word Word, Occurrence? Occurrence)> _reviewItems = new();
     private readonly HashSet<(string WordId, string? OccurrenceId)> _markedAgainKeys = new();
+    private HighlightedSentenceParts _reviewPromptParts = new(string.Empty, string.Empty, string.Empty);
     [ObservableProperty] private bool _isDefinitionMasked;
     [ObservableProperty] private bool _isReviewMode;
     [ObservableProperty] private bool _isReviewCompleted;
@@ -152,6 +154,13 @@ public sealed partial class LibraryViewModel : ObservableObject
     public string ReviewPromptSentence => !string.IsNullOrWhiteSpace(CurrentReviewOccurrence?.Sentence)
         ? CurrentReviewOccurrence!.Sentence
         : CurrentReviewWord?.DisplayWord ?? string.Empty;
+    public string ReviewPromptPrefix => _reviewPromptParts.Prefix;
+    public string ReviewPromptHighlight => _reviewPromptParts.Highlight;
+    public string ReviewPromptSuffix => _reviewPromptParts.Suffix;
+    public bool HasReviewPromptHighlight => _reviewPromptParts.HasHighlight;
+    public string ReviewFallbackTargetWord => IsActiveReviewCard && !HasReviewPromptHighlight
+        ? ReviewEffectiveExpression
+        : string.Empty;
     public string ReviewEffectiveExpression => !string.IsNullOrWhiteSpace(CurrentReviewOccurrence?.Expression)
         ? CurrentReviewOccurrence!.Expression
         : CurrentReviewWord?.DisplayWord ?? string.Empty;
@@ -176,8 +185,32 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
     }
 
+    private HighlightedSentenceParts ComputeReviewPromptParts()
+    {
+        var sentence = ReviewPromptSentence;
+        if (string.IsNullOrEmpty(sentence))
+            return new HighlightedSentenceParts(string.Empty, string.Empty, string.Empty);
+
+        var occurrence = CurrentReviewOccurrence;
+        var word = CurrentReviewWord;
+        var preferredOffset = occurrence != null && !string.IsNullOrWhiteSpace(occurrence.Sentence)
+            ? occurrence.SelectionOffset
+            : -1;
+
+        return SentenceHighlightResolver.Split(
+            sentence,
+            [
+                occurrence?.SelectedText,
+                occurrence?.Expression,
+                word?.DisplayWord,
+                word?.NormalizedWord
+            ],
+            preferredOffset);
+    }
+
     private void NotifyReviewPropertiesChanged()
     {
+        _reviewPromptParts = ComputeReviewPromptParts();
         OnPropertyChanged(nameof(ReviewTotal));
         OnPropertyChanged(nameof(CurrentReviewWord));
         OnPropertyChanged(nameof(CurrentReviewOccurrence));
@@ -194,6 +227,11 @@ public sealed partial class LibraryViewModel : ObservableObject
         OnPropertyChanged(nameof(ReviewCompletionSummary));
         OnPropertyChanged(nameof(PracticeMarkedButtonText));
         OnPropertyChanged(nameof(ReviewPromptSentence));
+        OnPropertyChanged(nameof(ReviewPromptPrefix));
+        OnPropertyChanged(nameof(ReviewPromptHighlight));
+        OnPropertyChanged(nameof(ReviewPromptSuffix));
+        OnPropertyChanged(nameof(HasReviewPromptHighlight));
+        OnPropertyChanged(nameof(ReviewFallbackTargetWord));
         OnPropertyChanged(nameof(ReviewEffectiveExpression));
         OnPropertyChanged(nameof(ReviewEffectiveDefinition));
         OnPropertyChanged(nameof(ReviewEffectiveTranslation));

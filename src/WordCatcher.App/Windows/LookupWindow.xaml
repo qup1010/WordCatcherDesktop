@@ -191,6 +191,17 @@
                             </TextBlock.Style>
                         </TextBlock>
                     </ScrollViewer>
+                    <ui:Button x:Name="MinimalRetryButton"
+                               Content="重试"
+                               Command="{Binding RetryCommand}"
+                               Style="{StaticResource QuietActionButton}"
+                               HorizontalAlignment="Left"
+                               Padding="6,2"
+                               MinHeight="24"
+                               Margin="0,6,0,0"
+                               FontSize="12"
+                               Foreground="{DynamicResource AccentBrush}"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}" />
                     <TextBlock Text="{Binding ActionStatusText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" Visibility="{Binding ActionStatusText, Converter={StaticResource StringToVis}}" />
                     <TextBlock Text="{Binding SavedStatusText}" FontSize="11" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" Visibility="{Binding SavedStatusText, Converter={StaticResource StringToVis}}" />
                 </StackPanel>

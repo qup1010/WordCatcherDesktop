@@ -480,4 +480,43 @@ public class LibraryViewModelTests
         Assert.Equal(1, vm.ReviewTotal);
         Assert.Equal("w0", vm.CurrentReviewWord?.Id);
     }
+
+    [Fact]
+    public async Task ReviewExposesHighlightedSentencePartsAndFallbackTargetWord()
+    {
+        var (vm, repo) = Create();
+        var wordWithContext = new Word { Id = "w1", DisplayWord = "semantic", NormalizedWord = "semantic", Definition = "adj. 语义的" };
+        var wordWithoutHit = new Word { Id = "w2", DisplayWord = "resilient", NormalizedWord = "resilient", Definition = "adj. 有韧性的" };
+        var wordOnly = new Word { Id = "w3", DisplayWord = "leverage", NormalizedWord = "leverage", Definition = "n. 杠杆作用" };
+        repo.ReadWords = (_, _, _) => Task.FromResult<IReadOnlyList<Word>>([wordWithContext, wordWithoutHit, wordOnly]);
+        repo.ReadOccurrences = id => id switch
+        {
+            "w1" => Task.FromResult<IReadOnlyList<Occurrence>>([new Occurrence { Id = "o1", WordId = "w1", SelectedText = "semantic", Sentence = "Semantic aspect (mAP@10)" }]),
+            "w2" => Task.FromResult<IReadOnlyList<Occurrence>>([new Occurrence { Id = "o2", WordId = "w2", SelectedText = "resilient", Sentence = "The team recovered quickly." }]),
+            _ => Task.FromResult<IReadOnlyList<Occurrence>>([])
+        };
+
+        await vm.InitializeAsync();
+        await vm.StartReviewCommand.ExecuteAsync(null);
+
+        Assert.True(vm.HasReviewPromptHighlight);
+        Assert.Equal(string.Empty, vm.ReviewPromptPrefix);
+        Assert.Equal("Semantic", vm.ReviewPromptHighlight);
+        Assert.Equal(" aspect (mAP@10)", vm.ReviewPromptSuffix);
+        Assert.Equal(string.Empty, vm.ReviewFallbackTargetWord);
+
+        vm.NextReviewCardCommand.Execute(null);
+        Assert.False(vm.HasReviewPromptHighlight);
+        Assert.Equal("The team recovered quickly.", vm.ReviewPromptPrefix);
+        Assert.Equal(string.Empty, vm.ReviewPromptHighlight);
+        Assert.Equal(string.Empty, vm.ReviewPromptSuffix);
+        Assert.Equal("resilient", vm.ReviewFallbackTargetWord);
+
+        vm.NextReviewCardCommand.Execute(null);
+        Assert.True(vm.HasReviewPromptHighlight);
+        Assert.Equal(string.Empty, vm.ReviewPromptPrefix);
+        Assert.Equal("leverage", vm.ReviewPromptHighlight);
+        Assert.Equal(string.Empty, vm.ReviewPromptSuffix);
+        Assert.Equal(string.Empty, vm.ReviewFallbackTargetWord);
+    }
 }

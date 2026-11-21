@@ -343,7 +343,7 @@ public sealed class MouseSelectionMonitor : IDisposable
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    private static string NormalizeProcessName(string? name)
+    internal static string NormalizeProcessName(string? name)
     {
         var trimmed = name?.Trim() ?? "";
         return trimmed.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? trimmed[..^4].TrimEnd() : trimmed;
