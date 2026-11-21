@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word Catcher · 轻形态浮窗与截屏 OCR</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: #162422;
+    background: #eff4f2;
+  }
+  .canvas {
+    width: 1440px;
+    height: 700px;
+    padding: 30px 36px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    background:
+      radial-gradient(780px 460px at 15% 15%, #f8fbfa 0%, rgba(248, 251, 250, 0) 70%),
+      #eef3f1;
+  }
+  .panel {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(18, 45, 42, 0.08);
+    border-radius: 16px;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 32px rgba(14, 42, 38, 0.05);
+  }
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 650;
+    color: #152422;
+  }
+  .panel-head span {
+    font-size: 13px;
+    color: #5b706c;
+  }
+  .pill-stage {
+    background: #ffffff;
+    border: 1px solid #e1e8e5;
+    border-radius: 10px;
+    padding: 15px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .sample-line {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 15.5px;
+    color: #2c3c39;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sel {
+    background: #d5eee9;
+    color: #0b5d56;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .pill-img {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .stage-note {
+    font-size: 12px;
+    color: #5d726e;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e6f3f0;
+    color: #0f766e;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .minimal-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 16px 12px;
+    border-radius: 12px;
+    background: rgba(246, 249, 248, 0.9);
+    border: 1px solid #e2eae7;
+    margin-bottom: 18px;
+  }
+  .minimal-box .stage-note {
+    align-self: flex-start;
+  }
+  .minimal-box img {
+    width: 266px;
+    height: auto;
+    display: block;
+  }
+  .mini-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 16px 10px;
+    border-radius: 12px;
+    background: rgba(246, 249, 248, 0.9);
+    border: 1px solid #e2eae7;
+    flex: 1;
+    justify-content: center;
+  }
+  .mini-box .stage-note {
+    align-self: flex-start;
+  }
+  .mini-box img {
+    width: 352px;
+    height: auto;
+    display: block;
+  }
+  .ocr-snip {
+    position: relative;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #1f2827 0%, #2a3432 100%);
+    color: #cbd5d3;
+    overflow: hidden;
+  }
+  .ocr-label {
+    font-size: 11.5px;
+    color: #93aba6;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ocr-crop {
+    border: 1.5px dashed #2dd4bf;
+    background: rgba(45, 212, 191, 0.08);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #f3f7f6;
+    letter-spacing: 0.1px;
+  }
+  .ocr-card {
+    display: flex;
+    justify-content: center;
+    margin-top: auto;
+  }
+  .ocr-card img {
+    width: 358px;
+    height: auto;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<main class="canvas" aria-label="轻形态浮窗与截屏 OCR 功能展示">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>划词取词与轻形态浮窗</h2>
+      <span>点击或悬停浮标即译，按 Tab 展开完整卡片</span>
+    </div>
+
+    <div class="pill-stage">
+      <div class="sample-line">
+        <span>...offers a broader</span>
+        <mark class="sel">perspective</mark>
+        <span>on systems...</span>
+      </div>
+      <img class="pill-img" src="raw/pill.png" alt="W 划词浮标">
+    </div>
+
+    <div class="minimal-box">
+      <div class="stage-note"><span class="badge">极简译文</span><span>仅显示翻译，右键快速关闭</span></div>
+      <img src="raw/lookup-minimal.png" alt="极简译文浮窗">
+    </div>
+
+    <div class="mini-box">
+      <div class="stage-note"><span class="badge">迷你卡片</span><span>保留核心词性释义，支持直接收藏与朗读</span></div>
+      <img src="raw/lookup-mini.png" alt="迷你卡片浮窗">
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>截屏 OCR 与句中点选查词</h2>
+      <span>框选图片、扫描 PDF 或视频字幕直接识别</span>
+    </div>
+
+    <div class="ocr-snip">
+      <div class="ocr-label">
+        <span>框选屏幕区域识别文字</span>
+        <span>Ctrl+Shift+O</span>
+      </div>
+      <div class="ocr-crop">Adaptive context retrieval improves precision.</div>
+    </div>
+
+    <div class="ocr-card">
+      <img src="raw/lookup-ocr.png" alt="截屏 OCR 句中选词浮窗">
+    </div>
+  </section>
+</main>
+<script>
+  Promise.all(Array.from(document.images).map(i => i.decode()))
+    .then(() => document.fonts.ready)
+    .then(() => { document.body.dataset.showcaseReady = 'true'; });
+</script>
+</body>
+</html>
