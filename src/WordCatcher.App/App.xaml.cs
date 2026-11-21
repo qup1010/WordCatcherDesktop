@@ -122,13 +122,20 @@ public partial class App : System.Windows.Application
             _hotkeyManager.OcrHotkeyTriggered += OnOcrCaptureTriggered;
 
             _trayManager = _serviceProvider.GetRequiredService<TrayIconManager>();
+            _trayManager.ToggleLibraryRequested += OnToggleLibraryRequested;
             _trayManager.OpenLibraryRequested += OnOpenLibraryRequested;
+            _trayManager.OpenLookupRequested += OnOpenLookupRequested;
             _trayManager.OpenSettingsRequested += OnOpenSettingsRequested;
             _trayManager.CaptureNowRequested += () => OnHotkeyTriggered();
-            _trayManager.OcrCaptureRequested += OnOcrCaptureTriggered;
+            _trayManager.OcrCaptureRequested += OnTrayOcrCaptureTriggered;
+            _trayManager.MouseSelectionToggled += OnTrayMouseSelectionToggled;
 
             _selectionPillWindow = new SelectionPillWindow();
             _selectionPillWindow.PillClicked += capture => _ = ShowCapturedLookupAsync(capture);
+            _selectionPillWindow.PillHovered += capture => _ = ShowCapturedLookupAsync(capture, forceMini: true);
+            _selectionPillWindow.QuickSaveRequested += capture => _ = QuickSaveFromPillAsync(capture);
+            _selectionPillWindow.CopyTranslationRequested += capture => _ = CopyTranslationFromPillAsync(capture);
+            _selectionPillWindow.PillVisibilityChanged += UpdateMouseSelectionHook;
             _mouseSelectionMonitor = new MouseSelectionMonitor(settingsService,
                 pt => _selectionPillWindow?.ContainsPhysicalPoint(pt) ?? false);
             _mouseSelectionMonitor.SelectionDetected += capture =>
@@ -136,18 +143,26 @@ public partial class App : System.Windows.Application
                 if (_hotkeyManager is { IsEnabled: false }) return;
                 Dispatcher?.InvokeAsync(async () =>
                 {
-                    if (ShouldAutoTranslateSelection(settingsService.Current.MouseSelection?.TriggerMode, capture.SelectedText))
+                    var mouseSettings = settingsService.Current.MouseSelection;
+                    if (ShouldAutoTranslateSelection(mouseSettings?.TriggerMode, capture.SelectedText))
                     {
                         _selectionPillWindow?.HidePill();
                         await ShowCapturedLookupAsync(capture);
                     }
                     else
                     {
-                        _selectionPillWindow?.ShowForCapture(capture);
+                        _selectionPillWindow?.ShowForCapture(
+                            capture,
+                            mouseSettings?.HoverToShowMini ?? false);
                     }
                 });
             };
             _mouseSelectionMonitor.DismissRequested += OnMouseDismissRequested;
+            _mouseSelectionMonitor.KeyboardDismissRequested += () =>
+            {
+                if (_selectionPillWindow is { IsPillVisible: true } pill)
+                    Dispatcher?.InvokeAsync(pill.HidePill);
+            };
             settingsService.SettingsChanged += OnMouseSelectionSettingsChanged;
             UpdateMouseSelectionHook();
 
@@ -257,12 +272,19 @@ public partial class App : System.Windows.Application
 
     private bool _isOcrCapturing;
 
-    private async void OnOcrCaptureTriggered()
+    private void OnOcrCaptureTriggered() => _ = TriggerOcrCaptureAsync(delayMs: 0);
+
+    private void OnTrayOcrCaptureTriggered() => _ = TriggerOcrCaptureAsync(delayMs: 180);
+
+    private async Task TriggerOcrCaptureAsync(int delayMs)
     {
         if (_isOcrCapturing) return;
         _isOcrCapturing = true;
         try
         {
+            if (delayMs > 0)
+                await Task.Delay(delayMs).ConfigureAwait(true);
+
             _logger?.LogInformation("Screen OCR capture triggered");
             var snip = await ScreenSnipWindow.CaptureRegionAsync().ConfigureAwait(true);
             if (snip == null || snip.PngBytes.Length == 0)
@@ -329,7 +351,7 @@ public partial class App : System.Windows.Application
 
     private void OnMouseDismissRequested(ScreenPoint point, bool isMouseDown)
     {
-        if (_selectionPillWindow is { IsPillVisible: true } pill &&
+        if (_selectionPillWindow is { IsPillVisible: true } pill && !pill.IsContextMenuOpen &&
             (!isMouseDown || !pill.ContainsPhysicalPoint(point)))
         {
             Dispatcher.InvokeAsync(pill.HidePill);
@@ -354,7 +376,9 @@ public partial class App : System.Windows.Application
     {
         try
         {
-            _mouseSelectionMonitor?.UpdateHook(_activeLookupWindow is { IsVisible: true, IsPinned: false });
+            _mouseSelectionMonitor?.UpdateHook(
+                _activeLookupWindow is { IsVisible: true, IsPinned: false },
+                _selectionPillWindow is { IsPillVisible: true });
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
@@ -362,7 +386,90 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private async Task ShowCapturedLookupAsync(CaptureResult capture)
+    private async Task QuickSaveFromPillAsync(CaptureResult capture)
+    {
+        if (_serviceProvider == null) return;
+        try
+        {
+            var lookupService = _serviceProvider.GetRequiredService<ILookupService>();
+            var wordRepository = _serviceProvider.GetRequiredService<IWordRepository>();
+            var events = _serviceProvider.GetRequiredService<WordCollectionEvents>();
+            var syncQueue = _serviceProvider.GetRequiredService<IAnkiSyncQueue>();
+
+            var result = await lookupService.LookupAsync(capture, forceAi: false, CancellationToken.None).ConfigureAwait(true);
+            var cmd = new SaveCardCommand(
+                capture,
+                result,
+                new LearningEdits(result.Definition, result.ContextTranslation, string.Empty));
+            var (_, _, syncJob) = await wordRepository.SaveAsync(cmd).ConfigureAwait(true);
+            events.NotifyWordSaved();
+            syncQueue.Enqueue(syncJob.Id);
+            _trayManager?.ShowNotification("已存入生词库", $"{result.Word}：{result.Definition}");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Quick save from selection pill failed");
+            _trayManager?.ShowNotification("直接收藏失败", ex.Message, System.Windows.Forms.ToolTipIcon.Warning);
+        }
+    }
+
+    private async Task CopyTranslationFromPillAsync(CaptureResult capture)
+    {
+        if (_serviceProvider == null) return;
+        try
+        {
+            var lookupService = _serviceProvider.GetRequiredService<ILookupService>();
+            var result = await lookupService.LookupAsync(capture, forceAi: false, CancellationToken.None).ConfigureAwait(true);
+            var text = string.IsNullOrWhiteSpace(result.Definition) ? result.ContextTranslation : result.Definition;
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                System.Windows.Clipboard.SetText(text);
+                _trayManager?.ShowNotification("已复制译文", text);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Copy translation from selection pill failed");
+            _trayManager?.ShowNotification("复制译文失败", ex.Message, System.Windows.Forms.ToolTipIcon.Warning);
+        }
+    }
+
+    private async Task SavePinnedPositionAsync(ScreenPoint origin)
+    {
+        var settingsService = _serviceProvider?.GetService<ISettingsService>();
+        if (settingsService == null) return;
+        try
+        {
+            var current = settingsService.Current;
+            if (current.Ui.PinnedPopupX == origin.X && current.Ui.PinnedPopupY == origin.Y)
+                return;
+            await settingsService.UpdateSettingsAsync(s =>
+            {
+                s.Ui.PinnedPopupX = origin.X;
+                s.Ui.PinnedPopupY = origin.Y;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to persist pinned popup position");
+        }
+    }
+
+    internal static async Task WaitForInitialLookupAsync(Task lookupTask, int delayMs)
+    {
+        if (delayMs <= 0 || lookupTask.IsCompleted)
+            return;
+
+        using var delayCts = new CancellationTokenSource();
+        var delayTask = Task.Delay(delayMs, delayCts.Token);
+        var completed = await Task.WhenAny(lookupTask, delayTask).ConfigureAwait(true);
+        if (ReferenceEquals(completed, lookupTask))
+            delayCts.Cancel();
+    }
+
+    private Task ShowCapturedLookupAsync(CaptureResult capture) => ShowCapturedLookupAsync(capture, forceMini: false);
+
+    private async Task ShowCapturedLookupAsync(CaptureResult capture, bool forceMini)
     {
         _logger?.LogInformation("Hotkey captured selected text ({Length} characters) from {ProcessName}",
             capture.SelectedText.Length, capture.SourceProcess);
@@ -381,9 +488,21 @@ public partial class App : System.Windows.Application
             _activeLookupWindow = null;
         }
 
+        var settingsService = _serviceProvider!.GetRequiredService<ISettingsService>();
+        var uiSettings = settingsService.Current.Ui;
         var vm = _serviceProvider!.GetRequiredService<LookupViewModel>();
+        var defaultMode = UiSettings.NormalizePopupMode(uiSettings.PopupDefaultMode);
+        vm.PopupMode = forceMini
+            ? (defaultMode == UiSettings.PopupModeMinimal ? UiSettings.PopupModeMinimal : UiSettings.PopupModeMini)
+            : defaultMode;
         var lookupWindow = new LookupWindow(vm);
+        if (uiSettings.PinnedPopupX is { } px && uiSettings.PinnedPopupY is { } py)
+        {
+            lookupWindow.RememberedPinnedOrigin = new ScreenPoint(px, py);
+        }
+        lookupWindow.PinnedPositionChanged += origin => _ = SavePinnedPositionAsync(origin);
         _activeLookupWindow = lookupWindow;
+        var windowClosed = false;
         vm.OpenInMainHandoffRequested += handoff =>
         {
             if (!lookupWindow.IsPinned)
@@ -396,12 +515,22 @@ public partial class App : System.Windows.Application
         };
         lookupWindow.Closed += (_, _) =>
         {
+            windowClosed = true;
             if (ReferenceEquals(_activeLookupWindow, lookupWindow))
                 _activeLookupWindow = null;
             UpdateMouseSelectionHook();
         };
         lookupWindow.IsVisibleChanged += (_, _) => UpdateMouseSelectionHook();
         lookupWindow.PinnedChanged += (_, _) => UpdateMouseSelectionHook();
+
+        // Buffer initial fast lookups (offline dictionary) before revealing the popup
+        // to eliminate loading flashes and content-driven width jumps.
+        var lookupTask = lookupWindow.StartLookupAsync(capture);
+        var initialBufferMs = vm.IsMinimalMode ? 150 : 120;
+        await WaitForInitialLookupAsync(lookupTask, initialBufferMs).ConfigureAwait(true);
+
+        if (windowClosed || !ReferenceEquals(_activeLookupWindow, lookupWindow))
+            return;
 
         // Create/show the HWND without exposing its default location, then
         // position it in physical pixels using the cursor monitor's DPI.
@@ -415,7 +544,12 @@ public partial class App : System.Windows.Application
         _logger?.LogInformation("Lookup popup shown for hotkey capture");
         lookupWindow.Activate();
 
-        await lookupWindow.StartLookupAsync(capture).ConfigureAwait(true);
+        await lookupTask.ConfigureAwait(true);
+    }
+
+    private void OnToggleLibraryRequested()
+    {
+        _libraryWindow?.ToggleVisibility();
     }
 
     private void OnOpenLibraryRequested()
@@ -423,9 +557,32 @@ public partial class App : System.Windows.Application
         _libraryWindow?.ShowLibrary();
     }
 
+    private void OnOpenLookupRequested()
+    {
+        _libraryWindow?.ShowLookup();
+    }
+
     private void OnOpenSettingsRequested()
     {
         _libraryWindow?.ShowSettings();
+    }
+
+    private void OnTrayMouseSelectionToggled(bool enabled) => _ = ToggleMouseSelectionFromTrayAsync(enabled);
+
+    private async Task ToggleMouseSelectionFromTrayAsync(bool enabled)
+    {
+        if (_serviceProvider == null) return;
+        try
+        {
+            var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+            await settingsService.UpdateSettingsAsync(s => s.MouseSelection.Enabled = enabled).ConfigureAwait(true);
+            if (_serviceProvider.GetService<SettingsViewModel>() is { HasUnsavedChanges: false } settingsVm)
+                await settingsVm.InitializeAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to toggle mouse selection from tray");
+        }
     }
 
     private void InstallDownloadedUpdate()

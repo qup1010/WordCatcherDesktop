@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using WordCatcher.App.Services;
 using WordCatcher.Core.Interfaces;
+using WordCatcher.Core.Models;
 
 namespace WordCatcher.App.Tray;
 
@@ -11,86 +12,129 @@ public sealed class TrayIconManager : IDisposable
     private readonly NotifyIcon _notifyIcon;
     private readonly Icon _applicationIcon;
     private readonly HotkeyManager _hotkeyManager;
-    private readonly IAnkiSyncQueue _syncQueue;
     private readonly ISettingsService? _settingsService;
     private Action? _notificationAction;
+    private TrayContextMenuWindow? _activeMenuWindow;
+    private bool _disposed;
 
+    public event Action? ToggleLibraryRequested;
     public event Action? OpenLibraryRequested;
+    public event Action? OpenLookupRequested;
     public event Action? OpenSettingsRequested;
+#pragma warning disable CS0067 // Retained for backwards compatibility with existing subscribers
     public event Action? CaptureNowRequested;
+#pragma warning restore CS0067
     public event Action? OcrCaptureRequested;
+    public event Action<bool>? MouseSelectionToggled;
 
     public TrayIconManager(
         HotkeyManager hotkeyManager,
-        IAnkiSyncQueue syncQueue,
         ISettingsService? settingsService = null)
     {
         _hotkeyManager = hotkeyManager;
-        _syncQueue = syncQueue;
         _settingsService = settingsService;
         _applicationIcon = LoadApplicationIcon();
 
         _notifyIcon = new NotifyIcon
         {
-            Text = "Word Catcher",
+            Text = BuildTooltipText(_hotkeyManager.IsEnabled),
             Icon = _applicationIcon,
             Visible = true
         };
 
-        _notifyIcon.DoubleClick += (s, e) => OpenLibraryRequested?.Invoke();
+        _notifyIcon.MouseClick += OnNotifyIconMouseClick;
         _notifyIcon.BalloonTipClicked += (_, _) =>
         {
             var action = _notificationAction;
             _notificationAction = null;
             action?.Invoke();
         };
+    }
 
-        var menu = new ContextMenuStrip();
+    internal static string BuildTooltipText(bool hotkeysEnabled) =>
+        hotkeysEnabled ? "Word Catcher" : "Word Catcher（快捷键已暂停）";
 
-        var openLibItem = new ToolStripMenuItem("打开生词库 (&L)");
-        openLibItem.Click += (s, e) => OpenLibraryRequested?.Invoke();
-        menu.Items.Add(openLibItem);
-
-        var captureNowItem = new ToolStripMenuItem("立即取词 (&C)");
-        captureNowItem.Click += (s, e) => CaptureNowRequested?.Invoke();
-        menu.Items.Add(captureNowItem);
-
-        var ocrCaptureItem = new ToolStripMenuItem("截屏 OCR 取词 (&O)");
-        ocrCaptureItem.Click += (s, e) => OcrCaptureRequested?.Invoke();
-        menu.Items.Add(ocrCaptureItem);
-
-        var retrySyncItem = new ToolStripMenuItem("重试 Anki 待同步任务 (&R)");
-        retrySyncItem.Click += (s, e) => _syncQueue.TriggerSync();
-        menu.Items.Add(retrySyncItem);
-        menu.Opening += (_, _) => retrySyncItem.Visible = _settingsService?.Current.Anki.Enabled ?? true;
-
-        var toggleHotKeyItem = new ToolStripMenuItem("启用全局快捷键");
-        toggleHotKeyItem.Checked = _hotkeyManager.IsEnabled;
-        toggleHotKeyItem.Click += (s, e) =>
+    public void RefreshTooltip()
+    {
+        if (_disposed) return;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
         {
-            var newState = !_hotkeyManager.IsEnabled;
-            _hotkeyManager.SetEnabled(newState);
-            toggleHotKeyItem.Checked = newState;
-        };
-        menu.Items.Add(toggleHotKeyItem);
+            _ = dispatcher.InvokeAsync(RefreshTooltip);
+            return;
+        }
+        if (_disposed) return;
+        _notifyIcon.Text = BuildTooltipText(_hotkeyManager.IsEnabled);
+    }
 
-        menu.Items.Add(new ToolStripSeparator());
-
-        var settingsItem = new ToolStripMenuItem("设置 (&S)");
-        settingsItem.Click += (s, e) => OpenSettingsRequested?.Invoke();
-        menu.Items.Add(settingsItem);
-
-        menu.Items.Add(new ToolStripSeparator());
-
-        var exitItem = new ToolStripMenuItem("退出 (&X)");
-        exitItem.Click += (s, e) =>
+    private void OnNotifyIconMouseClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
         {
-            _notifyIcon.Visible = false;
-            System.Windows.Application.Current.Shutdown();
-        };
-        menu.Items.Add(exitItem);
+            (ToggleLibraryRequested ?? OpenLibraryRequested)?.Invoke();
+        }
+        else if (e.Button == MouseButtons.Middle)
+        {
+            OcrCaptureRequested?.Invoke();
+        }
+        else if (e.Button == MouseButtons.Right)
+        {
+            ShowContextMenu();
+        }
+    }
 
-        _notifyIcon.ContextMenuStrip = menu;
+    private void ShowContextMenu()
+    {
+        if (_disposed) return;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            _ = dispatcher.InvokeAsync(ShowContextMenu);
+            return;
+        }
+
+        _activeMenuWindow?.SafeClose();
+
+        var settings = _settingsService?.Current;
+        var mouseEnabled = settings?.MouseSelection.Enabled ?? true;
+        var hotkeyText = !string.IsNullOrWhiteSpace(settings?.Hotkey) ? settings.Hotkey : AppSettings.DefaultHotkey;
+        var ocrHotkeyText = !string.IsNullOrWhiteSpace(settings?.OcrHotkey) ? settings.OcrHotkey : AppSettings.DefaultOcrHotkey;
+
+        var snapshot = new TrayMenuSnapshot(
+            mouseEnabled,
+            _hotkeyManager.IsEnabled,
+            hotkeyText,
+            ocrHotkeyText);
+
+        var actions = new TrayMenuActions(
+            OpenLibrary: () => OpenLibraryRequested?.Invoke(),
+            OpenLookup: () => OpenLookupRequested?.Invoke(),
+            TriggerOcrCapture: () => OcrCaptureRequested?.Invoke(),
+            ToggleMouseSelection: () =>
+            {
+                var current = _settingsService?.Current.MouseSelection.Enabled ?? true;
+                MouseSelectionToggled?.Invoke(!current);
+            },
+            ToggleHotkeys: () =>
+            {
+                _hotkeyManager.SetEnabled(!_hotkeyManager.IsEnabled);
+                RefreshTooltip();
+            },
+            OpenSettings: () => OpenSettingsRequested?.Invoke(),
+            ExitApp: () =>
+            {
+                _notifyIcon.Visible = false;
+                System.Windows.Application.Current?.Shutdown();
+            });
+
+        var menuWindow = new TrayContextMenuWindow(snapshot, actions);
+        _activeMenuWindow = menuWindow;
+        menuWindow.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_activeMenuWindow, menuWindow))
+                _activeMenuWindow = null;
+        };
+        menuWindow.ShowAtCursor();
     }
 
     public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, Action? onClick = null)
@@ -101,8 +145,12 @@ public sealed class TrayIconManager : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+        _activeMenuWindow?.SafeClose();
+        _activeMenuWindow = null;
+        _notifyIcon.MouseClick -= OnNotifyIconMouseClick;
         _notifyIcon.Visible = false;
-        _notifyIcon.ContextMenuStrip?.Dispose();
         _notifyIcon.Dispose();
         _applicationIcon.Dispose();
     }
